@@ -183,11 +183,28 @@ export default function RawTable({ reportId, name, everRead, bleed = true,
 
   return (
     <div className={bleed ? 'rawpane rawpane--bleed' : 'rawpane'}>
+      {/* Opened wide, the table covers the page it came from -- so it has to say
+          what it is. In place it does not, because the section heading above it
+          already did. */}
+      {expanded && (
+        <div className="rpop__h">
+          <span className="rpop__t">
+            <b>{name}</b>
+            <span>The rows behind it</span>
+          </span>
+          <button className="rpop__x" type="button" aria-label="Close" onClick={onExpand}>
+            &times;
+          </button>
+        </div>
+      )}
       <div className="rawbar">
         <span className="rawbar__l">
+          {/* What Hopper HOLDS. What a filter is showing is the bar below;
+              two counts in two places had better not be counting the same
+              thing differently. */}
           {data.truncated
-            ? <>The most recent <b>{order.length.toLocaleString()}</b> rows of <b>{data.row_count.toLocaleString()}</b></>
-            : <><b>{order.length.toLocaleString()}</b> row{order.length === 1 ? '' : 's'}</>}
+            ? <>The most recent <b>{all.length.toLocaleString()}</b> rows of <b>{data.row_count.toLocaleString()}</b></>
+            : <><b>{all.length.toLocaleString()}</b> row{all.length === 1 ? '' : 's'}</>}
           {data.fetched_at ? `, read ${ago(data.fetched_at)}.` : '.'}
         </span>
         <div className="seg">

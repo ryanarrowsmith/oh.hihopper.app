@@ -2926,3 +2926,9 @@ a.crow:hover svg{stroke:var(--steel-ink)}
   .rlist--cols:has(.rpen) .rrec__face{grid-template-columns:var(--cols) 32px}
   .rlist--cols:has(.rpen) .rhead{grid-template-columns:var(--cols) 32px}
 }
+
+/* Opened wide, the table gets the popover's own header so it still says which
+   report it belongs to; in place it does not, because the section heading above
+   it already did. */
+.rpop--rows .rpop__h{flex:none}
+.rpop--rows .rawbar{border-top:0}
