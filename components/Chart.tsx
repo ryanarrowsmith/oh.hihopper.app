@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 /**
  * One chart kit, drawn once and used everywhere.
@@ -82,16 +82,34 @@ function spreadOf(series: Series[]) {
 function useWidth() {
   const ref = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(820)
-  useEffect(() => {
+
+  /**
+   * Measured synchronously, before the browser paints.
+   *
+   * A ResizeObserver alone was not enough and the reason is worth keeping: its
+   * callbacks are delivered on an animation frame, and a tab that is not
+   * painting -- backgrounded, or being driven by a test -- never gets one. The
+   * chart sat at its 820 default and was then scaled into whatever box it
+   * landed in, which is the stretching this was supposed to end.
+   *
+   * useLayoutEffect reads the box directly, so the first paint is already
+   * right. The observer stays for everything after: a window resize, the rail
+   * appearing at 1000px, a drawer opening next to it.
+   */
+  useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
-    const ro = new ResizeObserver(([e]) => {
-      const next = Math.round(e.contentRect.width)
-      if (next > 0) setW(next)
-    })
+    const read = () => {
+      const next = Math.round(el.getBoundingClientRect().width)
+      if (next > 0) setW((prev) => (Math.abs(prev - next) > 1 ? next : prev))
+    }
+    read()
+    const ro = new ResizeObserver(read)
     ro.observe(el)
-    return () => ro.disconnect()
+    window.addEventListener('resize', read)
+    return () => { ro.disconnect(); window.removeEventListener('resize', read) }
   }, [])
+
   return { ref, w }
 }
 
@@ -187,7 +205,7 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0 }: {
 
   return (
     <div className="chartbox" ref={ref} style={{ height: h }}>
-    <svg className="chart" viewBox={`0 0 ${w} ${h}`} width={w} height={h}
+    <svg className="chart" viewBox={`0 0 ${w} ${h}`}
          role="img" aria-label={series.map((s) => s.measure).join(', ')}>
       {!bare && ticks.map((t, i) => (
         <g key={i}>

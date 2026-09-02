@@ -2818,7 +2818,7 @@ a.crow:hover svg{stroke:var(--steel-ink)}
    once there is width for one, because the space beside a chart is the only
    space actually going spare on a wide screen. Below that they go back under
    it in a row, which is the only thing that fits on a phone. */
-.shape{max-width:1240px; margin:0 auto}
+.shape{width:100%; max-width:1240px; margin:0 auto}
 .shape__c{min-width:0}
 .shape__f{display:flex; flex-wrap:wrap; gap:22px; margin-top:14px; padding-top:14px;
   border-top:1px solid var(--rule-soft)}
@@ -2831,7 +2831,13 @@ a.crow:hover svg{stroke:var(--steel-ink)}
   .shape__f .fig:last-child{border-bottom:0}
 }
 
-/* The measured box the plot draws into. It has a fixed height and the SVG is
-   sized in real pixels inside it, so nothing is stretched to fit. */
-.chartbox{width:100%; overflow:hidden}
-.chartbox .chart{display:block; width:auto; max-width:none}
+/* The measured box the plot draws into.
+   The SVG is taken OUT of flow so it contributes no intrinsic width. Left in
+   flow it propped the box open at its own width, the box was then measured at
+   that width, and the two agreed with each other forever at whatever the
+   default happened to be -- a chart that could never be any size but one.
+   Out of flow, the box is sized by the layout, the viewBox is set to match, and
+   one unit is one pixel. */
+.chartbox{position:relative; width:100%; min-width:0; overflow:hidden}
+.chartbox .chart{position:absolute; left:0; top:0; width:100%; height:100%}
+.charts, .charts__one{min-width:0}
