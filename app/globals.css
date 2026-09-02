@@ -648,6 +648,12 @@ h1 .hl{background-size:100% .92em; background-position:0 .2em}
 @media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important} }
 
 /* ============ additions the built app needs ============ */
+/* The desk's two columns must start at the same height. The first section
+   carries the same top margin as every other one, but the rail beside it
+   carries none -- which left the left column hanging 40px lower than the
+   right for no reason anybody could name. */
+.desk .sec:first-child{margin-top:0}
+
 .stack{display:flex; flex-direction:column; gap:14px}
 .muted{color:var(--ink-3)}
 .tbl{width:100%; border-collapse:collapse; background:var(--surface);
