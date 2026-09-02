@@ -2932,3 +2932,20 @@ a.crow:hover svg{stroke:var(--steel-ink)}
    it already did. */
 .rpop--rows .rpop__h{flex:none}
 .rpop--rows .rawbar{border-top:0}
+
+/* ---- a popover wears the app's own bar ----
+   A popover is a small window sitting on top of the page, and Hopper already
+   has a shape for "the top of a window": the ink bar the app itself opens with.
+   Wearing it here makes the popover read as its own thing rather than as a card
+   that happens to be floating, and it gives the stack a descent -- ink, then
+   the sunken tab strip, then the white body.
+
+   --topbar and --topbar-ink are fixed in both themes, the same way the Steel
+   footer is. A header token that flipped would put a pale band across the top
+   of a dark popover. */
+.rpop__h{background:var(--topbar); border-bottom-color:var(--topbar-rule)}
+.rpop__t b{color:var(--topbar-ink)}
+.rpop__t span{color:rgba(251,249,245,.60)}
+.rpop__x{color:rgba(251,249,245,.62); font-size:24px; padding:0 6px;
+  border-radius:var(--r); transition:color .15s, background .15s}
+.rpop__x:hover{color:var(--topbar-ink); background:rgba(251,249,245,.10)}
