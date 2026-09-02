@@ -1,5 +1,6 @@
 import { supabaseServer } from '@/lib/supabase/server'
 import { EditableSection, RowForm } from '@/components/RowEdit'
+import Choice from '@/components/Choice'
 import { Caret, Level } from '@/components/Icons'
 import { createEntity } from '@/app/actions/admin'
 
@@ -70,10 +71,8 @@ export default async function Organizations() {
       <EditableSection
         title="The portfolio"
         blurb={`${all.length} organizations, ${roots.length} at the top.`}
-        addLabel="Add an organization"
+        addLabel="Adding an organization"
         addForm={
-          <>
-            <div className="rrec__lab">Adding an organization</div>
             <RowForm action={createEntity} label="Add it" busy="Adding…">
               <div className="formrow">
                 <div><label htmlFor="e-name">Name</label>
@@ -86,19 +85,16 @@ export default async function Organizations() {
                 <div><label htmlFor="e-mark">Mark</label>
                   <input className="field" id="e-mark" name="mark" maxLength={4} placeholder="LU" /></div>
                 <div><label htmlFor="e-parent">Sits under</label>
-                  <select className="field" id="e-parent" name="parent_id" defaultValue="">
-                    <option value="">Nothing — it&rsquo;s a top-level organization</option>
-                    {all.map((e: any) => <option key={e.id} value={e.id}>{e.name}</option>)}
-                  </select></div>
+                  <Choice id="e-parent" name="parent_id" placeholder="Nothing — top level"
+                          options={[{ value: '', label: 'Nothing — it\u2019s a top-level organization' },
+                                    ...all.map((e: any) => ({ value: e.id, label: e.name }))]} /></div>
                 <div><label htmlFor="e-status">Status</label>
-                  <select className="field" id="e-status" name="status" defaultValue="setup">
-                    <option value="setup">Setting up</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select></div>
+                  <Choice id="e-status" name="status" defaultValue="setup"
+                          options={[{ value: 'setup', label: 'Setting up' },
+                                    { value: 'active', label: 'Active' },
+                                    { value: 'inactive', label: 'Inactive' }]} /></div>
               </div>
             </RowForm>
-          </>
         }
       >
         {all.length === 0 ? (

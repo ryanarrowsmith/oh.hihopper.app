@@ -5,7 +5,8 @@ import Avatar from '@/components/Avatar'
 import OrgLogo from '@/components/OrgLogo'
 import ModuleToggle from '@/components/ModuleToggle'
 import FavoriteButton from '@/components/CardActions'
-import { EditableSection, RecordRow, RowForm, RowDanger } from '@/components/RowEdit'
+import { EditableSection, RecordRow, RowForm, RowDanger, Toggle } from '@/components/RowEdit'
+import Choice from '@/components/Choice'
 import { MODULES } from '@/lib/access'
 import {
   updateEntity, createDepartment, updateDepartment, deleteDepartment,
@@ -46,16 +47,15 @@ export default async function Entity({ params }: { params: { id: string } }) {
   const adminIds = new Set((grants ?? []).filter((g: any) => g.may_edit).map((g: any) => g.person_id))
   const admins = roster.filter((p: any) => adminIds.has(p.id))
 
-  const leaderOptions = () => (
-    <>
-      <option value="">Nobody yet</option>
-      {roster.map((p: any) => (
-        <option key={p.id} value={p.id}>
-          {p.full_name}{p.role_title ? ` — ${p.role_title}` : ''}
-        </option>
-      ))}
-    </>
-  )
+  const leaderOptions = [
+    { value: '', label: 'Nobody yet' },
+    ...roster.map((p: any) => ({ value: p.id, label: p.full_name, hint: p.role_title ?? undefined })),
+  ]
+  const statusOptions = [
+    { value: 'setup', label: 'Setting up' },
+    { value: 'active', label: 'Active' },
+    { value: 'inactive', label: 'Inactive' },
+  ]
 
   return (
     <>
@@ -96,11 +96,8 @@ export default async function Entity({ params }: { params: { id: string } }) {
                   <input className="field" id="x-mark" name="mark" maxLength={4}
                          defaultValue={e.mark ?? ''} /></div>
                 <div><label htmlFor="x-status">Status</label>
-                  <select className="field" id="x-status" name="status" defaultValue={e.status}>
-                    <option value="setup">Setting up</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select></div>
+                  <Choice id="x-status" name="status" options={statusOptions}
+                          defaultValue={e.status} /></div>
               </div>
               <div style={{ marginTop: 12 }}>
                 <label htmlFor="x-logo">Logo</label>
@@ -140,10 +137,8 @@ export default async function Entity({ params }: { params: { id: string } }) {
       <EditableSection
         title="Administrators"
         blurb="Only these people may edit this organization or add departments and offices to it. Everyone else can look. Naming somebody here also makes them an administrator of everything beneath this organization."
-        addLabel="Add an administrator"
+        addLabel="Adding an administrator"
         addForm={mayEdit ? (
-          <>
-            <div className="rrec__lab">Adding an administrator</div>
             <RowForm action={addAdministrator} label="Add them" busy="Adding…">
               <input type="hidden" name="entity_id" value={e.id} />
               <div className="formrow">
@@ -162,7 +157,6 @@ export default async function Entity({ params }: { params: { id: string } }) {
                 platform owns identity, and an invitation is a separate act.
               </p>
             </RowForm>
-          </>
         ) : undefined}
       >
         {admins.length === 0 ? (
@@ -219,26 +213,22 @@ export default async function Entity({ params }: { params: { id: string } }) {
       <EditableSection
         title="Departments"
         blurb="A department hangs off this organization and has no page of its own — it appears here."
-        addLabel="Add a department"
+        addLabel="Adding a department"
         addForm={mayEdit ? (
-          <>
-            <div className="rrec__lab">Adding a department</div>
             <RowForm action={createDepartment} label="Add it" busy="Adding…">
               <input type="hidden" name="entity_id" value={e.id} />
               <div className="formrow">
                 <div><label htmlFor="d-name">Name</label>
                   <input className="field" id="d-name" name="name" required placeholder="Dispatch" /></div>
                 <div><label htmlFor="d-lead">Leader</label>
-                  <select className="field" id="d-lead" name="leader_person_id" defaultValue="">
-                    {leaderOptions()}
-                  </select></div>
+                  <Choice id="d-lead" name="leader_person_id" options={leaderOptions}
+                          placeholder="Nobody yet" /></div>
               </div>
               <p className="fine" style={{ marginTop: 10 }}>
                 A department without a named leader is a real and common state, not
                 something to be filled in for the sake of it.
               </p>
             </RowForm>
-          </>
         ) : undefined}
       >
         {(departments?.length ?? 0) === 0 ? (
@@ -255,14 +245,10 @@ export default async function Entity({ params }: { params: { id: string } }) {
                   <span className="rcell">
                     <span className="rcell__lab">Leader</span>
                     {lead ? (
-                      <span className="rcell__val"
-                            style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                      <span className="rcell__val leadcell">
                         <Avatar name={lead.full_name} src={lead.photo_url} size={30} />
-                        <span style={{ textAlign: 'left' }}>
-                          <span style={{ fontSize: 13.5, fontWeight: 700, display: 'block' }}>
-                            {lead.full_name}</span>
-                          <span className="prow__role">
-                            {lead.role_title ?? 'Leads this department'}</span>
+                        <span className="leadline">
+                          <span className="leadline__nm">{lead.full_name}</span>
                         </span>
                       </span>
                     ) : (
@@ -293,10 +279,8 @@ export default async function Entity({ params }: { params: { id: string } }) {
                         <input className="field" id={`dn-${d.id}`} name="name"
                                defaultValue={d.name} required /></div>
                       <div><label htmlFor={`dl-${d.id}`}>Leader</label>
-                        <select className="field" id={`dl-${d.id}`} name="leader_person_id"
-                                defaultValue={d.leader_person_id ?? ''}>
-                          {leaderOptions()}
-                        </select></div>
+                        <Choice id={`dl-${d.id}`} name="leader_person_id" options={leaderOptions}
+                                defaultValue={d.leader_person_id ?? ''} placeholder="Nobody yet" /></div>
                     </div>
                   </RowForm>
                 </RecordRow>
@@ -310,10 +294,8 @@ export default async function Entity({ params }: { params: { id: string } }) {
       <EditableSection
         title="Office locations"
         blurb="A location supplies a person's address and the map. It keeps its own page — the card opens it."
-        addLabel="Add a location"
+        addLabel="Adding a location"
         addForm={mayEdit ? (
-          <>
-            <div className="rrec__lab">Adding a location</div>
             <RowForm action={createLocation} label="Add it" busy="Adding…">
               <input type="hidden" name="entity_id" value={e.id} />
               <div className="formrow">
@@ -334,21 +316,19 @@ export default async function Entity({ params }: { params: { id: string } }) {
                   <input className="field" id="l-region" name="region" placeholder="OK" /></div>
                 <div><label htmlFor="l-zip">Postal code</label>
                   <input className="field" id="l-zip" name="postal_code" /></div>
+              </div>
+              <div className="formrow" style={{ marginTop: 12 }}>
                 <div><label htmlFor="l-country">Country</label>
                   <input className="field" id="l-country" name="country" defaultValue="United States" /></div>
                 <div><label htmlFor="l-tz">Time zone</label>
                   <input className="field" id="l-tz" name="time_zone" defaultValue="America/Chicago" /></div>
               </div>
-              <label className="checkline" style={{ marginTop: 12 }}>
-                <input type="checkbox" name="is_head_office" />
-                This is the head office
-              </label>
+              <Toggle name="is_head_office" label="This is the head office" />
               <p className="fine" style={{ marginTop: 8 }}>
                 One head office per organization — the database enforces it. The pin
                 is worked out from the address when you save.
               </p>
             </RowForm>
-          </>
         ) : undefined}
       >
         {(locations?.length ?? 0) === 0 ? <p className="empty">No locations yet.</p> : (

@@ -22,10 +22,12 @@ export default function LocationMap({
         <img src={q('light')} alt={label ? `Map of ${label}` : 'Map'} loading="lazy" />
       </picture>
       <span className="lmap__pin" aria-hidden="true">
+        {/* Flat marigold: no cutout, no outline. The shape is unmistakable on
+            its own, and the drop shadow on .lmap__pin is what separates it
+            from the terrain now that the stroke is gone. */}
         <svg viewBox="0 0 24 32">
           <path d="M12 31C12 31 22 19.8 22 12A10 10 0 1 0 2 12c0 7.8 10 19 10 19z"
-                fill="#F2A93B" stroke="#231F20" strokeWidth="1.6" strokeLinejoin="round" />
-          <circle cx="12" cy="12" r="3.6" fill="#231F20" />
+                fill="#F2A93B" />
         </svg>
       </span>
     </figure>

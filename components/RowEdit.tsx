@@ -120,8 +120,27 @@ export function EditableSection({
 }) {
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(false)
-  const addClip = useInert(adding)
   const editClip = useInert(editing)
+  const addPop = useRef<HTMLDivElement>(null)
+  const plus = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!adding) return
+    const off = (e: KeyboardEvent) => { if (e.key === 'Escape') setAdding(false) }
+    const away = (e: PointerEvent) => {
+      const t = e.target as Node
+      // A Choice renders its list into <body>, outside this popover, so a click
+      // on an option is not an outside click even though the DOM says it is.
+      if ((t as HTMLElement).closest?.('.choicepop')) return
+      if (!addPop.current?.contains(t) && !plus.current?.contains(t)) setAdding(false)
+    }
+    document.addEventListener('keydown', off)
+    document.addEventListener('pointerdown', away)
+    return () => {
+      document.removeEventListener('keydown', off)
+      document.removeEventListener('pointerdown', away)
+    }
+  }, [adding])
 
   return (
     <section className="sec">
@@ -139,23 +158,28 @@ export function EditableSection({
                       onClick={() => setEditing((o) => !o)}><Pencil /></button>
             )}
             {addForm && (
-              <button className={`cbub cbub--plus${adding ? ' is-open' : ''}`} type="button"
-                      aria-expanded={adding} title={addLabel} aria-label={addLabel}
+              <button ref={plus} className={`cbub cbub--plus${adding ? ' is-open' : ''}`}
+                      type="button" aria-expanded={adding} title={addLabel} aria-label={addLabel}
                       onClick={() => setAdding((o) => !o)}><Plus /></button>
+            )}
+            {/* Adding happens in a popover hanging off the plus that raised it,
+                so the list underneath never moves and what you are adding to is
+                still on screen behind it. */}
+            {addForm && adding && (
+              <div className="addpop" ref={addPop} role="dialog" aria-label={addLabel}>
+                <div className="addpop__h">
+                  <b>{addLabel}</b>
+                  <button className="addpop__x" type="button" aria-label="Close"
+                          onClick={() => setAdding(false)}>&times;</button>
+                </div>
+                <div className="addpop__body">
+                  <Drawer.Provider value={{ close: () => setAdding(false) }}>{addForm}</Drawer.Provider>
+                </div>
+              </div>
             )}
           </div>
         )}
       </div>
-
-      {addForm && (
-        <div className={`adrawer${adding ? ' is-open' : ''}`}>
-          <div className="rrec__clip" ref={addClip}>
-            <div className="addbox">
-              <Drawer.Provider value={{ close: () => setAdding(false) }}>{addForm}</Drawer.Provider>
-            </div>
-          </div>
-        </div>
-      )}
 
       {children}
 
@@ -169,5 +193,29 @@ export function EditableSection({
         </div>
       )}
     </section>
+  )
+}
+
+/**
+ * A yes-or-no. A toggle, never a checkbox -- system-wide. The word beside it
+ * says the state, so it is readable and not only shown by position. The hidden
+ * input keeps the FormData shape a checkbox would have produced, so server
+ * actions did not have to learn anything new.
+ */
+export function Toggle({
+  name, label, defaultOn = false, say,
+}: { name: string; label: string; defaultOn?: boolean; say?: string }) {
+  const [on, setOn] = useState(defaultOn)
+  return (
+    <div className="togline">
+      {on && <input type="hidden" name={name} value="on" />}
+      <span className="tog">
+        <input type="checkbox" checked={on} aria-label={label}
+               onChange={(e) => setOn(e.target.checked)} />
+        <span className="tog__track" /><span className="tog__knob" />
+      </span>
+      <span className="togstate">{on ? 'Yes' : 'No'}</span>
+      <span className="togsay">{say ?? label}</span>
+    </div>
   )
 }

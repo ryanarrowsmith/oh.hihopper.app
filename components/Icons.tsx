@@ -22,3 +22,26 @@ export const Level = ({ className = 'lv' }: { className?: string }) => (
     <path d="M3 2v6h6" /><path d="M7.5 5.5 10 8l-2.5 2.5" />
   </svg>
 )
+
+/** Head office. Not a status -- a fact about the office -- so it wears the
+ *  squared steel tile rather than a chip. */
+export const Star = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 3.2l2.6 5.6 6.1.8-4.5 4.2 1.2 6.1L12 17l-5.4 2.9 1.2-6.1L3.3 9.6l6.1-.8z" />
+  </svg>
+)
+export const HeadOffice = ({ on }: { on: boolean }) =>
+  on
+    ? <span className="hoflag" role="img" aria-label="Head office" title="Head office"><Star /></span>
+    : <span className="hoflag hoflag--none" aria-hidden="true" />
+
+/** The same pin that stands on the map. Lit when the address resolved. */
+export const PinMark = ({ on }: { on: boolean }) => (
+  <span className={`pinmark${on ? '' : ' pinmark--off'}`} role="img"
+        aria-label={on ? 'Pinned to the map' : 'No pin yet'}
+        title={on ? 'Pinned to the map' : 'No pin yet'}>
+    <svg viewBox="0 0 24 32" aria-hidden="true">
+      <path d="M12 31C12 31 22 19.8 22 12A10 10 0 1 0 2 12c0 7.8 10 19 10 19z" />
+    </svg>
+  </span>
+)

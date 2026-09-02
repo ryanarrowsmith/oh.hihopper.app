@@ -2,6 +2,7 @@ import { supabaseServer } from '@/lib/supabase/server'
 import Section from '@/components/Section'
 import ActionForm from '@/components/ActionForm'
 import { createPerson } from '@/app/actions/admin'
+import Choice from '@/components/Choice'
 
 export default async function People() {
   const db = supabaseServer()
@@ -54,12 +55,9 @@ export default async function People() {
                   <input className="field" id="p-role" name="role_title"
                          placeholder="Dispatch manager" /></div>
                 <div><label htmlFor="p-entity">Organization</label>
-                  <select className="field" id="p-entity" name="entity_id" defaultValue="">
-                    <option value="">Not placed yet</option>
-                    {(entities ?? []).map((e: any) => (
-                      <option key={e.id} value={e.id}>{e.name}</option>
-                    ))}
-                  </select></div>
+                  <Choice id="p-entity" name="entity_id" placeholder="Not placed yet"
+                          options={[{ value: '', label: 'Not placed yet' },
+                                    ...(entities ?? []).map((e: any) => ({ value: e.id, label: e.name }))]} /></div>
               </div>
               <p className="fine">
                 Adding somebody puts them on the roster. It does not give them a login —
