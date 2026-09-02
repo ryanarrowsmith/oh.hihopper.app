@@ -1,29 +1,32 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 /**
- * Append to the log. The database stamps the actor, the sequence and the hash
- * chain from the session, so a caller cannot choose who they were or what came
- * before them -- which is what makes an INSERT policy safe here.
+ * Nothing. Deliberately.
  *
- * A kind with no retention tier raises rather than defaulting. That is
- * deliberate: a kind nobody has decided a tier for is a kind nobody has thought
- * about, and it should stop the write rather than quietly become a 45-day one.
+ * Hopper used to keep its own hash-chained log in hopper.audit_entry, written
+ * by hand from eighteen call sites. The platform keeps that log now --
+ * beebee.audit_log, filled by triggers on the tables registered in
+ * beebee.audited_tables -- so every one of those writes had become a second,
+ * weaker copy of a record something else was already keeping properly. A
+ * trigger cannot be forgotten at a new call site; a hand-written line can, and
+ * three of these had already drifted out of step with what they claimed.
+ *
+ * The call sites are left alone on purpose. They read as the intent they
+ * always were, they cost nothing, and if the platform log ever needs a Hopper
+ * detail the triggers cannot see, this is the one place to put it back.
+ *
+ * What reads the log is /activity. hopper.audit_entry still holds its old rows
+ * and nothing writes to it any more; it can be dropped once those rows are
+ * confirmed unwanted.
  */
 export type AuditKind =
   | 'entity' | 'department' | 'location' | 'person' | 'module' | 'access' | 'report' | 'system'
 
 export async function logAudit(
-  db: SupabaseClient,
-  e: { account_id: string; kind: AuditKind; summary: string
-       object?: string | null; object_id?: string | null; note?: string | null
-       payload?: Record<string, unknown> },
-) {
-  const { error } = await db.schema('hopper').from('audit_entry').insert({
-    account_id: e.account_id, kind: e.kind, summary: e.summary,
-    object: e.object ?? null, object_id: e.object_id ?? null,
-    note: e.note ?? null, payload: e.payload ?? {},
-  })
-  // A failed log must not silently swallow a successful write, and must not
-  // roll one back either -- so it surfaces to the caller to report.
-  return error?.message ?? null
+  _db: SupabaseClient,
+  _e: { account_id: string; kind: AuditKind; summary: string
+        object?: string | null; object_id?: string | null; note?: string | null
+        payload?: Record<string, unknown> },
+): Promise<string | null> {
+  return null
 }

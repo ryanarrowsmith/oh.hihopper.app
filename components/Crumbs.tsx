@@ -17,7 +17,7 @@ const NAMES: Record<string, string> = {
   staffing: 'Staffing',
   permissions: 'Permissions',
   modules: 'Modules',
-  audit: 'Activity Log',
+  activity: 'Activity',
   calendar: 'Calendar',
   wiki: 'Wiki',
   links: 'Links',

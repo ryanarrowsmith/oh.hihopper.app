@@ -1490,3 +1490,88 @@ select.field{appearance:none}
 /* A crumb with no page behind it. It still says where you are; it just does
    not pretend to be somewhere you can go. */
 .crumbs__plain{cursor:default}
+
+/* ==========================================================================
+   ACTIVITY -- what happened, and the switches over it
+   Lifted from the approved preview so the built page and the thing that was
+   signed off cannot drift.
+   ========================================================================== */
+.viewbar{display:flex; align-items:center; gap:10px; margin:16px 0 4px; flex-wrap:wrap}
+.viewbar__l{font-family:var(--mono); font-size:10px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-3); margin-right:auto}
+.seg{display:flex; gap:2px; padding:3px; background:var(--sunken);
+  border:1px solid var(--rule); border-radius:var(--r)}
+.seg__b{appearance:none; border:0; background:none; cursor:pointer; border-radius:var(--r);
+  padding:6px 12px; color:var(--ink-2); font:700 12px/1.2 var(--sans); letter-spacing:-.01em;
+  transition:background .15s, color .15s, box-shadow .15s}
+.seg__b:hover{color:var(--ink)}
+.seg__b[aria-pressed="true"]{background:var(--surface); color:var(--ink); box-shadow:var(--shadow)}
+/* The switches are links, not buttons -- the state is in the URL, so it
+   survives a reload and can be sent to somebody. */
+a.seg__b{text-decoration:none; display:inline-flex; align-items:center}
+
+/* ============ A DAY ============
+   The band is the date, hard left, with the rule running out to who was here.
+   It is a heading, so it is heavy and dark; everything under it is quieter. */
+.day{display:flex; align-items:center; gap:14px; margin:26px 0 14px}
+.day__t{flex:none; padding:7px 12px; background:var(--ink); color:var(--paper);
+  border-radius:var(--r); font:800 11.5px/1 var(--sans); letter-spacing:.06em;
+  text-transform:uppercase}
+.day__r{flex:1 1 auto; height:1px; background:var(--rule)}
+.day__w{flex:none; display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--ink-3)}
+.faces{display:flex}
+.faces .ava{width:24px; height:24px; font-size:9px; margin-left:-7px;
+  box-shadow:0 0 0 2px var(--paper)}
+.faces .ava:first-child{margin-left:0}
+@media (max-width:560px){ .day__w span{display:none} }
+
+/* ============ A BAND OF ONE ORGANIZATION ============ */
+.band{margin-bottom:18px}
+.band__t{display:inline-flex; align-items:center; gap:8px; padding:6px 12px;
+  background:var(--steel); color:#FBF9F5; border-radius:var(--r);
+  font:800 12.5px/1 var(--sans); letter-spacing:-.01em; text-decoration:none}
+.band__t:hover{background:var(--steel-ink)}
+.band__t svg{width:13px; height:13px}
+
+/* ============ ONE THING THAT HAPPENED ============
+   Every row links to the record it touched -- an entry you cannot open is a
+   note about work rather than a way back to it. The mark on the left says
+   what kind of change it was, in that class's own colour. */
+.acts{margin-top:10px; border:1px solid var(--rule); border-radius:var(--r);
+  background:var(--surface)}
+.act{display:flex; gap:12px; padding:11px 13px; text-decoration:none;
+  border-bottom:1px solid var(--rule-soft)}
+.act:last-child{border-bottom:0}
+.act:hover{background:var(--sunken)}
+.act__i{flex:none; width:28px; height:28px; border-radius:var(--r); display:grid;
+  place-items:center; background:var(--canvas-2); color:var(--ink-2)}
+.act__i svg{width:15px; height:15px}
+.act__i--made{background:rgba(62,142,95,.15); color:#2C6B47}
+.act__i--changed{background:var(--steelwash); color:var(--steel-ink)}
+.act__i--access{background:rgba(242,169,59,.2); color:#8A5A12}
+.act__i--gone{background:rgba(167,60,44,.13); color:#9C3A2A}
+.act__b{display:block; min-width:0; flex:1 1 auto}
+.act__t{display:block; font-size:13.5px; font-weight:700; color:var(--ink);
+  letter-spacing:-.01em; line-height:1.35}
+.act:hover .act__t{color:var(--steel-ink)}
+.act__w{display:flex; align-items:center; gap:7px; margin-top:4px;
+  font-size:12.5px; color:var(--ink-3); flex-wrap:wrap}
+.act__w .ava{width:19px; height:19px; font-size:8px}
+.act__w b{color:var(--ink-2); font-weight:700}
+.act__when{flex:none; font-family:var(--mono); font-size:11px; color:var(--ink-3);
+  padding-top:3px; white-space:nowrap}
+@media (max-width:560px){
+  .act{flex-wrap:wrap}
+  .act__when{width:100%; padding-left:40px; padding-top:2px}
+}
+/* A subject type with no page yet is drawn flat rather than as a link that
+   404s. It should be rare, and it should look like what it is. */
+.act--flat{cursor:default}
+.act--flat:hover{background:transparent}
+.act--flat .act__t{color:var(--ink-2)}
+
+/* The quiet stretch between two days, said once rather than left blank, so
+   you can tell "nothing happened" from "nothing loaded". */
+.gapline{display:flex; align-items:center; gap:12px; margin:20px 0; color:var(--ink-3);
+  font-size:12.5px}
+.gapline::before, .gapline::after{content:""; flex:1 1 auto; height:1px; background:var(--rule-soft)}

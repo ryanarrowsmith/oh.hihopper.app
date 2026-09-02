@@ -51,3 +51,42 @@ export const PinMark = ({ on }: { on: boolean }) => (
     </svg>
   </span>
 )
+
+/** The organization mark: a chart of boxes, used wherever an org is named
+    beside its own name rather than standing in for it. */
+export const OrgMark = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+       strokeLinecap="round" strokeLinejoin="round">
+    <rect x="9" y="3" width="6" height="5" rx="1" />
+    <rect x="2.5" y="16" width="6" height="5" rx="1" />
+    <rect x="15.5" y="16" width="6" height="5" rx="1" />
+    <path d="M12 8v4M5.5 16v-2.5h13V16" />
+  </svg>
+)
+
+/** The location mark. The same pin that stands on the map, drawn in line
+    rather than filled, because here it is labelling a word and not a place. */
+export const PlaceMark = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+       strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11z" />
+    <circle cx="12" cy="10" r="2.4" />
+  </svg>
+)
+
+/** What class of change an Activity row is: something made, something changed,
+    something about access, something gone. Four shapes, four colours, so the
+    kind is readable before the sentence is. */
+export const ActMark = ({ kind }: { kind: 'made' | 'changed' | 'access' | 'gone' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {kind === 'made' && <path d="M12 5v14M5 12h14" />}
+    {kind === 'changed' && (
+      <><path d="M4 20h4L19 9a2.8 2.8 0 1 0-4-4L4 16z" /><path d="M14.5 5.5 18.5 9.5" /></>
+    )}
+    {kind === 'access' && (
+      <><rect x="4" y="10" width="16" height="10" rx="1" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>
+    )}
+    {kind === 'gone' && <path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" />}
+  </svg>
+)

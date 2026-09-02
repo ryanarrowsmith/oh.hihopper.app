@@ -31,7 +31,7 @@ export const FRAME: Item[] = [
     kids: [{ href: '/wiki/links', label: 'Links' }] },
   { href: '/news', label: 'News',
     icon: I('<path d="M4 5h13v14H4z"/><path d="M17 9h3v8a2 2 0 0 1-3 2"/><path d="M7 9h7M7 13h7"/>') },
-  { href: '/admin/audit', label: 'Activity Log',
+  { href: '/activity', label: 'Activity',
     icon: I('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>') },
 ]
 

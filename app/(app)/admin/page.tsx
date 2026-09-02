@@ -9,8 +9,6 @@ const AREAS = [
     blurb: 'What each person may open. Grants are held per person, not by a group.' },
   { href: '/admin/modules', title: 'Modules',
     blurb: 'Which parts of Hopper each organization runs, within what you pay for.' },
-  { href: '/admin/audit', title: 'Audit log',
-    blurb: 'Append-only and hash chained. Always last.' },
 ]
 
 export default function Admin() {
