@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import { useCallback, useMemo, useState } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import Chart, { Legend, isSplit, type Series } from '@/components/Chart'
 import { EditableSection } from '@/components/RowEdit'
@@ -48,6 +49,46 @@ export default function ReportPage({ report, state, series, notes, checks, relat
   const head = series[0]?.points ?? []
   const move = head.length > 1 ? head[head.length - 1].v - head[0].v : null
 
+  /**
+   * One selection, shared by the chart and the rows.
+   *
+   * They can be linked at all because both are indexed by the same thing: the
+   * day. A chart point IS a day, and a row carries that day in the column the
+   * report is dated by. A report with no date column has no correspondence
+   * between the two, and the linking is simply not offered rather than offered
+   * and wrong.
+   */
+  const [days, setDays] = useState<Set<string>>(new Set())
+  const [last, setLast] = useState<string | null>(null)
+  const allDays = useMemo(
+    () => [...new Set(series.flatMap((s) => s.points.map((p) => p.on)))].sort(),
+    [series])
+
+  const pick = useCallback((day: string, extend: boolean) => {
+    setDays((prev) => {
+      const next = new Set(prev)
+      // Shift takes everything between the last pick and this one, which is how
+      // anyone selects a stretch of time.
+      if (extend && last) {
+        const a = allDays.indexOf(last), b = allDays.indexOf(day)
+        if (a >= 0 && b >= 0) {
+          for (const d of allDays.slice(Math.min(a, b), Math.max(a, b) + 1)) next.add(d)
+          return next
+        }
+      }
+      next.has(day) ? next.delete(day) : next.add(day)
+      return next
+    })
+    setLast(day)
+  }, [allDays, last])
+
+  const clear = useCallback(() => { setDays(new Set()); setLast(null) }, [])
+  const picked = report.dateColumn ? { days, pick, clear } : undefined
+
+  // Expanding does not move the table in the tree -- only the classes around it
+  // change -- so its sort, its hidden columns and its density all survive.
+  const [wide, setWide] = useState(false)
+
   return (
     <>
       <div className="hi">
@@ -92,7 +133,7 @@ export default function ReportPage({ report, state, series, notes, checks, relat
                 {/* Full height here on purpose. This is the room the popover
                     does not have: measures orders of magnitude apart get a plot
                     each rather than one scale that flattens the small ones. */}
-                <Chart type={report.chartType} series={series} height={400} />
+                <Chart type={report.chartType} series={series} height={400} picked={picked} />
                 {/* Only when the plot is shared. Split plots each carry their
                     own name and swatch, so a legend under them is a second
                     label for something already labelled. */}
@@ -103,9 +144,10 @@ export default function ReportPage({ report, state, series, notes, checks, relat
           <div className="figs shape__f">
             <span className="fig"><span className="fig__l">Now</span>
               <span className="fig__v">{state.value == null ? '—' : nf.format(state.value)}</span></span>
+            {/* The arrow carries the direction, so the sign would say it twice. */}
             {move != null && <span className="fig"><span className="fig__l">Move</span>
               <span className={`fig__v ${move >= 0 ? 'up' : 'down'}`}>
-                {move >= 0 ? '+' : ''}{nf.format(move)}
+                {nf.format(Math.abs(move))}
               </span></span>}
             <span className="fig"><span className="fig__l">Dated</span>
               <span className="fig__v" style={{ fontSize: 15 }}>
@@ -122,11 +164,18 @@ export default function ReportPage({ report, state, series, notes, checks, relat
       <section className="sec">
         <div className="sec__h"><div className="sec__t">
           <h2>The rows behind it</h2>
-          <p>What the sheet actually said, the last time Hopper looked.</p>
+          <p>{picked
+            ? 'What the sheet actually said. Click a point on the chart, or a row here — the two follow each other.'
+            : 'What the sheet actually said, the last time Hopper looked.'}</p>
         </div></div>
-        <div className="card">
-          <RawTable reportId={report.id} name={report.name}
-                    everRead={state.lastLook != null} />
+        <div className={wide ? 'rscrim' : undefined}
+             onMouseDown={wide ? (e) => { if (e.target === e.currentTarget) setWide(false) } : undefined}>
+          <div className={wide ? 'rpop rpop--rows' : 'card'}>
+            <RawTable reportId={report.id} name={report.name}
+                      everRead={state.lastLook != null}
+                      dateColumn={report.dateColumn} picked={picked}
+                      expanded={wide} onExpand={() => setWide((o) => !o)} />
+          </div>
         </div>
       </section>
 

@@ -220,8 +220,7 @@ function Shape({ c }: { c: Card }) {
             <span className="fig__v">{c.value == null ? '—' : nf.format(c.value)}</span></span>
           {head.length > 1 && <span className="fig"><span className="fig__l">Move</span>
             <span className={`fig__v ${head[head.length - 1].v >= head[0].v ? 'up' : 'down'}`}>
-              {head[head.length - 1].v >= head[0].v ? '+' : ''}
-              {nf.format(head[head.length - 1].v - head[0].v)}
+              {nf.format(Math.abs(head[head.length - 1].v - head[0].v))}
             </span></span>}
           <span className="fig"><span className="fig__l">Dated</span>
             <span className="fig__v">{c.valueOn ? on(c.valueOn) : '—'}</span></span>

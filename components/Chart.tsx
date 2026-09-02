@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 
 /**
  * One chart kit, drawn once and used everywhere.
@@ -113,11 +113,23 @@ function useWidth() {
   return { ref, w }
 }
 
+export type Picked = {
+  /** ISO days currently chosen. Empty means nothing is chosen, which is not the
+   *  same as everything being chosen -- an empty selection filters nothing. */
+  days: Set<string>
+  /** extend=true is shift-click: take everything between the last pick and this
+   *  one, which is how anyone selects a stretch of time. */
+  pick: (day: string, extend: boolean) => void
+}
+
 export default function Chart({
-  type, series, height = 250, labels = true, compact = false, bare = false,
+  type, series, height = 250, labels = true, compact = false, bare = false, picked,
 }: {
   type: string; series: Series[]; height?: number
   labels?: boolean; compact?: boolean
+  /** Linked selection with the rows behind it. Absent means the plot is not
+   *  interactive, which is right on a card. */
+  picked?: Picked
   /** No gridlines, no axis figures. For a card, where the chart is a shape you
    *  glance at on the way past the number rather than something you read. */
   bare?: boolean
@@ -143,38 +155,67 @@ export default function Chart({
    * measure alone instead.
    */
   if (!bare && live.length > 1 && spreadOf(live) > SPREAD_LIMIT) {
-    const each = Math.max(96, Math.round((height - (live.length - 1) * 14) / live.length))
+    /**
+     * The first measure is the headline -- it is the number on the card and at
+     * the top of the page -- so it gets the room to show it. Three plots at
+     * identical weight say the three matter equally, which is the one thing the
+     * report has already told us is not true.
+     */
+    const weights = live.map((_, i) => (i === 0 ? 1.55 : 1))
+    const total = weights.reduce((a, b) => a + b, 0)
+    const room = height - (live.length - 1) * 18
     return (
       <div className="charts">
-        {live.map((s, i) => (
-          <div className="charts__one" key={s.measure}>
+        {live.map((s, i) => {
+          const each = Math.max(84, Math.round((room * weights[i]) / total))
+          return (
+          <div className={`charts__one${i === 0 ? ' charts__one--head' : ''}`} key={s.measure}>
             <p className="charts__l">
               <span className="legend__k" style={{ background: `var(${SERIES_VAR[i % 3]})` }} />
               {s.measure}
               <b>{nf.format(s.points[s.points.length - 1].v)}</b>
             </p>
             <Axes type={kind} series={[s]} height={each} colourFrom={i}
-                  labels={labels && i === live.length - 1} />
+                  labels={labels && i === live.length - 1}
+                  days={unionDays(live)} picked={picked} />
           </div>
-        ))}
+        )})}
       </div>
     )
   }
 
-  return <Axes type={kind} series={live} height={height} labels={labels && !bare} bare={bare} />
+  return <Axes type={kind} series={live} height={height} labels={labels && !bare} bare={bare}
+                days={unionDays(live)} picked={picked} />
+}
+
+/**
+ * Every day any series has a reading for, in order.
+ *
+ * The x axis used to be "index within this series", which quietly assumed every
+ * measure had a reading on every date. One measure missing a Tuesday shifted
+ * its whole line left by a day against the others. Positions come from the DAY
+ * now, so a gap is a gap.
+ */
+function unionDays(series: Series[]) {
+  const all = new Set<string>()
+  for (const s of series) for (const p of s.points) all.add(p.on)
+  return [...all].sort()
 }
 
 /**
  * Bars and lines share an axis, a scale and a set of gridlines, so they share
  * a component. Only the marks differ, which is the only thing that should.
  */
-function Axes({ type, series, height, labels, bare, colourFrom = 0 }: {
+function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked }: {
   type: 'bar' | 'line'; series: Series[]; height: number; labels: boolean; bare?: boolean
   /** Which palette slot this plot starts at, so a series keeps its colour when
    *  it is pulled out onto a plot of its own. */
   colourFrom?: number
+  days: string[]
+  picked?: Picked
 }) {
   const { ref, w } = useWidth()
+  const gid = useId().replace(/:/g, '')
   const h = height
   // Wide enough for a grouped five-figure number, which is what an unabbreviated
   // tick can now be.
@@ -192,65 +233,116 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0 }: {
   const hi = rawHi
   const span = hi - lo || 1
 
-  const n = Math.max(...series.map((s) => s.points.length))
+  const n = days.length
+  const at = new Map(days.map((d, i) => [d, i]))
   const x = (i: number) => padL + (n === 1 ? (w - padL - padR) / 2 : (i / (n - 1)) * (w - padL - padR))
   const y = (v: number) => h - padB - ((v - lo) / span) * (h - padT - padB)
+  const chosen = picked?.days
+  const anyChosen = (chosen?.size ?? 0) > 0
 
   const ticks = [lo, lo + span / 2, hi]
-  const first = series[0]?.points ?? []
   // One label per ~110px of plot. Guessing a fixed count crowded them on a
   // narrow card and stranded them on a wide page.
   const room = Math.max(2, Math.floor((w - padL - padR) / 110))
-  const every = Math.max(1, Math.ceil(first.length / room))
+  const every = Math.max(1, Math.ceil(days.length / room))
+  const slot = (w - padL - padR) / Math.max(1, n)
 
   return (
     <div className="chartbox" ref={ref} style={{ height: h }}>
     <svg className="chart" viewBox={`0 0 ${w} ${h}`}
          role="img" aria-label={series.map((s) => s.measure).join(', ')}>
+      <defs>
+        {/* The area under a line is there to say which way is up, not to be a
+            slab of colour. It fades out before it reaches the floor, so the eye
+            lands on the line. */}
+        <linearGradient id={`${gid}-a`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopOpacity=".26" stopColor="currentColor" />
+          <stop offset="100%" stopOpacity="0" stopColor="currentColor" />
+        </linearGradient>
+      </defs>
+
       {!bare && ticks.map((t, i) => (
         <g key={i}>
-          <line className="chart__gr" x1={padL} x2={w - padR} y1={y(t)} y2={y(t)} />
+          {/* The floor is a real line; the ones above it are hints. Three equal
+              hairlines is three things competing to be the reference. */}
+          <line className={i === 0 ? 'chart__base' : 'chart__gr'}
+                x1={padL} x2={w - padR} y1={y(t)} y2={y(t)} />
           <text className="chart__ax" x={padL - 8} y={y(t) + 3.5} textAnchor="end">
             {axisFigure(t, span)}</text>
         </g>
       ))}
 
+      {/* A chosen day gets a guide the whole height of the plot, drawn UNDER the
+          marks so it never covers a value. */}
+      {chosen && days.map((d, i) => chosen.has(d) ? (
+        <line key={`g${d}`} className="chart__pick" x1={x(i)} x2={x(i)} y1={padT} y2={h - padB} />
+      ) : null)}
+
       {type === 'bar' ? series.map((s, si) => {
         // Bars for several series sit side by side in the slot, never stacked:
         // a stack answers "what is the total", and these are three separate
         // measures that have no meaningful total.
-        const slot = (w - padL - padR) / Math.max(1, n)
         const bw = Math.max(2, (slot * 0.62) / series.length)
         return (
           <g key={s.measure} style={{ fill: `var(${SERIES_VAR[(si + colourFrom) % 3]})` }}>
-            {s.points.map((p, i) => {
+            {s.points.map((p) => {
+              const i = at.get(p.on); if (i == null) return null
               const cx = x(i) - (bw * series.length) / 2 + si * bw
               const top = y(p.v), base = y(Math.max(lo, 0))
               return <rect key={p.on} x={cx} width={bw}
+                           className={anyChosen && !chosen!.has(p.on) ? 'is-dim' : undefined}
                            y={Math.min(top, base)} height={Math.max(1, Math.abs(base - top))} />
             })}
           </g>
         )
       }) : series.map((s, si) => {
-        const d = s.points.map((p, i) =>
-          `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(p.v).toFixed(1)}`).join(' ')
-        const last = s.points[s.points.length - 1]
+        // Positioned by DAY, not by position within this series. A measure
+        // missing a Tuesday used to shift its whole line a day to the left.
+        const pts = s.points.map((p) => ({ ...p, i: at.get(p.on) }))
+          .filter((p): p is typeof p & { i: number } => p.i != null)
+        if (pts.length === 0) return null
+        const d = pts.map((p, k) =>
+          `${k ? 'L' : 'M'}${x(p.i).toFixed(1)} ${y(p.v).toFixed(1)}`).join(' ')
+        const last = pts[pts.length - 1]
         return (
           <g key={s.measure} style={{ stroke: `var(${SERIES_VAR[(si + colourFrom) % 3]})` }}>
             {series.length === 1 && (
-              <path className="chart__ar" style={{ fill: `var(${SERIES_VAR[(si + colourFrom) % 3]})`, stroke: 'none' }}
-                    d={`${d} L${x(s.points.length - 1).toFixed(1)} ${h - padB} L${x(0).toFixed(1)} ${h - padB} Z`} />
+              <path className="chart__ar"
+                    style={{ color: `var(${SERIES_VAR[(si + colourFrom) % 3]})`,
+                             fill: `url(#${gid}-a)`, stroke: 'none' }}
+                    d={`${d} L${x(last.i).toFixed(1)} ${h - padB} L${x(pts[0].i).toFixed(1)} ${h - padB} Z`} />
             )}
+            {/* The line stays whole even when only some days are chosen. Drawing
+                it through a non-contiguous subset would invent segments between
+                days that are not next to each other -- a picture of something
+                that never happened. The dots carry the selection instead. */}
             <path className="chart__ln" d={d} />
-            <circle className="chart__pt" cx={x(s.points.length - 1)} cy={y(last.v)} r="3.6"
-                    style={{ fill: `var(${SERIES_VAR[(si + colourFrom) % 3]})`, stroke: 'none' }} />
+            {picked && pts.slice(0, -1).map((p) => (
+              <circle key={p.on} className="chart__pt" cx={x(p.i)} cy={y(p.v)}
+                      r={chosen!.has(p.on) ? 4.5 : 2.6}
+                      style={{ fill: `var(${SERIES_VAR[(si + colourFrom) % 3]})`, stroke: 'none' }}
+                      opacity={anyChosen && !chosen!.has(p.on) ? 0.26 : 0.85} />
+            ))}
+            {/* The end of the line is where you are now. A filled ring on the
+                surface reads as a destination; another identical dot reads as
+                one more reading. */}
+            <circle className="chart__now" cx={x(last.i)} cy={y(last.v)} r="4.4"
+                    style={{ stroke: `var(${SERIES_VAR[(si + colourFrom) % 3]})` }} />
           </g>
         )
       })}
 
-      {labels && first.map((p, i) => i % every === 0 || i === first.length - 1 ? (
-        <text key={p.on} className="chart__ax" x={x(i)} y={h - 9} textAnchor="middle">{day(p.on)}</text>
-      ) : null)}
+      {/* One invisible column per day, the full height of the plot, so a day is
+          chosen by clicking anywhere above or below its point rather than by
+          hitting a three-pixel dot. */}
+      {picked && days.map((d, i) => (
+        <rect key={`h${d}`} className="chart__hit" x={x(i) - slot / 2} width={slot}
+              y={padT} height={h - padT - padB}
+              onClick={(e) => picked.pick(d, e.shiftKey)}>
+          <title>{day(d)}</title>
+        </rect>
+      ))}
+
     </svg>
     </div>
   )

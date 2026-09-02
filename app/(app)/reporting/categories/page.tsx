@@ -66,7 +66,7 @@ export default async function Categories() {
 
       <EditableSection
         title="Across the portfolio"
-        blurb={`${rows.length} categor${rows.length === 1 ? 'y' : 'ies'} in the departments you can open. Each belongs to exactly one department, and the Category list on a report form narrows to the department above it.`}
+        blurb={`${rows.length} categor${rows.length === 1 ? 'y' : 'ies'} in the departments you can open. Each belongs to exactly one department.`}
         addLabel="Adding a category"
         addForm={addTo.length ? (
           <RowForm action={createCategory} label="Add it" busy="Adding…">
@@ -98,9 +98,10 @@ export default async function Categories() {
       >
         {rows.length === 0 ? <p className="empty">Nothing here yet.</p> : (
           <div className="rlist rlist--cols"
-               style={{ ['--cols' as any]: 'minmax(0,1.2fr) minmax(0,1.2fr) minmax(0,1.2fr) minmax(0,.7fr)' }}>
+               style={{ ['--cols' as any]: 'minmax(0,1.1fr) minmax(0,1fr) minmax(0,1.2fr) minmax(0,.8fr)' }}>
             <div className="rhead">
-              <span>Category</span><span>Department</span><span>Organization</span><span>Reports</span>
+              <span>Category</span><span>Department</span><span>Organization</span>
+              <span className="rhead--end">Reports</span>
             </div>
             {rows.map((c: any) => {
               const face = (
@@ -114,9 +115,13 @@ export default async function Categories() {
                     <span className="rcell__lab">Organization</span>
                     <span className="rcell__val">{c.org}</span>
                   </span>
-                  <span className="rcell">
+                  <span className="rcell rcell--end">
                     <span className="rcell__lab">Reports</span>
-                    <span className="rcell__val">{c.count || '—'}</span>
+                    {/* A count with its noun. A bare "1" in a column headed
+                        Reports makes you read the header to know what it counts. */}
+                    <span className="rcell__val">
+                      {c.count ? `${c.count} report${c.count === 1 ? '' : 's'}` : 'None yet'}
+                    </span>
                   </span>
                 </>
               )

@@ -35,6 +35,9 @@ export type Rows = {
 
 const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
 
+const dayLabel = (iso: string) =>
+  new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+
 function ago(iso: string) {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
   if (m < 1) return 'just now'
@@ -54,8 +57,16 @@ function shown(data: Rows, n: number, i: number) {
   return typeof v === 'number' ? nf.format(v) : String(v)
 }
 
-export default function RawTable({ reportId, name, everRead, bleed = true }: {
+export default function RawTable({ reportId, name, everRead, bleed = true,
+  dateColumn, picked, expanded, onExpand }: {
   reportId: string; name: string
+  /** The column the chart's days come from. Without it there is no
+   *  correspondence between a point and a row, and the linking is not offered
+   *  at all rather than offered and wrong. */
+  dateColumn?: string | null
+  picked?: { days: Set<string>; pick: (day: string, extend: boolean) => void; clear: () => void }
+  expanded?: boolean
+  onExpand?: () => void
   /** Nothing read yet is a state, not a failure, and it gets its own sentence
    *  rather than an empty table that looks broken. */
   everRead: boolean
@@ -85,10 +96,20 @@ export default function RawTable({ reportId, name, everRead, bleed = true }: {
 
   const cols = data?.columns ?? []
 
+  // Which column carries the day the chart is drawn along. -1 means this table
+  // and that chart have nothing in common to link by.
+  const di = dateColumn ? cols.findIndex((c) => c.label === dateColumn) : -1
+  const linked = di >= 0 && !!picked
+  const chosen = picked?.days ?? new Set<string>()
+  const dayOf = (n: number) => {
+    const v = data?.rows[n]?.[di]
+    return typeof v === 'string' ? v.slice(0, 10) : null
+  }
+
   // Sort the INDEXES, not the rows, so the display strings travel with the
   // values they belong to. Sorting two parallel arrays separately is how a
   // table ends up showing one row's numbers under another row's label.
-  const order = useMemo(() => {
+  const all = useMemo(() => {
     const ix = (data?.rows ?? []).map((_, n) => n)
     if (!sort || !data) return ix
     const { i, dir } = sort
@@ -101,6 +122,22 @@ export default function RawTable({ reportId, name, everRead, bleed = true }: {
       return String(x).localeCompare(String(y)) * dir
     })
   }, [data, sort, cols])
+
+  /**
+   * Choosing on the chart filters here; choosing here feeds back to the chart.
+   *
+   * The table FILTERS while the chart only emphasises, and that is not an
+   * inconsistency: a table showing six of twenty-six rows is exactly true,
+   * whereas a line drawn through six non-adjacent days would invent the
+   * segments between them -- a picture of something that never happened.
+   */
+  const order = useMemo(() => {
+    if (!linked || chosen.size === 0) return all
+    return all.filter((n) => {
+      const v = data?.rows[n]?.[di]
+      return typeof v === 'string' && chosen.has(v.slice(0, 10))
+    })
+  }, [all, linked, chosen, data, di])
 
   // The right-edge hint must not lie: it goes out once you have actually
   // reached the last column. A pinned column casts a shadow only once it is
@@ -191,7 +228,29 @@ export default function RawTable({ reportId, name, everRead, bleed = true }: {
           )}
         </div>
         <button className="btn" type="button" onClick={toCsv}>Export CSV</button>
+        {onExpand && (
+          <button className="btn iconbtn" type="button" onClick={onExpand}
+                  title={expanded ? 'Close' : 'Open it wide'}
+                  aria-label={expanded ? 'Close' : 'Open it wide'}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                 strokeLinecap="round" strokeLinejoin="round">
+              {expanded
+                ? <><path d="M9 4v5H4M15 20v-5h5" /><path d="M20 4l-5 5M4 20l5-5" /></>
+                : <><path d="M15 4h5v5M9 20H4v-5" /><path d="M20 4l-6 6M4 20l6-6" /></>}
+            </svg>
+          </button>
+        )}
       </div>
+
+      {linked && chosen.size > 0 && (
+        // What a filter is hiding, said where the rows are, with the way out
+        // next to it. A filtered table that does not say it is filtered is a
+        // table that lies about how much data there is.
+        <p className="pickbar">
+          <b>{order.length}</b> of {all.length} rows &middot; {[...chosen].sort().map(dayLabel).join(', ')}
+          <button className="lnk" type="button" onClick={picked!.clear}>Clear</button>
+        </p>
+      )}
 
       <div className="rawbox" ref={boxEl}>
         <div className="rawwrap" ref={wrap} onScroll={edge}>
@@ -215,15 +274,19 @@ export default function RawTable({ reportId, name, everRead, bleed = true }: {
               })}
             </tr></thead>
             <tbody>
-              {order.map((n) => (
-                <tr key={n}>
+              {order.map((n) => {
+                const d = linked ? dayOf(n) : null
+                return (
+                <tr key={n} className={d && chosen.has(d) ? 'is-on' : undefined}
+                    onClick={linked && d ? (e) => picked!.pick(d, e.shiftKey) : undefined}
+                    style={linked && d ? { cursor: 'pointer' } : undefined}>
                   {shownCols.map((i) => (
                     <td key={i} className={cols[i].type === 'number' ? 'num' : undefined}>
                       {shown(data!, n, i)}
                     </td>
                   ))}
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
