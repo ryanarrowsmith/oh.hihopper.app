@@ -5,6 +5,7 @@ import ActionForm from '@/components/ActionForm'
 import LocationMap from '@/components/LocationMap'
 import { updateLocation, repinLocation, toggleFavorite } from '@/app/actions/admin'
 import FavoriteButton from '@/components/CardActions'
+import { HeadOffice } from '@/components/Icons'
 
 export default async function Location({ params }: { params: { id: string; loc: string } }) {
   const db = supabaseServer()
@@ -84,7 +85,8 @@ export default async function Location({ params }: { params: { id: string; loc: 
                     : <span className="muted">Nothing on file yet</span>}</td></tr>
                 <tr><th>Organization</th>
                   <td><a href={`/admin/organizations/${org.id}`}>{org.name}</a>
-                    {l.is_head_office && <> <span className="pill pill--good">Head office</span></>}
+                    {/* the same star that marks a head office in every list */}
+                    {l.is_head_office && <> <HeadOffice on /></>}
                   </td></tr>
                 <tr><th>Time zone</th>
                   <td><span className="mono">{l.time_zone}</span>
