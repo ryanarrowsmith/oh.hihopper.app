@@ -485,6 +485,12 @@ a.bub{text-decoration:none}
 .dpop .dolly{
   margin:0; border:0; box-shadow:none; background:transparent;
   padding:18px 96px 18px 18px; align-items:flex-start;
+  /* Her longest quote is 398 characters. It fits on a desk and on a tall
+     phone, and it does not on a short one -- so the card scrolls inside
+     rather than growing past the top of the screen. The cap is on .dolly and
+     not on .dpop because the beak lives outside .dpop's box and an
+     overflow there would cut it off. */
+  max-height:min(72vh, 560px); overflow-y:auto;
 }
 .dpop .dolly:hover{background:transparent; border-color:transparent; box-shadow:none}
 .dolly__p{margin-top:2px}
