@@ -859,3 +859,106 @@ select.field{appearance:none}
 }
 .lmap--none .formgrid__go .btn:hover{border-color:var(--ink-3); background:var(--sunken)}
 .lmap--none .formgrid{gap:8px}
+
+/* ============ THE EDIT SHEET ============
+   Read first, edit second. The page shows the location; the pencil opens the
+   form beneath it. A <details> rather than a modal: nothing is trapped behind
+   an overlay, the URL still points at the location, and the browser already
+   knows how to open and close a thing. */
+.sheet{margin-top:clamp(22px,2.6vw,30px)}
+.sheet > summary{
+  list-style:none; cursor:pointer; display:flex; align-items:center; gap:13px;
+  padding:15px 17px; background:var(--surface);
+  border:1px solid var(--rule); border-radius:var(--r);
+  transition:border-color .14s, background .14s;
+}
+.sheet > summary::-webkit-details-marker{display:none}
+.sheet > summary:hover{border-color:var(--amber); background:var(--warmbg)}
+.sheet > summary b{display:block; font-size:15px; font-weight:800; letter-spacing:-.02em}
+.sheet > summary small{display:block; font-size:12.5px; color:var(--ink-3); margin-top:3px}
+.sheet__pencil{
+  width:38px; height:38px; flex:none; border-radius:50%;
+  background:var(--sunken); border:1px solid var(--rule); color:var(--ink-3);
+  display:grid; place-items:center; transition:background .14s, color .14s, border-color .14s;
+}
+.sheet__pencil svg{width:17px; height:17px; fill:none; stroke:currentColor;
+  stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round}
+.sheet > summary:hover .sheet__pencil{
+  background:var(--amber); border-color:var(--amber); color:#231F20;
+}
+.sheet[open] > summary{
+  border-bottom-color:transparent; background:var(--surface);
+}
+.sheet[open] > summary .sheet__pencil{background:var(--amber); border-color:var(--amber); color:#231F20}
+.sheet__body{
+  padding:18px 17px 20px; background:var(--surface);
+  border:1px solid var(--rule); border-top:0; border-radius:var(--r);
+}
+/* a labelled hairline, for the part of a form that most people should skip */
+.sheet__cut{
+  display:flex; align-items:center; gap:12px; margin:6px 0 2px;
+  font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-3);
+}
+.sheet__cut::before, .sheet__cut::after{
+  content:""; flex:1; height:1px; background:var(--rule);
+}
+/* the pencil in a section header, as a canvas bubble */
+.bub--pencil{
+  width:34px; height:34px; border-radius:50%; display:grid; place-items:center;
+  background:var(--sunken); border:1px solid var(--rule); color:var(--ink-3);
+  text-decoration:none; transition:background .14s, color .14s, border-color .14s, transform .14s;
+}
+.bub--pencil svg{width:16px; height:16px; fill:none; stroke:currentColor;
+  stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round}
+.bub--pencil:hover{
+  background:var(--amber); border-color:var(--amber); color:#231F20; transform:scale(1.1);
+}
+
+/* ============ THE LOCATION CARD ============
+   One object: the map on top, the details in the box beneath it, and the two
+   actions floating on the seam between them -- which is what ties the picture
+   and the facts into a single card rather than two stacked panels. */
+.locard{
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  box-shadow:var(--shadow); overflow:visible;
+}
+.locard__map{position:relative}
+.locard__map .lmap{border:0; border-bottom:1px solid var(--rule); border-radius:0}
+.locard__acts{
+  position:absolute; right:14px; bottom:-19px; z-index:2;
+  display:flex; gap:9px;
+}
+.locard__body{padding:6px 4px 4px}
+.locard__tbl{border:0; background:transparent}
+.locard__tbl th{
+  font-size:10.5px; letter-spacing:.12em; color:var(--ink-3);
+  vertical-align:top; padding-top:14px; border-bottom:1px solid var(--rule-soft);
+}
+.locard__tbl tr:first-child th, .locard__tbl tr:first-child td{padding-top:20px}
+.locard__tbl tr:last-child th, .locard__tbl tr:last-child td{border-bottom:0}
+
+/* A canvas-toned bubble that darkens under the pointer. Same family as the
+   Desk's bubbles; these carry a ring of the card so they read as sitting ON
+   the seam rather than punched through it. */
+.cbub{
+  width:38px; height:38px; border-radius:50%; display:grid; place-items:center;
+  cursor:pointer; padding:0; text-decoration:none;
+  background:var(--sunken); color:var(--ink-3);
+  border:1px solid var(--rule); box-shadow:0 0 0 3px var(--surface), var(--shadow);
+  transition:background .15s, color .15s, border-color .15s, transform .15s;
+}
+.cbub svg{width:18px; height:18px; display:block}
+.cbub:hover{
+  background:var(--canvas-2); border-color:var(--canvas-3); color:var(--ink);
+  transform:scale(1.09);
+}
+.cbub:active{transform:scale(1)}
+.cbub:disabled{opacity:.55; cursor:progress}
+/* hearted: amber, and it stays amber */
+.cbub.is-on{background:var(--warmbg); border-color:var(--amber); color:var(--amber)}
+.cbub.is-on:hover{background:var(--amber); border-color:var(--amber); color:#231F20}
+
+@media (max-width:640px){
+  .locard__acts{right:10px; bottom:-18px}
+}

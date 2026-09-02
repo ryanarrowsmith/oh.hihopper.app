@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { supabaseServer } from '@/lib/supabase/server'
 import { currentSession } from '@/lib/tenant'
 import { logAudit } from '@/lib/audit'
-import { addressOf, geocode } from '@/lib/mapbox'
+import { addressOf, geocode, whyNoPin } from '@/lib/mapbox'
 
 export type Result = { ok: boolean; message: string }
 
@@ -99,9 +99,12 @@ export async function createLocation(_prev: Result | null, form: FormData): Prom
   // geocoder was wrong about their yard, and re-resolving would undo that.
   let latitude = num(form, 'latitude'), longitude = num(form, 'longitude')
   let geocoded_at: string | null = null
+  let why: string | null = null
   if (latitude == null || longitude == null) {
-    const pin = await geocode(addressOf(place))
-    if (pin) { latitude = pin.latitude; longitude = pin.longitude; geocoded_at = new Date().toISOString() }
+    const r = await geocode(place)
+    if (r.ok) { latitude = r.pin.latitude; longitude = r.pin.longitude
+                geocoded_at = new Date().toISOString() }
+    else why = whyNoPin(r)
   }
 
   const { error } = await db.schema('hopper').from('location').insert({
@@ -114,11 +117,11 @@ export async function createLocation(_prev: Result | null, form: FormData): Prom
 
   await logAudit(db, { account_id: account, kind: 'location', object: name,
     object_id: entity_id, summary: `Added the location ${name}`,
-    note: latitude == null ? 'No pin — the address did not resolve.' : null })
+    note: why })
   revalidatePath(`/admin/organizations/${entity_id}`)
   revalidatePath('/admin/organizations/locations')
   return { ok: true, message: latitude == null
-    ? `${name} added. The address did not resolve to a map pin — check it, or type coordinates.`
+    ? `${name} added, without a map pin. ${why ?? ''}`.trim()
     : `${name} added and pinned.` }
 }
 
@@ -145,6 +148,7 @@ export async function updateLocation(_prev: Result | null, form: FormData): Prom
 
   let latitude = num(form, 'latitude'), longitude = num(form, 'longitude')
   let geocoded_at: string | null = was.geocoded_at
+  let why: string | null = null
   const typedByHand = latitude != null && longitude != null
     && (latitude !== was.latitude || longitude !== was.longitude)
   const addressMoved = addressOf(place) !== addressOf(was)
@@ -156,10 +160,10 @@ export async function updateLocation(_prev: Result | null, form: FormData): Prom
     if (wasHandPlaced && !addressMoved) {
       latitude = was.latitude; longitude = was.longitude
     } else {
-      const pin = await geocode(addressOf(place))
-      if (pin) { latitude = pin.latitude; longitude = pin.longitude
-                 geocoded_at = new Date().toISOString() }
-      else { latitude = null; longitude = null; geocoded_at = null }
+      const r = await geocode(place)
+      if (r.ok) { latitude = r.pin.latitude; longitude = r.pin.longitude
+                  geocoded_at = new Date().toISOString() }
+      else { latitude = null; longitude = null; geocoded_at = null; why = whyNoPin(r) }
     }
   }
 
@@ -177,7 +181,7 @@ export async function updateLocation(_prev: Result | null, form: FormData): Prom
   revalidatePath(`/admin/organizations/${was.entity_id}`)
   revalidatePath(`/admin/organizations/${was.entity_id}/locations/${id}`)
   return { ok: true, message: latitude == null
-    ? 'Saved, but the address did not resolve to a pin.' : 'Saved.' }
+    ? `Saved, without a map pin. ${why ?? ''}`.trim() : 'Saved.' }
 }
 
 /** Re-resolve a pin from the address on demand. */
@@ -188,9 +192,9 @@ export async function repinLocation(_prev: Result | null, form: FormData): Promi
     .select('*').eq('id', id).maybeSingle()
   if (readErr || !loc) return { ok: false, message: 'That location is not there.' }
 
-  const pin = await geocode(addressOf(loc))
-  if (!pin) return { ok: false, message:
-    'Mapbox could not place that address confidently. Check it, or type coordinates by hand.' }
+  const r = await geocode(loc)
+  if (!r.ok) return { ok: false, message: whyNoPin(r) }
+  const pin = r.pin
 
   const { error } = await db.schema('hopper').from('location')
     .update({ latitude: pin.latitude, longitude: pin.longitude,
@@ -371,4 +375,34 @@ function refused(msg: string, thing: string) {
   }
   if (/duplicate key/i.test(msg)) return `There is already a ${thing} with that name here.`
   return msg
+}
+
+
+// ----------------------------------------------------------------- favorites
+/**
+ * Heart or un-heart a thing. The person is taken from the session -- a
+ * favourite is somebody's own, and an endpoint that accepts a person_id is an
+ * endpoint for rearranging other people's.
+ */
+export async function toggleFavorite(_prev: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const session = await currentSession()
+  if (!session?.personId) {
+    return { ok: false, message: 'You are not on the roster yet, so there is nowhere to keep it.' }
+  }
+  const object = str(form, 'object'), object_id = str(form, 'object_id')
+  if (!object || !object_id) return { ok: false, message: 'Nothing to heart.' }
+
+  const { data: had } = await db.schema('hopper').from('favorite')
+    .select('id').eq('object', object).eq('object_id', object_id).maybeSingle()
+
+  const res = had
+    ? await db.schema('hopper').from('favorite').delete().eq('id', had.id)
+    : await db.schema('hopper').from('favorite').insert({
+        account_id: account, person_id: session.personId, object, object_id })
+  if (res.error) return { ok: false, message: refused(res.error.message, 'favourite') }
+
+  revalidatePath(str(form, 'back') || '/')
+  revalidatePath('/')
+  return { ok: true, message: had ? 'Taken out of your favourites.' : 'Added to your favourites.' }
 }
