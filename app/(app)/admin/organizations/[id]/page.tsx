@@ -309,9 +309,9 @@ export default async function Entity({ params }: { params: { id: string } }) {
                 {l.latitude != null
                   ? <LocationMap lat={l.latitude} lng={l.longitude} label={l.name} />
                   : <div className="lmap lmap--none" style={{ minHeight: 150 }}>
-                      <div><b style={{ display: 'block', color: 'var(--ink-2)' }}>{l.name}</b>
-                        No pin yet</div>
+                      <div>No pin yet</div>
                     </div>}
+                <span className="mapcard__name">{l.name}</span>
                 <span className="mapcard__sub">
                   {[l.city, l.region].filter(Boolean).join(', ') || 'No address yet'}
                   {l.is_head_office && ' · Head office'}

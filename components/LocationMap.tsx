@@ -1,7 +1,8 @@
 /**
  * A themed map. The image comes through our own proxy; the pin is drawn on top
  * in Hopper's amber rather than baked in by Mapbox, so it stays sharp at any
- * scale, stays on the brand's palette, and can carry the label.
+ * scale and stays on the brand's palette. The label is the alt text and
+ * nothing else -- names belong on the canvas, not over the terrain.
  *
  * Two sources, one per theme, so dark mode gets Mapbox's dark style rather than
  * a light map dimmed with a filter -- which is what makes a map look like a
@@ -27,7 +28,6 @@ export default function LocationMap({
           <circle cx="12" cy="12" r="3.6" fill="#231F20" />
         </svg>
       </span>
-      {label && <figcaption className="lmap__cap">{label}</figcaption>}
     </figure>
   )
 }
