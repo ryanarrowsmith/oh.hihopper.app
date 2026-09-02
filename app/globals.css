@@ -2768,3 +2768,48 @@ a.crow:hover svg{stroke:var(--steel-ink)}
 .rcard__chart{display:block; margin-top:10px; height:64px; overflow:hidden}
 .rcard__chart .chart{height:64px}
 .rgrid--md .rcard__chart{display:none}
+
+/* Measures orders of magnitude apart get a plot each rather than one shared
+   scale that flattens the small one into the axis. Stacked, each with its own
+   name and latest figure, so the split is legible as a choice rather than
+   looking like three charts that happened to land near each other. */
+.charts{display:grid; gap:14px}
+.charts__one + .charts__one{padding-top:14px; border-top:1px solid var(--rule-soft)}
+.charts__l{display:flex; align-items:center; gap:8px; margin:0 0 4px;
+  font-size:12.5px; font-weight:700; color:var(--ink-2)}
+.charts__l b{margin-left:auto; color:var(--ink); font-variant-numeric:tabular-nums}
+
+/* ---- a report's own page ---- */
+
+/* A label-left / value-right line, the shape a table takes when it becomes a
+   card. Used for the source, the looks and anything else that is a list of
+   facts rather than a table. */
+.row__l{flex:none; min-width:132px; color:var(--ink-3); display:flex; align-items:center; gap:8px}
+.row__v{min-width:0; color:var(--ink-2); word-break:break-word}
+.row__v a{color:var(--steel-ink); font-weight:700; text-decoration:none}
+.row__v a:hover{text-decoration:underline}
+
+/* A note is prose with a date over it, not a table row -- it wraps, and the
+   date is the quiet part. */
+.noteline{padding:12px 0; border-bottom:1px solid var(--rule-soft)}
+.noteline:last-child{border-bottom:0}
+.noteline__at{margin:0; font-family:var(--mono); font-size:9.5px; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--ink-3)}
+.noteline__b{margin:5px 0 0; font-size:13.5px; line-height:1.6; color:var(--ink-2)}
+
+/* The table on the report page is inside a card rather than a popover, so it
+   takes the card's edges instead of the popover's. */
+.rawpane{display:flex; flex-direction:column; min-height:0}
+.rawpane .rawbar{margin:0; padding:11px 14px; background:var(--surface);
+  border-bottom:1px solid var(--rule); flex:none}
+.rawpane .rawwrap{border-left:0; border-right:0; border-top:0; border-radius:0;
+  max-height:min(56vh,520px)}
+.rawpane .rawnote{margin:0; padding:10px 14px; flex:none; display:flex; gap:9px;
+  align-items:flex-start; background:var(--sunken); border-top:1px solid var(--rule);
+  color:var(--ink-3)}
+.rawpane .raw th:first-child, .rawpane .raw td:first-child{padding-left:14px}
+.rawpane .raw th:last-child, .rawpane .raw td:last-child{padding-right:14px}
+.card > .rawpane{margin:-1px}
+/* .card carries no padding of its own -- its header and footer bring their own
+   -- so a bare list of facts inside one needs some. */
+.facts{padding:3px 15px}

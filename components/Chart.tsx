@@ -28,6 +28,23 @@ const short = (n: number) =>
 const day = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
+/**
+ * How far apart two measures may be before one plot stops working.
+ *
+ * Sixteen thousand and a hundred and twenty-seven share an axis by lying flat
+ * along the bottom of it. Twenty-five is where a series stops having enough of
+ * the plot's height left to show a shape at all: at that ratio the smaller one
+ * occupies the bottom 4% and every move it makes is under a pixel.
+ */
+const SPREAD_LIMIT = 25
+
+function spreadOf(series: Series[]) {
+  const scale = series.map((s) => Math.max(...s.points.map((p) => Math.abs(p.v)), 0))
+    .filter((n) => n > 0)
+  if (scale.length < 2) return 1
+  return Math.max(...scale) / Math.min(...scale)
+}
+
 export default function Chart({
   type, series, height = 250, labels = true, compact = false, bare = false,
 }: {
@@ -40,16 +57,54 @@ export default function Chart({
   const live = series.filter((s) => s.points.length > 0)
   if (live.length === 0) return null
   if (type === 'pie') return <Pie series={live} height={height} compact={compact} />
-  return <Axes type={type === 'bar' ? 'bar' : 'line'} series={live}
-                height={height} labels={labels && !bare} bare={bare} />
+
+  const kind = type === 'bar' ? 'bar' : 'line'
+
+  /**
+   * One plot, or one plot each.
+   *
+   * Measures of a like size belong together -- that is the whole reason to put
+   * two lines on one chart, and separating them would cost you the comparison.
+   * Measures orders of magnitude apart do not: sharing a scale flattens the
+   * small one into the axis, and giving them two axes on one plot is a chart
+   * that can be made to say anything by choosing where each axis starts.
+   *
+   * So they get a plot each, stacked, each with its own scale and its name and
+   * latest figure on it. Nothing is flattened and nothing is fudged; it costs
+   * vertical room, which is why a card never does this and shows the headline
+   * measure alone instead.
+   */
+  if (!bare && live.length > 1 && spreadOf(live) > SPREAD_LIMIT) {
+    const each = Math.max(96, Math.round((height - (live.length - 1) * 14) / live.length))
+    return (
+      <div className="charts">
+        {live.map((s, i) => (
+          <div className="charts__one" key={s.measure}>
+            <p className="charts__l">
+              <span className="legend__k" style={{ background: `var(${SERIES_VAR[i % 3]})` }} />
+              {s.measure}
+              <b>{nf.format(s.points[s.points.length - 1].v)}</b>
+            </p>
+            <Axes type={kind} series={[s]} height={each} colourFrom={i}
+                  labels={labels && i === live.length - 1} />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return <Axes type={kind} series={live} height={height} labels={labels && !bare} bare={bare} />
 }
 
 /**
  * Bars and lines share an axis, a scale and a set of gridlines, so they share
  * a component. Only the marks differ, which is the only thing that should.
  */
-function Axes({ type, series, height, labels, bare }: {
+function Axes({ type, series, height, labels, bare, colourFrom = 0 }: {
   type: 'bar' | 'line'; series: Series[]; height: number; labels: boolean; bare?: boolean
+  /** Which palette slot this plot starts at, so a series keeps its colour when
+   *  it is pulled out onto a plot of its own. */
+  colourFrom?: number
 }) {
   const w = 820, h = height
   const padL = bare ? 2 : 46, padR = bare ? 2 : 16
@@ -91,7 +146,7 @@ function Axes({ type, series, height, labels, bare }: {
         const slot = (w - padL - padR) / Math.max(1, n)
         const bw = Math.max(2, (slot * 0.62) / series.length)
         return (
-          <g key={s.measure} style={{ fill: `var(${SERIES_VAR[si % 3]})` }}>
+          <g key={s.measure} style={{ fill: `var(${SERIES_VAR[(si + colourFrom) % 3]})` }}>
             {s.points.map((p, i) => {
               const cx = x(i) - (bw * series.length) / 2 + si * bw
               const top = y(p.v), base = y(Math.max(lo, 0))
@@ -105,14 +160,14 @@ function Axes({ type, series, height, labels, bare }: {
           `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(p.v).toFixed(1)}`).join(' ')
         const last = s.points[s.points.length - 1]
         return (
-          <g key={s.measure} style={{ stroke: `var(${SERIES_VAR[si % 3]})` }}>
+          <g key={s.measure} style={{ stroke: `var(${SERIES_VAR[(si + colourFrom) % 3]})` }}>
             {series.length === 1 && (
-              <path className="chart__ar" style={{ fill: `var(${SERIES_VAR[si % 3]})`, stroke: 'none' }}
+              <path className="chart__ar" style={{ fill: `var(${SERIES_VAR[(si + colourFrom) % 3]})`, stroke: 'none' }}
                     d={`${d} L${x(s.points.length - 1).toFixed(1)} ${h - padB} L${x(0).toFixed(1)} ${h - padB} Z`} />
             )}
             <path className="chart__ln" d={d} />
             <circle className="chart__pt" cx={x(s.points.length - 1)} cy={y(last.v)} r="3.6"
-                    style={{ fill: `var(${SERIES_VAR[si % 3]})`, stroke: 'none' }} />
+                    style={{ fill: `var(${SERIES_VAR[(si + colourFrom) % 3]})`, stroke: 'none' }} />
           </g>
         )
       })}

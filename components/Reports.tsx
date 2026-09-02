@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import { refreshReport } from '@/app/actions/reports'
 import Chart, { Legend, type Series } from '@/components/Chart'
+import RawTable from '@/components/RawTable'
 
 export type Card = {
   id: string; name: string; entity: string; department: string; category: string | null
@@ -11,16 +12,6 @@ export type Card = {
   lastLook: string | null; lastLookOk: boolean | null; lastFailure: string | null
   freshness: 'new' | 'good' | 'behind' | 'failed' | 'snapshot'
   series: Series[]
-}
-
-type Rows = {
-  columns: { key: string; label: string; type: 'text' | 'number' | 'date' }[]
-  rows: (string | number | null)[][]
-  /** What the sheet itself shows, cell for cell. A sheet already knows how it
-   *  wants its numbers written; re-deriving that turned a Year of 2026 into
-   *  "2,026". The table prints this; sorting and export use `rows`. */
-  display: (string | null)[][] | null
-  row_count: number; truncated: boolean; fetched_at: string | null
 }
 
 const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
@@ -167,63 +158,7 @@ function ago(iso: string) {
  */
 function ReportPop({ c, onClose }: { c: Card; onClose: () => void }) {
   const [tab, setTab] = useState<'shape' | 'rows'>('shape')
-  const [data, setData] = useState<Rows | null>(null)
-  const [loading, setLoading] = useState(false)
   const box = useRef<HTMLDivElement>(null)
-
-  // Sorting and hiding live here, not in the table, because the export has to
-  // agree with what is on screen. A CSV that comes back in a different order
-  // from the table you exported it from is a CSV somebody has to re-sort.
-  const [sort, setSort] = useState<{ i: number; dir: 1 | -1 } | null>(null)
-  const [hidden, setHidden] = useState<Set<number>>(new Set())
-
-  const view = useMemo<Rows | null>(() => {
-    if (!data) return null
-    const keep = data.columns.map((_, i) => i).filter((i) => !hidden.has(i))
-
-    // Sort the INDEXES, not the rows, so the display strings travel with the
-    // values they belong to. Sorting two parallel arrays separately is how a
-    // table ends up showing one row's numbers under another row's label.
-    let order = data.rows.map((_, n) => n)
-    if (sort) {
-      const { i, dir } = sort
-      const t = data.columns[i]?.type
-      order = order.sort((a, b) => {
-        const x = data.rows[a][i], y = data.rows[b][i]
-        if (x == null) return 1
-        if (y == null) return -1
-        if (t === 'number') return ((x as number) - (y as number)) * dir
-        return String(x).localeCompare(String(y)) * dir
-      })
-    }
-    return {
-      ...data,
-      columns: keep.map((i) => data.columns[i]),
-      rows: order.map((n) => keep.map((i) => data.rows[n][i])),
-      display: data.display
-        ? order.map((n) => keep.map((i) => data.display![n]?.[i] ?? null))
-        : null,
-    }
-  }, [data, sort, hidden])
-
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', key)
-    return () => document.removeEventListener('keydown', key)
-  }, [onClose])
-
-  // Fetched when the tab is opened, not before: most people never open it, and
-  // five hundred rows per card is a page nobody can load.
-  useEffect(() => {
-    if (tab !== 'rows' || data || loading) return
-    setLoading(true)
-    fetch(`/api/report/${c.id}/rows`)
-      .then((r) => r.json())
-      .then((d) => setData(d))
-      .catch(() => setData({ columns: [], rows: [], display: null,
-                             row_count: 0, truncated: false, fetched_at: null }))
-      .finally(() => setLoading(false))
-  }, [tab, data, loading, c.id])
 
   return (
     <div className="rscrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
@@ -244,15 +179,18 @@ function ReportPop({ c, onClose }: { c: Card; onClose: () => void }) {
                   onClick={() => setTab('rows')}>The rows behind it</button>
         </div>
 
+        {/* The rows are fetched when the tab is opened, not before: most people
+            never open it, and five hundred rows per card is a page nobody can
+            load. RawTable does that itself. */}
         {tab === 'shape'
           ? <Shape c={c} />
-          : <RawTab c={c} data={data} loading={loading}
-                    sort={sort} setSort={setSort} hidden={hidden} setHidden={setHidden} />}
+          : <div className="rpop__b rpop__b--data">
+              <RawTable reportId={c.id} name={c.name} everRead={c.freshness !== 'new'} />
+            </div>}
 
         <div className="rpop__go">
           <RefreshBtn id={c.id} />
-          {tab === 'rows' && view && view.rows.length > 0 &&
-            <button className="btn" type="button" onClick={() => toCsv(c.name, view)}>Export CSV</button>}
+          <a className="btn" href={`/reporting/${c.id}`}>Open it</a>
           <span className="spacer" />
           {c.lastLookOk === false && c.lastFailure &&
             <span className="rpop__fail" title={c.lastFailure}>{c.lastFailure}</span>}
@@ -295,208 +233,6 @@ function Shape({ c }: { c: Card }) {
 
 const said = (r: string) => r === 'hourly' ? 'Every 30 min' : r === 'twice_daily' ? 'Hourly'
   : r === 'daily' ? 'Every 4 hours' : r === 'weekly' ? 'Daily, 3 AM' : 'Never — a snapshot'
-
-// ------------------------------------------------------- the rows behind it
-
-/**
- * A wide table, readably. Four things carry it, and they matter in this order:
- *
- *  1. The first column freezes. Scroll right through fifteen columns and the
- *     thing that tells you WHICH ROW you are on leaves the screen, after which
- *     every number you read belongs to nobody.
- *  2. The header freezes. Same argument, the other axis.
- *  3. Rows alternate. Hairlines are enough at five columns; at fifteen the eye
- *     loses the line halfway across and a band is what carries it. Very faint --
- *     a stripe you notice is a stripe competing with the numbers.
- *  4. Hover lights the whole row over the top of the stripe, so pointing at a
- *     row is still how you read one.
- *
- * The table runs to the container's own edges, because padding around a
- * fifteen-column table costs two columns for nothing.
- */
-function RawTab({ c, data, loading, sort, setSort, hidden, setHidden }: {
-  c: Card; data: Rows | null; loading: boolean
-  sort: { i: number; dir: 1 | -1 } | null
-  setSort: (s: { i: number; dir: 1 | -1 } | null) => void
-  hidden: Set<number>; setHidden: (h: Set<number>) => void
-}) {
-  const [tight, setTight] = useState(false)
-  const [picking, setPicking] = useState(false)
-  const wrap = useRef<HTMLDivElement>(null)
-  const boxEl = useRef<HTMLDivElement>(null)
-
-  const cols = data?.columns ?? []
-
-  // The same index sort the popover does, for the same reason: the display
-  // strings have to move with the values they belong to.
-  const order = useMemo(() => {
-    const ix = (data?.rows ?? []).map((_, n) => n)
-    if (!sort || !data) return ix
-    const { i, dir } = sort
-    const t = cols[i]?.type
-    return ix.sort((a, b) => {
-      const x = data.rows[a][i], y = data.rows[b][i]
-      if (x == null) return 1
-      if (y == null) return -1
-      if (t === 'number') return ((x as number) - (y as number)) * dir
-      return String(x).localeCompare(String(y)) * dir
-    })
-  }, [data, sort, cols])
-
-  // The right-edge hint must not lie: it goes out once you have actually
-  // reached the last column, and a pinned column casts a shadow only once it is
-  // floating over something.
-  const edge = () => {
-    const w = wrap.current, b = boxEl.current
-    if (!w || !b) return
-    b.classList.toggle('at-end', w.scrollWidth - w.clientWidth - w.scrollLeft <= 2)
-    b.classList.toggle('is-scrolled', w.scrollLeft > 2)
-  }
-  useEffect(edge, [data, hidden, tight])
-
-  if (loading) return <div className="rpop__b"><p className="empty">Reading…</p></div>
-  if (!data || cols.length === 0) {
-    return <div className="rpop__b"><p className="empty">
-      {c.freshness === 'new'
-        ? 'Nothing has been read yet. Refresh it and the rows appear here.'
-        : 'The last look brought back no rows.'}
-    </p></div>
-  }
-
-  const shownCols = cols.map((_, i) => i).filter((i) => !hidden.has(i))
-
-  return (
-    <div className="rpop__b rpop__b--data">
-      <div className="rawbar">
-        <span className="rawbar__l">
-          {data.truncated
-            ? <>The most recent <b>{order.length.toLocaleString()}</b> rows of <b>{data.row_count.toLocaleString()}</b></>
-            : <><b>{order.length.toLocaleString()}</b> row{order.length === 1 ? '' : 's'}</>}
-          {data.fetched_at ? `, read ${ago(data.fetched_at)}.` : '.'}
-        </span>
-        <div className="seg">
-          <button className="seg__b" type="button" aria-pressed={!tight}
-                  onClick={() => setTight(false)}>Comfortable</button>
-          <button className="seg__b" type="button" aria-pressed={tight}
-                  onClick={() => setTight(true)}>Compact</button>
-        </div>
-        <div className="colpick">
-          <button className="btn" type="button" aria-expanded={picking}
-                  onClick={(e) => { e.stopPropagation(); setPicking(!picking) }}>
-            Columns <b>{shownCols.length}</b>
-          </button>
-          {picking && (
-            <div className="colpop" onMouseDown={(e) => e.stopPropagation()}>
-              {cols.map((col, i) => {
-                const on = !hidden.has(i)
-                return (
-                  <button key={col.key} className="colrow" type="button" aria-pressed={on}
-                    disabled={i === 0}
-                    title={i === 0 ? 'The key column stays' : undefined}
-                    onClick={() => {
-                      const next = new Set(hidden)
-                      on ? next.add(i) : next.delete(i)
-                      setHidden(next)
-                    }}>
-                    <span className={`colrow__k colrow__k--${col.type}`}>
-                      {col.type === 'number' ? '123' : col.type === 'date' ? 'DATE' : 'ABC'}
-                    </span>
-                    <span>{col.label}</span>
-                    <span className="colrow__c">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
-                           strokeLinecap="round" strokeLinejoin="round"><path d="M4 12l6 6L20 6" /></svg>
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="rawbox" ref={boxEl}>
-        <div className="rawwrap" ref={wrap} onScroll={edge}>
-          <table className={`raw${tight ? ' raw--tight' : ''}`}>
-            <thead><tr>
-              {shownCols.map((i) => {
-                const col = cols[i]
-                const active = sort?.i === i
-                return (
-                  <th key={col.key} scope="col"
-                      className={col.type === 'number' ? 'num' : undefined}
-                      aria-sort={active ? (sort!.dir === 1 ? 'ascending' : 'descending') : undefined}
-                      onClick={() => setSort(active
-                        ? { i, dir: sort!.dir === 1 ? -1 : 1 }
-                        : { i, dir: col.type === 'date' ? -1 : 1 })}>
-                    {col.label}
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"
-                         strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M6 11l6-6 6 6" /></svg>
-                  </th>
-                )
-              })}
-            </tr></thead>
-            <tbody>
-              {order.map((n) => (
-                <tr key={n}>
-                  {shownCols.map((i) => (
-                    <td key={i} className={cols[i].type === 'number' ? 'num' : undefined}>
-                      {shown(data!, n, i)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <p className="rawnote">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-             strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg>
-        <span>Hopper keeps the most recent rows rather than the whole sheet — the source is still
-          the source, and this is what it said when Hopper last looked.</span>
-      </p>
-    </div>
-  )
-}
-
-/**
- * What one cell prints.
- *
- * The sheet's own formatting first, because a sheet already knows whether a
- * column is money, a percentage or a year — and a year re-derived from the raw
- * number comes out as "2,026". Falling back to Intl only where the source had
- * no format of its own.
- */
-function shown(data: Rows, n: number, i: number) {
-  const d = data.display?.[n]?.[i]
-  if (d != null && d !== '') return d
-  const v = data.rows[n]?.[i]
-  if (v == null) return ''
-  return typeof v === 'number' ? nf.format(v) : String(v)
-}
-
-/**
- * Export takes what you are looking at, sorted the way you sorted it. A CSV
- * that comes back in a different order from the table you exported it from is a
- * CSV somebody has to re-sort.
- */
-function toCsv(name: string, data: Rows) {
-  const esc = (v: unknown) => {
-    const s = v == null ? '' : String(v)
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-  }
-  const body = [data.columns.map((c) => esc(c.label)).join(',')]
-    .concat(data.rows.map((r) => r.map(esc).join(',')))
-    .join('\n')
-  const url = URL.createObjectURL(new Blob([body], { type: 'text/csv;charset=utf-8' }))
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${name.replace(/[^\w -]/g, '').trim() || 'report'}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
-}
 
 function RefreshBtn({ id }: { id: string }) {
   const [state, run] = useFormState(refreshReport, null)
