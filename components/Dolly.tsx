@@ -17,7 +17,6 @@ const PORTRAIT = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUEBAQ
 export default function Dolly() {
   const [line, setLine] = useState(LINES[0])
   const [flying, setFlying] = useState(false)
-  const [gone, setGone] = useState(false)
   const [open, setOpen] = useState(false)
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState<string | null>(null)
@@ -40,12 +39,20 @@ export default function Dolly() {
     return () => clearTimeout(t)
   }, [sent])
 
-  // She comes out when you go to Dolly, crosses once, and is gone -- unmounted,
-  // so it cannot come back without a reload.
+  // She crosses the card when the pointer arrives on it, and she is only ever
+  // inside the card -- .flutter is absolutely positioned within .dolly, so the
+  // card is her containing block and its border radius is her clip. She used
+  // to be position:fixed across the whole window, which read as something the
+  // page was doing rather than something Dolly was doing.
+  //
+  // Hovering again flies her again, once the crossing she is on has finished.
+  // Re-entering mid-flight does nothing, so sweeping the pointer back and
+  // forth cannot stack four butterflies on top of each other.
+  const CROSS = 4400
   function wake() {
-    if (flying || gone || reduced.current) return
+    if (flying || reduced.current) return
     setFlying(true)
-    setTimeout(() => setGone(true), 8600)
+    setTimeout(() => setFlying(false), CROSS + 120)
   }
 
   async function send() {
@@ -67,6 +74,28 @@ export default function Dolly() {
   return (
     <>
       <div className="dolly" onMouseEnter={wake}>
+        <div className={'flutter' + (flying ? ' flying' : '')} aria-hidden="true">
+          <div className="bfly-x"><div className="bfly-y"><div className="bfly-orbit">
+      <svg className="bfly" viewBox="0 0 100 100" fill="none">
+          <defs>
+            <g id="bw">
+              <path d="M50 47C41 21 22 7 12 15 3 22 5 41 17 49c11 7 25 6 33-2z" fill="#3D7BB5" />
+              <path d="M50 52c-8 13-19 27-29 23-8-4-9-17 0-24 9-6 22-5 29 1z" fill="#A9CBE8" />
+              <path d="M50 47C41 21 22 7 12 15" stroke="#1F5C99" strokeWidth="2" strokeLinecap="round" />
+              <path d="M50 52c-8 13-19 27-29 23" stroke="#1F5C99" strokeWidth="1.6" strokeLinecap="round" />
+              <circle cx="20" cy="30" r="3.4" fill="#A9CBE8" />
+              <circle cx="27" cy="64" r="2.4" fill="#3D7BB5" />
+            </g>
+          </defs>
+          <g className="wing wing--l"><use href="#bw" /></g>
+          <g className="wing wing--r"><g transform="translate(100,0) scale(-1,1)"><use href="#bw" /></g></g>
+          <path d="M50 33c2.1 0 3.1 2.4 3.1 8.5S52 68 50 73c-2.1-5-3.1-25.4-3.1-31.5S47.9 33 50 33z" fill="#21201F" />
+          <path d="M50 34c-2.6-6-6.4-9.5-9.4-9.5M50 34c2.6-6 6.4-9.5 9.4-9.5" stroke="#21201F" strokeWidth="1.8" strokeLinecap="round" />
+          <circle cx="40.6" cy="24.5" r="2" fill="#21201F" />
+          <circle cx="59.4" cy="24.5" r="2" fill="#21201F" />
+        </svg>
+          </div></div></div>
+        </div>
         <span className="glints" aria-hidden="true">
           <i className="glint" style={{ left: '3.0%', animationDelay: '0.03s' }} />
           <i className="glint" style={{ left: '8.0%', animationDelay: '0.41s' }} />
@@ -149,32 +178,10 @@ export default function Dolly() {
             </div>
           )}
         </div>
+
       </div>
 
-      {!gone && (
-        <div className={'flutter' + (flying ? ' flying' : '')} aria-hidden="true">
-          <div className="bfly-x"><div className="bfly-y"><div className="bfly-orbit">
-      <svg className="bfly" viewBox="0 0 100 100" fill="none">
-          <defs>
-            <g id="bw">
-              <path d="M50 47C41 21 22 7 12 15 3 22 5 41 17 49c11 7 25 6 33-2z" fill="#3D7BB5" />
-              <path d="M50 52c-8 13-19 27-29 23-8-4-9-17 0-24 9-6 22-5 29 1z" fill="#A9CBE8" />
-              <path d="M50 47C41 21 22 7 12 15" stroke="#1F5C99" strokeWidth="2" strokeLinecap="round" />
-              <path d="M50 52c-8 13-19 27-29 23" stroke="#1F5C99" strokeWidth="1.6" strokeLinecap="round" />
-              <circle cx="20" cy="30" r="3.4" fill="#A9CBE8" />
-              <circle cx="27" cy="64" r="2.4" fill="#3D7BB5" />
-            </g>
-          </defs>
-          <g className="wing wing--l"><use href="#bw" /></g>
-          <g className="wing wing--r"><g transform="translate(100,0) scale(-1,1)"><use href="#bw" /></g></g>
-          <path d="M50 33c2.1 0 3.1 2.4 3.1 8.5S52 68 50 73c-2.1-5-3.1-25.4-3.1-31.5S47.9 33 50 33z" fill="#21201F" />
-          <path d="M50 34c-2.6-6-6.4-9.5-9.4-9.5M50 34c2.6-6 6.4-9.5 9.4-9.5" stroke="#21201F" strokeWidth="1.8" strokeLinecap="round" />
-          <circle cx="40.6" cy="24.5" r="2" fill="#21201F" />
-          <circle cx="59.4" cy="24.5" r="2" fill="#21201F" />
-        </svg>
-          </div></div></div>
-        </div>
-      )}
+
     </>
   )
 }

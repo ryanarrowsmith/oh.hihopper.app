@@ -617,7 +617,8 @@ h1 .hl{background-size:100% .92em; background-position:0 .2em}
    read as flying rather than sliding. Fixed and pointer-events:none, so it
    never lands on anything anyone is trying to click. */
 .flutter{
-  position:fixed; inset:0; overflow:hidden; pointer-events:none; z-index:80;
+  position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:1;
+  border-radius:var(--r);
   visibility:hidden;                       /* she waits for Dolly */
 }
 .flutter.flying{visibility:visible}
@@ -626,26 +627,37 @@ h1 .hl{background-size:100% .92em; background-position:0 .2em}
 }
 .flutter.flying .bfly-x, .flutter.flying .bfly-y,
 .flutter.flying .bfly-orbit, .flutter.flying .wing{animation-play-state:running}
-.bfly-x{position:absolute; top:0; left:0; animation:bfly-cross 8s linear 1 both}
-.bfly-y{display:block; animation:bfly-bob 2.2s ease-in-out infinite alternate}
-.bfly-orbit{display:block; animation:bfly-orbit 4.6s linear infinite}
+.bfly-x{position:absolute; top:calc(50% - 15px); left:0; animation:bfly-cross 4.4s linear 1 both}
+.bfly-y{display:block; animation:bfly-bob 1.5s ease-in-out infinite alternate}
+.bfly-orbit{display:block; animation:bfly-bank 1.5s ease-in-out infinite alternate}
 .bfly{display:block; width:30px; height:30px; transform:translateX(9px)}
 .bfly .wing{transform-box:fill-box; transform-origin:100% 50%;
-  animation:flap .12s ease-in-out infinite alternate}
+  animation:flap .09s ease-in-out infinite alternate}
 .bfly .wing--r{transform-origin:0% 50%}
 
-/* Each axis is smooth on its own, which is what removes the corners:
-   X is a constant-speed traverse with no vertical component at all, and Y is
-   an eased alternation -- a sine in all but name. Waypoints with a Y term on
-   a linear timing function is what was putting a hard turn at every one.
-   The traverse starts and ends off both edges, so the wrap is never seen and
-   the loop is genuinely seamless rather than merely quick. */
+/* Each axis is smooth on its own, which is what removes the corners: X is a
+   constant-speed traverse with no vertical component at all, and Y is an eased
+   alternation -- a sine in all but name.
+
+   X is driven by `left`, not by a percentage transform. A percentage translate
+   resolves against the element's OWN box, so translateX(120%) on a 30px
+   butterfly moves it 36px and it never leaves the card. `left` resolves
+   against the containing block, which is the card, which is the point: she
+   crosses Dolly rather than the window. She enters and leaves past both edges,
+   so the card's own clip hides both ends. */
 @keyframes bfly-cross{
-  from{transform:translate(-16vw, 34vh)}
-  to  {transform:translate(118vw, 34vh)}
+  from{left:-38px}
+  to  {left:calc(100% + 38px)}
 }
-@keyframes bfly-bob{from{transform:translateY(-9vh)} to{transform:translateY(9vh)}}
-@keyframes bfly-orbit{from{transform:rotate(0deg)} to{transform:rotate(360deg)}}
+/* The card is about 94px tall and she is 30px, and the orbit swings her a
+   further 6 either way -- so the bob is 11, not the 9vh it was when the whole
+   window was hers. At 15 the wingtips grazed the clip at the top of the arc. */
+@keyframes bfly-bob{from{transform:translateY(-11px)} to{transform:translateY(11px)}}
+/* She banks; she does not roll. This was a continuous 0-360deg rotation, which
+   meant she spent half of every revolution upside down -- which butterflies do
+   not do. It is an alternating tilt now, on the same clock as the bob, so she
+   tips into the climb and out of it the way something with wings would. */
+@keyframes bfly-bank{from{transform:rotate(-13deg)} to{transform:rotate(13deg)}}
 @keyframes flap{from{transform:scaleX(1)} to{transform:scaleX(.28)}}
 
 @media (prefers-reduced-motion:reduce){
