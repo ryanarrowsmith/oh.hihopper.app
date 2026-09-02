@@ -22,10 +22,12 @@
  *   POST { peek }        the add form, looking before it saves. Reads and
  *                        returns; writes nothing.
  *
- *   POST { due: true }   the schedule. Called by pg_cron with the service role,
- *                        and it takes its list from internal.hopper_reports_due()
- *                        so "when is this due" is answered in one place — the
- *                        database — rather than half here and half there.
+ *   POST { due: true }   the schedule. Called by pg_cron, proving itself with a
+ *                        secret the DATABASE generated and nobody has ever seen
+ *                        — no key was copied out of a dashboard to make this
+ *                        work. It takes its list from hopper.cron_sweep_due(),
+ *                        so "when is this due" is answered in one place, the
+ *                        database, rather than half here and half there.
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
@@ -38,9 +40,13 @@ const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
  *  table says so when it has been cut. */
 const KEEP = 500
 
+/** How many reports one sweep will read. An edge function has a wall clock, and
+ *  anything not reached is still due fifteen minutes from now. */
+const SWEEP_MAX = 25
+
 const cors = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-hopper-cron',
 }
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -265,13 +271,33 @@ Deno.serve(async (req) => {
 
   // ---- the schedule
   if (body.due) {
+    // Two ways to be the sweep. pg_cron sends the shared secret; a person
+    // invoking it by hand from the dashboard sends the service key. Anything
+    // else is refused before a single outbound fetch is made, because an open
+    // sweep is an open invitation to make this server fetch things all day.
+    const nonce = req.headers.get('x-hopper-cron')
     const auth = req.headers.get('Authorization') ?? ''
-    if (auth !== `Bearer ${SERVICE}`) return json({ error: 'The sweep is not open to callers.' }, 403)
-    const { data: due, error } = await admin.schema('internal').rpc('hopper_reports_due')
+    let allowed = auth === `Bearer ${SERVICE}`
+    if (!allowed && nonce) {
+      const { data: ok } = await admin.schema('hopper').rpc('cron_check', { candidate: nonce })
+      allowed = ok === true
+    }
+    if (!allowed) return json({ error: 'The sweep is not open to callers.' }, 403)
+
+    // hopper.cron_sweep_due and not internal.hopper_reports_due: PostgREST is
+    // configured for public, graphql_public, beebee, site and hopper, so the
+    // internal schema is unreachable from out here by design. The door is in
+    // hopper and is open to the service role only.
+    const { data: due, error } = await admin.schema('hopper').rpc('cron_sweep_due')
     if (error) return json({ error: error.message }, 500)
+
+    // A bounded batch. An edge function has a wall clock, and thirty slow
+    // sheets in one call is a sweep that dies halfway and leaves no record of
+    // the half it did. Whatever is left is still due on the next knock.
+    const batch = (due ?? []).slice(0, SWEEP_MAX)
     const results = []
-    for (const rep of due ?? []) results.push(await look(admin, rep))
-    return json({ looked: results.length, results })
+    for (const rep of batch) results.push(await look(admin, rep))
+    return json({ looked: results.length, left: Math.max(0, (due ?? []).length - batch.length), results })
   }
 
   // ---- the form, looking before it saves
