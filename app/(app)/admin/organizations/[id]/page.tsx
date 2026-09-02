@@ -119,7 +119,9 @@ export default async function Entity({ params }: { params: { id: string } }) {
             <thead><tr><th>Name</th><th>Address</th><th>Time zone</th><th>Map</th></tr></thead>
             <tbody>{locations!.map((l: any) => (
               <tr key={l.id}>
-                <td><b>{l.name}</b>
+                <td>
+                  <a href={`/admin/organizations/${e.id}/locations/${l.id}`}
+                     style={{ fontWeight: 800, color: 'var(--steel-ink)' }}>{l.name}</a>
                   {l.is_head_office && <><br /><span className="pill pill--good">Head office</span></>}
                 </td>
                 <td>
@@ -141,8 +143,10 @@ export default async function Entity({ params }: { params: { id: string } }) {
           <div className="maps">
             {locations!.map((l: any) => (
               l.latitude != null
-                ? <LocationMap key={l.id} lat={l.latitude} lng={l.longitude}
-                               label={l.name} />
+                ? <a key={l.id} href={`/admin/organizations/${e.id}/locations/${l.id}`}
+                     style={{ textDecoration: 'none' }}>
+                    <LocationMap lat={l.latitude} lng={l.longitude} label={l.name} />
+                  </a>
                 : <div className="lmap lmap--none" key={l.id} style={{ minHeight: 190 }}>
                     <div>
                       <b style={{ display: 'block', color: 'var(--ink-2)', marginBottom: 6 }}>

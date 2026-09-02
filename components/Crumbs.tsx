@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 type Entity = { id: string; name: string; parent_id: string | null }
+type Named = { id: string; name: string }
 type Crumb = { href: string; label: string }
 
 /** Everything that isn't an organization id. */
@@ -26,12 +27,15 @@ const NAMES: Record<string, string> = {
   profile: 'Profile',
 }
 
-export default function Crumbs({ entities }: { entities: Entity[] }) {
+export default function Crumbs(
+  { entities, places = [] }: { entities: Entity[]; places?: Named[] },
+) {
   const path = usePathname()
   const parts = path.split('/').filter(Boolean)
   if (parts.length === 0) return null          // Home needs no trail to itself
 
   const byId = new Map(entities.map((e) => [e.id, e]))
+  const placeById = new Map(places.map((p) => [p.id, p]))
   const crumbs: Crumb[] = []
   let href = ''
 
@@ -48,6 +52,13 @@ export default function Crumbs({ entities }: { entities: Entity[] }) {
       line.forEach((e) => crumbs.push({ href: `/admin/organizations/${e.id}`, label: e.name }))
       continue
     }
+    const place = placeById.get(part)
+    if (place) { crumbs.push({ href, label: place.name }); continue }
+
+    // An id we cannot name is a page we should not pretend to label. Drop the
+    // crumb rather than printing a uuid at somebody.
+    if (/^[0-9a-f-]{36}$/i.test(part)) continue
+
     crumbs.push({ href, label: NAMES[part] ?? part.replace(/-/g, ' ') })
   }
 

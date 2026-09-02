@@ -23,13 +23,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: entities } = await db.schema('hopper')
     .from('entity').select('id, name, parent_id').order('sort_order')
 
+  // So a breadcrumb can name an office instead of printing its id.
+  const { data: places } = await db.schema('hopper')
+    .from('location').select('id, name')
+
   return (
     <div className="app">
       <TopBar initials={session.initials} entities={entities ?? []} />
       <div className="shell">
         <Rail modules={modules} />
         <main className="main">
-          <Crumbs entities={entities ?? []} />
+          <Crumbs entities={entities ?? []} places={places ?? []} />
           {children}
         </main>
       </div>

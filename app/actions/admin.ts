@@ -122,6 +122,64 @@ export async function createLocation(_prev: Result | null, form: FormData): Prom
     : `${name} added and pinned.` }
 }
 
+/**
+ * Edit a location. Changing the address clears a geocoded pin so it is worked
+ * out again -- but a pin somebody placed by hand survives, because they placed
+ * it for a reason and a move down the street should not throw that away.
+ */
+export async function updateLocation(_prev: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const id = str(form, 'id'), name = str(form, 'name')
+  if (!id || !name) return { ok: false, message: 'A location needs a name.' }
+
+  const { data: was } = await db.schema('hopper').from('location')
+    .select('*').eq('id', id).maybeSingle()
+  if (!was) return { ok: false, message: 'That location is not there.' }
+
+  const place = {
+    address_line1: nul(form, 'address_line1'), address_line2: nul(form, 'address_line2'),
+    city: nul(form, 'city'), region: nul(form, 'region'),
+    postal_code: nul(form, 'postal_code'),
+    country: str(form, 'country') || 'United States',
+  }
+
+  let latitude = num(form, 'latitude'), longitude = num(form, 'longitude')
+  let geocoded_at: string | null = was.geocoded_at
+  const typedByHand = latitude != null && longitude != null
+    && (latitude !== was.latitude || longitude !== was.longitude)
+  const addressMoved = addressOf(place) !== addressOf(was)
+
+  if (typedByHand) {
+    geocoded_at = null                       // theirs now; leave it alone
+  } else if (addressMoved || latitude == null) {
+    const wasHandPlaced = was.latitude != null && was.geocoded_at == null
+    if (wasHandPlaced && !addressMoved) {
+      latitude = was.latitude; longitude = was.longitude
+    } else {
+      const pin = await geocode(addressOf(place))
+      if (pin) { latitude = pin.latitude; longitude = pin.longitude
+                 geocoded_at = new Date().toISOString() }
+      else { latitude = null; longitude = null; geocoded_at = null }
+    }
+  }
+
+  const { error } = await db.schema('hopper').from('location').update({
+    name, ...place,
+    time_zone: str(form, 'time_zone') || 'America/Chicago',
+    is_head_office: form.get('is_head_office') === 'on',
+    latitude, longitude, geocoded_at,
+  }).eq('id', id)
+  if (error) return { ok: false, message: refused(error.message, 'location') }
+
+  await logAudit(db, { account_id: account, kind: 'location', object: name,
+    object_id: was.entity_id, summary: `Edited the location ${name}`,
+    note: addressMoved ? 'The address changed.' : null })
+  revalidatePath(`/admin/organizations/${was.entity_id}`)
+  revalidatePath(`/admin/organizations/${was.entity_id}/locations/${id}`)
+  return { ok: true, message: latitude == null
+    ? 'Saved, but the address did not resolve to a pin.' : 'Saved.' }
+}
+
 /** Re-resolve a pin from the address on demand. */
 export async function repinLocation(_prev: Result | null, form: FormData): Promise<Result> {
   const { db, account } = await ctx()
