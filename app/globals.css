@@ -20,6 +20,7 @@
   --amber:#F2A93B;
   --steel:#2D5D7B; --steel-ink:#1E4B66; --steelwash:rgba(45,93,123,.10);
   --canvas-2:#E4DDD1; --canvas-3:#C7BEAF;   /* deeper shades of the canvas */
+  --dot:rgba(35,31,32,.10); --dot-gap:22px;
   --topbar:#231F20; --topbar-ink:#FBF9F5; --topbar-rule:#3A3435;
   --foot:#2D5D7B; --foot-ink:#FBF9F5; --foot-rule:rgba(251,249,245,.22);
   --warmbg:#FDF6E9; --warmrule:#EBD9B4;
@@ -40,6 +41,7 @@
     --rule:#332F2B; --rule-soft:#2A2724;
     --steel:#7FB3D1; --steel-ink:#BEDCEE; --steelwash:rgba(127,179,209,.16);
     --canvas-2:#2C2926; --canvas-3:#514A43;
+    --dot:rgba(243,238,230,.09);
     --topbar:#0F0E0D; --topbar-ink:#F3EEE6; --topbar-rule:#2A2724;
     --warmbg:#2A2119; --warmrule:#4A3A24;
     --good:#4FB07B; --bad:#E9614F;
@@ -55,6 +57,7 @@
   --rule:#332F2B; --rule-soft:#2A2724;
   --steel:#7FB3D1; --steel-ink:#BEDCEE; --steelwash:rgba(127,179,209,.16);
   --canvas-2:#2C2926; --canvas-3:#514A43;
+  --dot:rgba(243,238,230,.09);
   --topbar:#0F0E0D; --topbar-ink:#F3EEE6; --topbar-rule:#2A2724;
   --warmbg:#2A2119; --warmrule:#4A3A24;
   --good:#4FB07B; --bad:#E9614F;
@@ -67,7 +70,9 @@
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
 body{
-  margin:0; background:var(--ground); color:var(--ink);
+  margin:0; background-color:var(--ground); color:var(--ink);
+  background-image:radial-gradient(var(--dot) 1px, transparent 1px);
+  background-size:var(--dot-gap) var(--dot-gap); background-position:-1px -1px;
   font-family:var(--sans); font-size:15px; line-height:1.5;
   -webkit-font-smoothing:antialiased; overflow-x:hidden;
   padding:clamp(14px,2.4vw,30px) 0;
@@ -552,7 +557,10 @@ a.bub{text-decoration:none}
 input[type=checkbox]{width:17px; height:17px; accent-color:var(--steel); cursor:pointer}
 .empty{padding:26px 16px; text-align:center; color:var(--ink-3); font-size:14px;
   border:1px dashed var(--rule); border-radius:var(--r); background:var(--surface)}
-.signin{min-height:100dvh; display:grid; place-items:center; background:var(--ground); padding:24px}
+.signin{min-height:100dvh; display:grid; place-items:center; padding:24px;
+  background-color:var(--ground);
+  background-image:radial-gradient(var(--dot) 1px, transparent 1px);
+  background-size:var(--dot-gap) var(--dot-gap); background-position:-1px -1px;}
 .signin__box{width:100%; max-width:410px; background:var(--paper);
   border:1px solid var(--rule); border-radius:var(--r); box-shadow:var(--lift)}
 .signin__head{background:var(--topbar); color:var(--topbar-ink); padding:22px 24px}
@@ -560,6 +568,17 @@ input[type=checkbox]{width:17px; height:17px; accent-color:var(--steel); cursor:
 .signin__body{padding:24px}
 .signin__body label{display:block; font-size:12px; font-weight:700; letter-spacing:.08em;
   text-transform:uppercase; color:var(--ink-3); margin:0 0 6px}
+
+/* ---- fields: hard rectangles, and always the full width of their column ---- */
+.field{
+  display:block; width:100%; font:inherit; font-size:16px; color:var(--ink);
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  padding:13px 15px;
+}
+.field::placeholder{color:var(--ink-3)}
+.field:focus{border-color:var(--steel); outline:none; box-shadow:var(--focus)}
+select.field{appearance:none}
+
 .signin__body .field{margin-bottom:16px}
 .signin__body .btn{width:100%; padding:13px}
 .err{background:var(--warmbg); border:1px solid var(--bad); color:var(--bad);

@@ -1,5 +1,7 @@
 # Hopper — oh.hihopper.app
 
+*The home to your loose bits.*
+
 The Hopper application. Public site is `hihopper.app`; this is the app behind it.
 
 ## Where the data lives

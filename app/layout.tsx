@@ -3,7 +3,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Hopper',
-  description: 'Every business you own. One place to look.',
+  description: 'The home to your loose bits.',
   metadataBase: new URL('https://oh.hihopper.app'),
 }
 

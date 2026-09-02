@@ -25,7 +25,7 @@ function SignInForm() {
         <div className="signin__head">
           <span className="mark mark--sm">hopper<span className="pd">.</span></span>
           <p style={{ marginTop: 8, fontSize: 14, color: 'rgba(251,249,245,.72)' }}>
-            Every business you own. One place to look.
+            The home to your loose bits.
           </p>
         </div>
         <form className="signin__body" onSubmit={submit}>
