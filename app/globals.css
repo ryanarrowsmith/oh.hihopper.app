@@ -348,60 +348,80 @@ a.bub{text-decoration:none}
 .dolly .plane{position:absolute; top:14px; right:14px}
 .dolly .plane svg{stroke:var(--ink-3)}
 
-/* ============ THE POPPERS ============
-   This was fourteen stars raining straight down the card on a 1.35s loop --
-   weather, not celebration. It is two poppers now, one in each bottom corner,
-   firing up and inward: forty-four pieces launched fast, tumbling, and falling
-   back past the edge.
+/* ============ THE GLITTER ============
+   Dolly's card carries something she said, and she is gone. So this is not a
+   celebration and must not read as one: no burst, no launch, no tumbling
+   paper. Paper tumbles; light does not.
 
-   Two rather than one because the card is about 772px wide on a desk and 330
-   on a phone. A single burst tuned for one is a dribble or a clipped mess on
-   the other; a pair reads right at both.
+   Fine motes drift down and sway as they fall, each one brightening and
+   dimming on its own clock, so nothing arrives, leaves, or flickers in step
+   with anything else. Every delay is negative, which means the card is
+   already mid-shower the moment you arrive rather than starting when you
+   get there -- it is weather she is already in, not something your pointer
+   set off.
 
-   Every piece carries its own --dx, --rise, --fall and --rot inline, so
-   forty-four arcs come out of one keyframe rather than forty-four keyframes.
-   The values are fixed rather than random at render: a random arc is a
-   different arc on the server than in the browser, which is a hydration
-   mismatch. Gold and white only. */
-.pops{
+   Gold and white, as before. Roughly four times slower than what it replaced. */
+.dust{
   position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:3;
   border-radius:var(--r);
 }
-.pip{
-  position:absolute; bottom:8px; width:9px; height:9px; opacity:0;
-  pointer-events:none; background:#F2A93B; will-change:transform, opacity;
-  filter:drop-shadow(0 0 3px rgba(184,121,26,.9)) drop-shadow(0 0 8px rgba(242,169,59,.75));
-}
-/* Confetti is paper, so most of it is a torn scrap; the stars are the sparkle
-   that was there before, kept because a card of pure rectangles is a shredder. */
-.pip--bar{width:7px; height:11px; border-radius:1px}
-.pip--star{
-  width:12px; height:12px;
-  clip-path:polygon(50% 0%,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0% 50%,39% 39%);
-}
-/* White on warm cream is invisible without a halo, so the pale pieces carry a
-   hot amber one -- the glow is what makes the core read, not the core. */
-.pip:nth-child(2n){
-  background:#FFFFFF;
-  filter:drop-shadow(0 0 2px #F2A93B) drop-shadow(0 0 7px #E39B29)
-         drop-shadow(0 0 14px rgba(242,169,59,.8));
-}
-.pip:nth-child(3n){background:#FFD166}
-.pip:nth-child(7n){background:#FFF6DF}
 
-/* Out fast, then down -- one keyframe, because the shape of a thrown thing is
-   the same whatever direction it was thrown in. The launch is over inside the
-   first fifth; everything after it is falling. */
-@keyframes pop{
-  0%   {opacity:0; transform:translate(0,0) scale(.35) rotate(0deg)}
-  9%   {opacity:1;
-        transform:translate(calc(var(--dx) * .34), calc(var(--rise) * .78))
-                  scale(1.1) rotate(calc(var(--rot) * .22))}
-  22%  {opacity:1;
-        transform:translate(calc(var(--dx) * .62), var(--rise))
-                  scale(1) rotate(calc(var(--rot) * .45))}
-  100% {opacity:0;
-        transform:translate(var(--dx), var(--fall)) scale(.8) rotate(var(--rot))}
+/* The wrapper is a full-height column with the light at the top of it, and
+   that is what makes the fall container-relative. A percentage translate
+   resolves against the element's OWN box, so translateY(108%) on a 3px point
+   of light moves it three pixels and it never goes anywhere; on a wrapper as
+   tall as the card, 108% is the card. The card is 96px on a desk and 158 on a
+   phone, so a fixed pixel distance is wrong on one of them. (The butterfly hit
+   this same wall and had to be driven by `left` instead.) */
+.mote{position:absolute; top:0; height:100%; will-change:transform}
+.mote i{
+  display:block; width:var(--sz); height:var(--sz); border-radius:50%;
+  background:#FFF4DC; opacity:0;
+  box-shadow:0 0 4px 1px rgba(242,169,59,.85), 0 0 10px 2px rgba(242,169,59,.45);
+}
+/* a few are four-point stars rather than points, for the catch of light */
+.mote--star i{
+  border-radius:0; background:#FFFFFF; box-shadow:none;
+  clip-path:polygon(50% 0%,58% 42%,100% 50%,58% 58%,50% 100%,42% 58%,0% 50%,42% 42%);
+  filter:drop-shadow(0 0 2px #F2A93B) drop-shadow(0 0 6px rgba(242,169,59,.8));
+}
+.mote--gold i{
+  background:#F2A93B;
+  box-shadow:0 0 4px 1px rgba(242,169,59,.9), 0 0 12px 3px rgba(242,169,59,.4);
+}
+
+/* Three layers, because they must not share an easing: the fall is linear,
+   the sway is eased, and the twinkle is neither. One combined animation makes
+   a mote that zigzags in time with its own brightness, which reads as a
+   machine. */
+@keyframes fall{from{transform:translateY(-12%)} to{transform:translateY(108%)}}
+@keyframes sway{from{transform:translateX(calc(var(--sx) * -1))} to{transform:translateX(var(--sx))}}
+/* It brightens quickly, dims without going out, brightens again, and only lets
+   go at the very end -- so a mote is lit for most of its life and the card is
+   never briefly bare. */
+@keyframes twinkle{
+  0%  {opacity:0}
+  9%  {opacity:var(--peak)}
+  34% {opacity:calc(var(--peak) * .38)}
+  58% {opacity:var(--peak)}
+  78% {opacity:calc(var(--peak) * .5)}
+  96%,100%{opacity:0}
+}
+
+/* The plane and the close sit in the card rather than on top of it. The plane
+   used to go steel on hover, which made it the loudest thing on a card whose
+   whole job is to be quiet. */
+.dolly__acts{position:absolute; top:12px; right:12px; display:flex; gap:6px; z-index:4}
+.dolly__acts .bub{
+  width:30px; height:30px; background:transparent; border-color:transparent;
+  color:var(--canvas-3);
+}
+.dolly__acts .bub svg{width:15px; height:15px}
+.dolly__acts .bub:hover{background:var(--sunken); border-color:var(--rule); color:var(--ink-2)}
+
+@media (prefers-reduced-motion:reduce){
+  .mote, .mote i{animation:none !important}
+  .mote i{opacity:.45}
 }
 
 @media (hover:hover){
@@ -409,8 +429,12 @@ a.bub{text-decoration:none}
     background:var(--warmbg); border-color:var(--amber);
     box-shadow:var(--pop, var(--shadow)), 0 0 0 1px rgba(242,169,59,.35) inset;
   }
-  .dolly:hover .pip{animation-name:pop; animation-iteration-count:infinite;
-    animation-timing-function:cubic-bezier(.16,.72,.36,1)}
+  .dolly:hover .mote{animation:fall var(--dur) linear infinite; animation-delay:var(--dly)}
+  .dolly:hover .mote i{
+    animation:sway var(--sway) ease-in-out infinite alternate,
+              twinkle var(--tw) ease-in-out infinite;
+    animation-delay:var(--dly), var(--dly);
+  }
   .dolly:hover .plane svg{stroke:var(--steel-ink)}
 }
 
