@@ -56,30 +56,32 @@ export default function Dolly() {
   return (
     <>
       <div className="dolly" onMouseEnter={wake}>
-      <i className="glint" style={{ left: '3.0%', animationDelay: '0.03s' }} />
-      <i className="glint" style={{ left: '8.0%', animationDelay: '0.41s' }} />
-      <i className="glint" style={{ left: '13.0%', animationDelay: '0.77s' }} />
-      <i className="glint" style={{ left: '17.0%', animationDelay: '0.20s' }} />
-      <i className="glint" style={{ left: '22.0%', animationDelay: '0.58s' }} />
-      <i className="glint" style={{ left: '26.0%', animationDelay: '0.85s' }} />
-      <i className="glint" style={{ left: '31.0%', animationDelay: '0.09s' }} />
-      <i className="glint" style={{ left: '35.0%', animationDelay: '0.47s' }} />
-      <i className="glint" style={{ left: '40.0%', animationDelay: '0.69s' }} />
-      <i className="glint" style={{ left: '44.0%', animationDelay: '0.27s' }} />
-      <i className="glint" style={{ left: '49.0%', animationDelay: '0.62s' }} />
-      <i className="glint" style={{ left: '53.0%', animationDelay: '0.81s' }} />
-      <i className="glint" style={{ left: '58.0%', animationDelay: '0.14s' }} />
-      <i className="glint" style={{ left: '62.0%', animationDelay: '0.52s' }} />
-      <i className="glint" style={{ left: '67.0%', animationDelay: '0.73s' }} />
-      <i className="glint" style={{ left: '71.0%', animationDelay: '0.24s' }} />
-      <i className="glint" style={{ left: '76.0%', animationDelay: '0.44s' }} />
-      <i className="glint" style={{ left: '80.0%', animationDelay: '0.84s' }} />
-      <i className="glint" style={{ left: '85.0%', animationDelay: '0.07s' }} />
-      <i className="glint" style={{ left: '89.0%', animationDelay: '0.37s' }} />
-      <i className="glint" style={{ left: '93.0%', animationDelay: '0.65s' }} />
-      <i className="glint" style={{ left: '96.0%', animationDelay: '0.31s' }} />
-      <i className="glint" style={{ left: '20.0%', animationDelay: '0.75s' }} />
-      <i className="glint" style={{ left: '64.0%', animationDelay: '0.01s' }} />
+        <span className="glints" aria-hidden="true">
+          <i className="glint" style={{ left: '3.0%', animationDelay: '0.03s' }} />
+          <i className="glint" style={{ left: '8.0%', animationDelay: '0.41s' }} />
+          <i className="glint" style={{ left: '13.0%', animationDelay: '0.77s' }} />
+          <i className="glint" style={{ left: '17.0%', animationDelay: '0.20s' }} />
+          <i className="glint" style={{ left: '22.0%', animationDelay: '0.58s' }} />
+          <i className="glint" style={{ left: '26.0%', animationDelay: '0.85s' }} />
+          <i className="glint" style={{ left: '31.0%', animationDelay: '0.09s' }} />
+          <i className="glint" style={{ left: '35.0%', animationDelay: '0.47s' }} />
+          <i className="glint" style={{ left: '40.0%', animationDelay: '0.69s' }} />
+          <i className="glint" style={{ left: '44.0%', animationDelay: '0.27s' }} />
+          <i className="glint" style={{ left: '49.0%', animationDelay: '0.62s' }} />
+          <i className="glint" style={{ left: '53.0%', animationDelay: '0.81s' }} />
+          <i className="glint" style={{ left: '58.0%', animationDelay: '0.14s' }} />
+          <i className="glint" style={{ left: '62.0%', animationDelay: '0.52s' }} />
+          <i className="glint" style={{ left: '67.0%', animationDelay: '0.73s' }} />
+          <i className="glint" style={{ left: '71.0%', animationDelay: '0.24s' }} />
+          <i className="glint" style={{ left: '76.0%', animationDelay: '0.44s' }} />
+          <i className="glint" style={{ left: '80.0%', animationDelay: '0.84s' }} />
+          <i className="glint" style={{ left: '85.0%', animationDelay: '0.07s' }} />
+          <i className="glint" style={{ left: '89.0%', animationDelay: '0.37s' }} />
+          <i className="glint" style={{ left: '93.0%', animationDelay: '0.65s' }} />
+          <i className="glint" style={{ left: '96.0%', animationDelay: '0.31s' }} />
+          <i className="glint" style={{ left: '20.0%', animationDelay: '0.75s' }} />
+          <i className="glint" style={{ left: '64.0%', animationDelay: '0.01s' }} />
+        </span>
         <img className="dolly__p" src={PORTRAIT} alt="" width={58} height={58} />
         <div>
           <span className="dolly__q">{line}</span>

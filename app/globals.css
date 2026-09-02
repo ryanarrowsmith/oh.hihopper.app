@@ -325,7 +325,8 @@ a.bub{text-decoration:none}
 /* ============ DOLLY CARD ============ */
 .dolly{
   margin-top:18px; display:flex; align-items:center; gap:17px; position:relative;
-  overflow:hidden;                    /* the glitter stays in the box */
+  /* No overflow:hidden here. It kept the glitter in, and kept the email
+     popover in with it -- so the clip lives on .glints instead. */
   background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
   padding:18px 62px 18px 18px;
   transition:background .2s, border-color .2s, box-shadow .2s;
@@ -348,6 +349,11 @@ a.bub{text-decoration:none}
 
 /* the glitter: fourteen four-point stars, raining only while hovered.
    Absolutely positioned and clipped by the card, so nothing reflows. */
+/* the layer that does the clipping, so only the glitter is trapped */
+.glints{
+  position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:3;
+  border-radius:var(--r);
+}
 .glint{
   position:absolute; top:-18px; z-index:3; width:14px; height:14px; opacity:0;
   pointer-events:none; background:#F2A93B;
@@ -648,10 +654,12 @@ h1 .hl{background-size:100% .92em; background-position:0 .2em}
 @media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important} }
 
 /* ============ additions the built app needs ============ */
-/* The desk's two columns must start at the same height. The first section
-   carries the same top margin as every other one, but the rail beside it
-   carries none -- which left the left column hanging 40px lower than the
-   right for no reason anybody could name. */
+/* The desk's two columns must start at the same height AND have air above
+   them. Putting the gap on the first section aligned nothing (the rail beside
+   it has no such margin) and taking it away jammed both columns against the
+   Dolly card. The space belongs to the grid, applied once, so both columns
+   get it and both start together. */
+.desk{margin-top:clamp(26px,3.2vw,38px)}
 .desk .sec:first-child{margin-top:0}
 
 .stack{display:flex; flex-direction:column; gap:14px}
