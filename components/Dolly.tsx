@@ -29,6 +29,17 @@ export default function Dolly() {
     setLine(LINES[Math.floor(Math.random() * LINES.length)])
   }, [])
 
+  // The form closes because the mail went, the same as every other save in
+  // Hopper -- but not the instant it goes. "Sent to ..." is the only proof
+  // anything happened, so it holds long enough to be read and then the
+  // popover shuts itself. A refusal never closes: the reason stays on screen
+  // beside the button that would try again.
+  useEffect(() => {
+    if (!sent) return
+    const t = setTimeout(() => { setOpen(false); setSent(null) }, 1600)
+    return () => clearTimeout(t)
+  }, [sent])
+
   // She comes out when you go to Dolly, crosses once, and is gone -- unmounted,
   // so it cannot come back without a reload.
   function wake() {
@@ -47,7 +58,7 @@ export default function Dolly() {
       })
       const j = await r.json()
       if (!r.ok) setErr(j.error || 'It did not send.')
-      else setSent(j.to)
+      else setSent(j.to)   // the effect below shuts the popover once it has been read
     } catch {
       setErr('It did not send — the request never left the page.')
     } finally { setSending(false) }
