@@ -277,6 +277,9 @@ export default function Dolly() {
         </div>
 
       </div>
+          <span className="dpop__memo">
+            Build <b>v1.5</b> of Hopper is named <b>Dolly</b> in her memory.
+          </span>
         </div>
         )}
       </div>

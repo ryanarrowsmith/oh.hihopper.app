@@ -495,6 +495,24 @@ a.bub{text-decoration:none}
 .dpop .dolly:hover{background:transparent; border-color:transparent; box-shadow:none}
 .dolly__p{margin-top:2px}
 
+/* ---- the dedication ----
+   A dark band across the foot of her card. Dark because the card above it is
+   paper, and that is the whole distinction: everything on the light ground is
+   her, and this is Hopper speaking about her. It takes the top bar's ink, so
+   it belongs to the app rather than to the quote.
+
+   Full width with no inset, taking the card's bottom corners, so it reads as
+   the base the card stands on rather than as one more element inside it.
+   Italic, small and quiet -- a dedication that shouts is not a dedication, and
+   only the version and her name carry any weight. */
+.dpop__memo{
+  display:block; background:var(--ink); color:rgba(251,249,245,.86);
+  padding:11px 18px; text-align:center;
+  font-style:italic; font-size:12.5px; line-height:1.5; letter-spacing:.005em;
+  border-radius:0 0 var(--r) var(--r);
+}
+.dpop__memo b{color:#FBF9F5; font-weight:700; font-style:italic}
+
 /* Her name, in her own hand, under what she said. */
 .sig{
   display:block; width:112px; height:auto; margin-top:11px;
