@@ -13,10 +13,22 @@ export const dynamic = 'force-dynamic'
  */
 export default async function People() {
   const db = supabaseServer()
-  const { data: rows } = await db.schema('hopper').from('directory')
-    .select('*').eq('active', true).order('full_name')
 
-  const people = (rows ?? []) as Person[]
+  // Contact details are a second read on purpose. hopper.person is behind the
+  // roster grant, so for a reader without it this comes back empty and the
+  // card simply has no "Get in touch" section -- rather than the directory
+  // view carrying columns some readers must not see.
+  const [{ data: rows }, { data: contacts }] = await Promise.all([
+    db.schema('hopper').from('directory').select('*').eq('active', true).order('full_name'),
+    db.schema('hopper').from('person').select('id, email, phone'),
+  ])
+
+  const reach = new Map((contacts ?? []).map((c: any) => [c.id, c]))
+  const people = (rows ?? []).map((r: any) => ({
+    ...r,
+    email: reach.get(r.id)?.email ?? null,
+    phone: reach.get(r.id)?.phone ?? null,
+  })) as Person[]
 
   // Grouped by organization, in the order the names sort, so the page reads
   // the same way twice running.
