@@ -6,6 +6,8 @@ import Chart, { Legend, isSplit, type Series } from '@/components/Chart'
 import { EditableSection } from '@/components/RowEdit'
 import EditReport from '@/components/EditReport'
 import RawTable from '@/components/RawTable'
+import RangeBar from '@/components/RangeBar'
+import { useRange, inWindow } from '@/components/useRange'
 import { refreshReport } from '@/app/actions/reports'
 
 const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
@@ -28,7 +30,7 @@ const sourceName = (k: string) => k === 'google_sheet' ? 'Google Sheets'
   : k === 'airtable' ? 'Airtable' : k === 'microsoft' ? 'Microsoft 365'
   : k === 'link' ? 'A link' : k === 'upload' ? 'An uploaded file' : 'Pasted data'
 
-export default function ReportPage({ report, state, series, notes, checks, related, mayEdit, columns }: {
+export default function ReportPage({ report, state, series: all, notes, checks, related, mayEdit, columns }: {
   columns: { key: string; label: string; type: 'text' | 'number' | 'date' }[]
   report: {
     id: string; name: string; entity: string; department: string; category: string | null
@@ -46,8 +48,26 @@ export default function ReportPage({ report, state, series, notes, checks, relat
   related: { id: string; name: string; where: string; value: number | null }[]
   mayEdit: boolean
 }) {
+  const { range, setRange, window: win } = useRange()
+
+  // The same question, answered once for the whole module: this page reads the
+  // range Reporting was left on rather than asking again.
+  const dated = !!report.dateColumn
+  const series = useMemo(() => {
+    if (!dated) return all
+    return all
+      .map((s) => ({ ...s, points: s.points.filter((p) => inWindow(p.on, win)) }))
+      .filter((s) => s.points.length > 0)
+  }, [all, dated, win])
+
   const head = series[0]?.points ?? []
-  const move = head.length > 1 ? head[head.length - 1].v - head[0].v : null
+  const newest = head[head.length - 1]
+  const move = head.length > 1 ? newest.v - head[0].v : null
+  const counted = {
+    total: all.reduce((n, s) => n + s.points.length, 0),
+    kept: series.reduce((n, s) => n + s.points.length, 0),
+    undated: dated ? 0 : 1,
+  }
 
   /**
    * One selection, shared by the chart and the rows.
@@ -115,6 +135,9 @@ export default function ReportPage({ report, state, series, notes, checks, relat
         </p>
       )}
 
+      <RangeBar range={range} setRange={setRange}
+                kept={counted.kept} total={counted.total} undated={counted.undated} />
+
       <section className="sec">
         <div className="sec__h"><div className="sec__t">
           <h2>The shape</h2>
@@ -125,9 +148,11 @@ export default function ReportPage({ report, state, series, notes, checks, relat
           <div className="shape__c">
           {head.length < 2
             ? <p className="empty" style={{ margin: 0 }}>
-                {state.lastLook
-                  ? 'One reading so far — a shape needs two.'
-                  : 'Hopper has not read this one yet. Refresh it and the shape appears.'}
+                {!state.lastLook
+                  ? 'Hopper has not read this one yet. Refresh it and the shape appears.'
+                  : counted.total > counted.kept
+                  ? 'Nothing in this window. Widen the range and the shape comes back.'
+                  : 'One reading so far — a shape needs two.'}
               </p>
             : <>
                 {/* Full height here on purpose. This is the room the popover
@@ -143,7 +168,8 @@ export default function ReportPage({ report, state, series, notes, checks, relat
 
           <div className="figs shape__f">
             <span className="fig"><span className="fig__l">Now</span>
-              <span className="fig__v">{state.value == null ? '—' : nf.format(state.value)}</span></span>
+              <span className="fig__v">{newest ? nf.format(newest.v)
+                : state.value == null ? '—' : nf.format(state.value)}</span></span>
             {/* The arrow carries the direction, so the sign would say it twice. */}
             {move != null && <span className="fig"><span className="fig__l">Move</span>
               <span className={`fig__v ${move >= 0 ? 'up' : 'down'}`}>
@@ -151,7 +177,7 @@ export default function ReportPage({ report, state, series, notes, checks, relat
               </span></span>}
             <span className="fig"><span className="fig__l">Dated</span>
               <span className="fig__v" style={{ fontSize: 15 }}>
-                {state.valueOn ? on(state.valueOn) : '—'}</span></span>
+                {newest ? on(newest.on) : state.valueOn ? on(state.valueOn) : '—'}</span></span>
             <span className="fig"><span className="fig__l">Last look</span>
               <span className="fig__v" style={{ fontSize: 15 }}>
                 {state.lastLook ? at(state.lastLook) : 'Never'}</span></span>

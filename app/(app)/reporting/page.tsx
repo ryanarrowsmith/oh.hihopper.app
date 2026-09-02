@@ -17,7 +17,7 @@ export default async function Reporting() {
   const db = supabaseServer()
 
   const [{ data: state }, { data: cats }, { data: depts }, { data: ents }, { data: readings },
-         { data: rights }, { data: specs }] =
+         { data: rights }, { data: specs }, { data: hearts }] =
     await Promise.all([
       db.schema('hopper').from('report_state').select('*'),
       db.schema('hopper').from('report_category').select('id, name, department_id'),
@@ -30,6 +30,9 @@ export default async function Reporting() {
         .order('observed_on', { ascending: true }),
       db.schema('hopper').from('entity_rights').select('entity_id, may_edit'),
       db.schema('hopper').from('report').select('id, chart_measures'),
+      // Somebody's own hearts. my_favorites is already scoped to the person, so
+      // there is no person_id to pass and no way to read anybody else's.
+      db.schema('hopper').from('my_favorites').select('object, object_id').eq('object', 'report'),
     ])
 
   // Where this person may register one. The button is not rendered at all when
@@ -55,6 +58,7 @@ export default async function Reporting() {
   }
 
   const measuresOf = new Map((specs ?? []).map((r: any) => [r.id, r.chart_measures as string[] | null]))
+  const hearted = new Set((hearts ?? []).map((h: any) => h.object_id))
 
   const cards: Card[] = (state ?? []).map((r: any) => ({
     id: r.report_id,
@@ -76,6 +80,9 @@ export default async function Reporting() {
     // one the headline number belongs to and the colours never shuffle between
     // one look at the page and the next.
     series: orderedSeries(series.get(r.report_id), measuresOf.get(r.report_id)),
+    // Whether it can be put on a timeline at all.
+    dated: !!r.date_column,
+    favorite: hearted.has(r.report_id),
   }))
 
   return (
@@ -109,6 +116,10 @@ export default async function Reporting() {
 /**
  * The series a report draws, in the order its chart names them.
  *
+ * Every reading, not the last thirteen: the date range decides what is drawn,
+ * and pre-slicing here would mean a window reaching further back than thirteen
+ * readings quietly found nothing in it.
+ *
  * Reading order out of the database is by date, not by measure, and a Map keeps
  * insertion order -- so without this the colours would follow whichever measure
  * happened to have the oldest row, and could change between two loads of the
@@ -122,7 +133,7 @@ function orderedSeries(
   const order = named?.length ? named : [...byMeasure.keys()]
   return order
     .filter((m) => byMeasure.has(m))
-    .map((m) => ({ measure: m, points: byMeasure.get(m)!.slice(-13) }))
+    .map((m) => ({ measure: m, points: byMeasure.get(m)! }))
 }
 
 /**

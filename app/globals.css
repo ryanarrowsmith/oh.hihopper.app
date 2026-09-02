@@ -2956,3 +2956,106 @@ a.crow:hover svg{stroke:var(--steel-ink)}
 .rpop__x{color:rgba(251,249,245,.72); font-size:24px; padding:0 6px;
   border-radius:var(--r); transition:color .15s, background .15s}
 .rpop__x:hover{color:var(--foot-ink); background:rgba(251,249,245,.12)}
+
+/* ---- the add popover wears the same bar ----
+   It is a window on top of the page for the same reason the report popover is,
+   and two kinds of popover with two kinds of header is a system with a hole in
+   it. Steel, and the small mono label goes light rather than being an ink label
+   on a dark ground. */
+.addpop__h{background:var(--foot); border-bottom-color:var(--foot-rule)}
+.addpop__h b{color:rgba(251,249,245,.78)}
+.addpop__x{color:rgba(251,249,245,.72)}
+.addpop__x:hover{color:var(--foot-ink); background:rgba(251,249,245,.12)}
+
+/* ---- the tabs belong to the frame, not to the body ----
+   A 14px white gap between the header and the tab strip made the strip look
+   like the first thing IN the popover rather than part of its top. It sits in a
+   band of its own now, flush under the header, so the window reads
+   header -> tabs -> content instead of header, pause, content. */
+.rpop__tabband{padding:10px 18px; background:var(--sunken);
+  border-bottom:1px solid var(--rule); flex:none}
+.rpop__tabband .rpop__tabs{margin:0; background:var(--surface)}
+
+/* ============ A DATE, TYPED OR PICKED ============
+   Native date inputs draw the operating system's calendar, which is the same
+   objection as the native <select>: it cannot be made to match anything. This
+   is Hopper's own -- a field you can type into and a month you can click,
+   which are the two ways people actually enter a date and neither should
+   exclude the other. */
+.dfield{position:relative; display:inline-flex}
+.dfield .field{width:148px; padding-right:34px; font-variant-numeric:tabular-nums}
+.dfield__b{
+  position:absolute; right:1px; top:1px; bottom:1px; width:32px; display:grid; place-items:center;
+  background:none; border:0; cursor:pointer; color:var(--ink-3); border-radius:0 var(--r) var(--r) 0;
+}
+.dfield__b:hover{color:var(--ink); background:var(--sunken)}
+.dfield__b svg{width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.9;
+  stroke-linecap:round; stroke-linejoin:round}
+.cal{
+  position:absolute; z-index:70; top:calc(100% + 8px); left:0; width:252px; padding:12px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  box-shadow:var(--lift);
+}
+.cal__h{display:flex; align-items:center; gap:8px; margin-bottom:10px}
+.cal__h b{flex:1 1 auto; text-align:center; font-size:13px; letter-spacing:-.01em}
+.cal__nav{width:26px; height:26px; display:grid; place-items:center; cursor:pointer;
+  background:none; border:1px solid var(--rule); border-radius:var(--r); color:var(--ink-2)}
+.cal__nav:hover{background:var(--sunken); color:var(--ink)}
+.cal__nav svg{width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:2.4;
+  stroke-linecap:round; stroke-linejoin:round}
+.cal__g{display:grid; grid-template-columns:repeat(7,1fr); gap:2px}
+.cal__d{font-family:var(--mono); font-size:9px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--ink-3); text-align:center; padding-bottom:4px}
+.cal__c{
+  aspect-ratio:1; display:grid; place-items:center; cursor:pointer; border:0; border-radius:var(--r);
+  background:none; font:600 12px/1 var(--sans); color:var(--ink-2); font-variant-numeric:tabular-nums;
+}
+.cal__c:hover{background:var(--sunken); color:var(--ink)}
+.cal__c--out{color:var(--canvas-3)}
+.cal__c--in{background:var(--steelwash); border-radius:0}
+.cal__c--on{background:var(--steel); color:#FBF9F5}
+.cal__c--today{box-shadow:inset 0 0 0 1px var(--amber)}
+
+/* The range, and what it is doing. It sits above the groups because it governs
+   all of them, and says how many readings it is standing on -- a window with
+   nothing in it should say so rather than looking like a report with no data. */
+.rbar__f{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-3)}
+.rbar__say{font-size:11.5px; color:var(--ink-3); width:100%; margin:2px 0 0}
+.rbar__say b{color:var(--ink-2)}
+
+/* ---- everything you can do to a report, in its bar ----
+   A segmented strip under the header spent a whole band of the window saying
+   two words, and Refresh and Open spent another at the bottom. They are icons
+   in the bar now, next to the title that already said what you are looking at.
+   Light on Steel, with the chosen view holding a lit ground. */
+.barbtns{display:flex; align-items:center; gap:2px; flex:none; margin-left:auto}
+.barform{display:contents}
+.barbtn{
+  width:32px; height:32px; display:grid; place-items:center; flex:none;
+  background:none; border:0; border-radius:var(--r); cursor:pointer;
+  color:rgba(251,249,245,.66); text-decoration:none;
+  transition:background .15s, color .15s;
+}
+.barbtn svg{width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.9;
+  stroke-linecap:round; stroke-linejoin:round}
+.barbtn:hover{color:var(--foot-ink); background:rgba(251,249,245,.12)}
+.barbtn[aria-pressed="true"]{color:var(--foot-ink); background:rgba(251,249,245,.20)}
+.barbtn:focus-visible{outline:0; box-shadow:0 0 0 2px rgba(251,249,245,.55)}
+.barbtn:disabled{cursor:progress}
+.barbtn.is-busy svg{animation:barspin .9s linear infinite; transform-origin:50% 50%}
+@keyframes barspin{to{transform:rotate(360deg)}}
+/* The heart is the one thing here that is a state rather than an action, so it
+   is the one thing that carries the amber. */
+.barbtn.is-on{color:var(--amber)}
+.barbtn.is-on:hover{color:var(--amber); background:rgba(242,169,59,.16)}
+.barbtn--x{margin-left:2px}
+.barbtns__cut{width:1px; height:18px; background:rgba(251,249,245,.22); margin:0 6px; flex:none}
+.barsay{position:absolute; right:18px; top:100%; margin-top:6px; z-index:3;
+  font-size:12px; color:var(--good); background:var(--surface);
+  border:1px solid var(--rule); padding:5px 9px; box-shadow:var(--shadow)}
+.barsay--bad{color:var(--bad); max-width:46ch}
+
+/* A popover is a lit surface on a dimmed page. The scrim and the shadow are
+   what separate it; a hairline on top of both was a third thing saying the
+   same thing, and it read as a seam. */
+.rpop{border:0}

@@ -2,8 +2,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import { refreshReport } from '@/app/actions/reports'
+import { toggleFavorite } from '@/app/actions/admin'
 import Chart, { Legend, isSplit, type Series } from '@/components/Chart'
 import RawTable from '@/components/RawTable'
+import RangeBar from '@/components/RangeBar'
+import { useRange, inWindow } from '@/components/useRange'
 
 export type Card = {
   id: string; name: string; entity: string; department: string; category: string | null
@@ -12,16 +15,47 @@ export type Card = {
   lastLook: string | null; lastLookOk: boolean | null; lastFailure: string | null
   freshness: 'new' | 'good' | 'behind' | 'failed' | 'snapshot'
   series: Series[]
+  /** No date column means the readings cannot be put on a timeline at all, so
+   *  this report is shown whole whatever the range says. */
+  dated: boolean
+  favorite: boolean
 }
 
 const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
 
 // ------------------------------------------------------------------ the list
 
-export default function Reports({ cards }: { cards: Card[] }) {
+export default function Reports({ cards: raw }: { cards: Card[] }) {
   const [density, setDensity] = useState<'lg' | 'md' | 'list'>('lg')
   const [open, setOpen] = useState<Card | null>(null)
   const [q, setQ] = useState('')
+  const { range, setRange, window: win } = useRange()
+
+  /**
+   * The range narrows the READINGS, and the number follows from them: a card's
+   * value becomes the last reading inside the window, not the last one Hopper
+   * has. Showing August's figure under a July window would be a card lying
+   * about which question it is answering.
+   */
+  const cards = useMemo(() => raw.map((c) => {
+    if (!c.dated) return c
+    const series = c.series
+      .map((s) => ({ ...s, points: s.points.filter((p) => inWindow(p.on, win)) }))
+      .filter((s) => s.points.length > 0)
+    const head = series[0]?.points ?? []
+    const last = head[head.length - 1]
+    return {
+      ...c, series,
+      value: last ? last.v : null,
+      valueOn: last ? last.on : null,
+    }
+  }), [raw, win])
+
+  const counted = useMemo(() => {
+    const total = raw.reduce((n, c) => n + c.series.reduce((m, s) => m + s.points.length, 0), 0)
+    const kept = cards.reduce((n, c) => n + c.series.reduce((m, s) => m + s.points.length, 0), 0)
+    return { total, kept, undated: raw.filter((c) => !c.dated).length }
+  }, [raw, cards])
 
   const shown = useMemo(() => {
     const t = q.trim().toLowerCase()
@@ -44,6 +78,9 @@ export default function Reports({ cards }: { cards: Card[] }) {
 
   return (
     <>
+      <RangeBar range={range} setRange={setRange}
+                kept={counted.kept} total={counted.total} undated={counted.undated} />
+
       <div className="rbar">
         <span className="rbar__l">How it is drawn</span>
         <input className="field rbar__q" value={q} placeholder="Find a report"
@@ -163,21 +200,48 @@ function ReportPop({ c, onClose }: { c: Card; onClose: () => void }) {
   return (
     <div className="rscrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="rpop" role="dialog" aria-modal="true" aria-label={c.name} ref={box}>
-        <div className="rpop__h">
+        {/* Everything you can do to a report lives in its bar.
+          A segmented strip below the header spent a whole band of the window
+          saying two words, and Refresh and Open spent another one at the
+          bottom. Both are icons up here now, which is where the title already
+          told you what you were looking at. */}
+      <div className="rpop__h">
           <span className="rpop__t">
             <b>{c.name}</b>
             <span>{[c.entity, c.department, c.category].filter(Boolean).join(' · ')}
               {c.lastLook ? ` · looked ${ago(c.lastLook)}` : ' · never looked'}</span>
           </span>
-          <button className="rpop__x" type="button" aria-label="Close" onClick={onClose}>&times;</button>
-        </div>
 
-        <div className="rpop__tabs" role="tablist">
-          <button role="tab" type="button" aria-selected={tab === 'shape'}
-                  onClick={() => setTab('shape')}>The shape</button>
-          <button role="tab" type="button" aria-selected={tab === 'rows'}
-                  onClick={() => setTab('rows')}>The rows behind it</button>
-        </div>
+          <div className="barbtns" role="group" aria-label="This report">
+            <button className="barbtn" type="button" aria-pressed={tab === 'shape'}
+                    title="The shape" aria-label="The shape"
+                    onClick={() => setTab('shape')}>
+              <svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 4 4-7 5 5" /><path d="M3 21h18" /></svg>
+            </button>
+            <button className="barbtn" type="button" aria-pressed={tab === 'rows'}
+                    title="The rows behind it" aria-label="The rows behind it"
+                    onClick={() => setTab('rows')}>
+              <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" />
+                <path d="M3 9h18M3 14h18M9 9v11" /></svg>
+            </button>
+
+            <span className="barbtns__cut" />
+
+            <RefreshIcon id={c.id} />
+            <HeartIcon id={c.id} on={c.favorite} />
+            <a className="barbtn" href={`/reporting/${c.id}`}
+               title="Open its own page" aria-label="Open its own page">
+              <svg viewBox="0 0 24 24"><path d="M15 4h5v5" /><path d="M20 4l-8 8" />
+                <path d="M19 14v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" /></svg>
+            </a>
+
+            <span className="barbtns__cut" />
+
+            <button className="barbtn barbtn--x" type="button" aria-label="Close" onClick={onClose}>
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </div>
+      </div>
 
         {/* The rows are fetched when the tab is opened, not before: most people
             never open it, and five hundred rows per card is a page nobody can
@@ -188,13 +252,6 @@ function ReportPop({ c, onClose }: { c: Card; onClose: () => void }) {
               <RawTable reportId={c.id} name={c.name} everRead={c.freshness !== 'new'} />
             </div>}
 
-        <div className="rpop__go">
-          <RefreshBtn id={c.id} />
-          <a className="btn" href={`/reporting/${c.id}`}>Open it</a>
-          <span className="spacer" />
-          {c.lastLookOk === false && c.lastFailure &&
-            <span className="rpop__fail" title={c.lastFailure}>{c.lastFailure}</span>}
-        </div>
       </div>
     </div>
   )
@@ -235,19 +292,56 @@ function Shape({ c }: { c: Card }) {
 const said = (r: string) => r === 'hourly' ? 'Every 30 min' : r === 'twice_daily' ? 'Hourly'
   : r === 'daily' ? 'Every 4 hours' : r === 'weekly' ? 'Daily, 3 AM' : 'Never — a snapshot'
 
-function RefreshBtn({ id }: { id: string }) {
+/**
+ * Refresh and the heart, as icons in the bar.
+ *
+ * Both are server actions, so both are still forms -- an icon that writes
+ * something is a form with a small button in it, not a link that pretends
+ * nothing happened.
+ */
+function RefreshIcon({ id }: { id: string }) {
   const [state, run] = useFormState(refreshReport, null)
   return (
-    <form action={run} className="rpop__ref">
+    <form action={run} className="barform">
       <input type="hidden" name="id" value={id} />
-      <Go />
-      {state && <span className={state.ok ? 'rpop__said' : 'rpop__fail'}>{state.message}</span>}
+      <RefreshGo />
+      {state && <span className={`barsay${state.ok ? '' : ' barsay--bad'}`}>{state.message}</span>}
     </form>
   )
 }
 
-function Go() {
+function RefreshGo() {
   const { pending } = useFormStatus()
-  return <button className="btn" type="submit" disabled={pending}>
-    {pending ? 'Looking…' : 'Refresh'}</button>
+  return (
+    <button className={`barbtn${pending ? ' is-busy' : ''}`} type="submit" disabled={pending}
+            title={pending ? 'Looking…' : 'Go and look now'}
+            aria-label={pending ? 'Looking' : 'Go and look now'}>
+      <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 4v5h-5" /></svg>
+    </button>
+  )
+}
+
+function HeartIcon({ id, on }: { id: string; on: boolean }) {
+  const [, run] = useFormState(toggleFavorite, null)
+  return (
+    <form action={run} className="barform">
+      <input type="hidden" name="object" value="report" />
+      <input type="hidden" name="object_id" value={id} />
+      <input type="hidden" name="back" value="/reporting" />
+      <HeartGo on={on} />
+    </form>
+  )
+}
+
+function HeartGo({ on }: { on: boolean }) {
+  const { pending } = useFormStatus()
+  return (
+    <button className={`barbtn${on ? ' is-on' : ''}`} type="submit" disabled={pending}
+            title={on ? 'In your favourites' : 'Add to your favourites'}
+            aria-label={on ? 'In your favourites' : 'Add to your favourites'}
+            aria-pressed={on}>
+      <svg viewBox="0 0 24 24" fill={on ? 'currentColor' : 'none'}>
+        <path d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 8a4 4 0 0 1 7 2.8C19 15.6 12 20 12 20z" /></svg>
+    </button>
+  )
 }
