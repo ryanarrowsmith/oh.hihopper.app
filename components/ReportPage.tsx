@@ -2,6 +2,8 @@
 import Link from 'next/link'
 import { useFormState, useFormStatus } from 'react-dom'
 import Chart, { Legend, isSplit, type Series } from '@/components/Chart'
+import { EditableSection } from '@/components/RowEdit'
+import EditReport from '@/components/EditReport'
 import RawTable from '@/components/RawTable'
 import { refreshReport } from '@/app/actions/reports'
 
@@ -25,7 +27,8 @@ const sourceName = (k: string) => k === 'google_sheet' ? 'Google Sheets'
   : k === 'airtable' ? 'Airtable' : k === 'microsoft' ? 'Microsoft 365'
   : k === 'link' ? 'A link' : k === 'upload' ? 'An uploaded file' : 'Pasted data'
 
-export default function ReportPage({ report, state, series, notes, checks, related, mayEdit }: {
+export default function ReportPage({ report, state, series, notes, checks, related, mayEdit, columns }: {
+  columns: { key: string; label: string; type: 'text' | 'number' | 'date' }[]
   report: {
     id: string; name: string; entity: string; department: string; category: string | null
     sourceKind: string; sourceUrl: string | null; sourceTab: string | null
@@ -127,11 +130,15 @@ export default function ReportPage({ report, state, series, notes, checks, relat
         </div>
       </section>
 
-      <section className="sec">
-        <div className="sec__h"><div className="sec__t">
-          <h2>Where it points</h2>
-          <p>A report is a pointer, not data. This is the other end of it.</p>
-        </div></div>
+      {/* Editing happens in place, under the thing being edited, so the report
+          you are changing is still on screen while you change it. Nothing a
+          person may not do is rendered: no pencil without the right to use it. */}
+      <EditableSection
+        title="Where it points"
+        blurb="A report is a pointer, not data. This is the other end of it."
+        editLabel="Change this report"
+        editForm={mayEdit ? <EditReport report={report} columns={columns} /> : undefined}
+      >
         <div className="card"><div className="facts">
           <div className="row"><span className="row__l">Source</span>
             <span className="row__v">{sourceName(report.sourceKind)}</span></div>
@@ -150,7 +157,7 @@ export default function ReportPage({ report, state, series, notes, checks, relat
           <div className="row"><span className="row__l">Measures</span>
             <span className="row__v">{report.measures.length ? report.measures.join(', ') : 'None chosen'}</span></div>
         </div></div>
-      </section>
+      </EditableSection>
 
       <section className="sec">
         <div className="sec__h"><div className="sec__t">

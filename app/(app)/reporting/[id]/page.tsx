@@ -25,6 +25,12 @@ export default async function Page({ params }: { params: { id: string } }) {
     .select('*').eq('id', params.id).maybeSingle()
   if (!rep) notFound()
 
+  // The columns as of the last read. The edit form offers these rather than
+  // going back to the sheet: Hopper already stored them, and making somebody
+  // wait on a network round-trip to open a form is a form that feels broken.
+  const { data: shape } = await db.schema('hopper').from('report_rows')
+    .select('columns').eq('report_id', params.id).maybeSingle()
+
   const [{ data: state }, { data: readings }, { data: notes }, { data: checks },
          { data: ents }, { data: depts }, { data: cats }, { data: rights }, { data: siblings }] =
     await Promise.all([
@@ -107,6 +113,7 @@ export default async function Page({ params }: { params: { id: string } }) {
         value: r.value == null ? null : Number(r.value),
       }))}
       mayEdit={(rights ?? []).some((r: any) => r.entity_id === rep.entity_id && r.may_edit)}
+      columns={(shape?.columns as any[]) ?? []}
     />
   )
 }

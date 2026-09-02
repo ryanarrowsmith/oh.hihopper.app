@@ -144,7 +144,10 @@ export async function updateReport(_p: Result | null, form: FormData): Promise<R
     refresh: str(form, 'refresh') || 'daily',
     restricted: form.get('restricted') === 'on',
     chart_type: str(form, 'chart_type') || 'line',
-    chart_x: nul(form, 'chart_x'),
+    // What goes along the bottom is the date column in every path there is, so
+    // a form that only asks once is not hiding a second question. Without this
+    // the edit form -- which has no chart_x field -- silently cleared it.
+    chart_x: nul(form, 'chart_x') ?? nul(form, 'date_column'),
     chart_measures: measures.length ? measures : null,
     date_column: nul(form, 'date_column'),
     updated_by: person, updated_at: new Date().toISOString(),
