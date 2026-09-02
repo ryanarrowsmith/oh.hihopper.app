@@ -348,46 +348,69 @@ a.bub{text-decoration:none}
 .dolly .plane{position:absolute; top:14px; right:14px}
 .dolly .plane svg{stroke:var(--ink-3)}
 
-/* the glitter: fourteen four-point stars, raining only while hovered.
-   Absolutely positioned and clipped by the card, so nothing reflows. */
-/* the layer that does the clipping, so only the glitter is trapped */
-.glints{
+/* ============ THE POPPERS ============
+   This was fourteen stars raining straight down the card on a 1.35s loop --
+   weather, not celebration. It is two poppers now, one in each bottom corner,
+   firing up and inward: forty-four pieces launched fast, tumbling, and falling
+   back past the edge.
+
+   Two rather than one because the card is about 772px wide on a desk and 330
+   on a phone. A single burst tuned for one is a dribble or a clipped mess on
+   the other; a pair reads right at both.
+
+   Every piece carries its own --dx, --rise, --fall and --rot inline, so
+   forty-four arcs come out of one keyframe rather than forty-four keyframes.
+   The values are fixed rather than random at render: a random arc is a
+   different arc on the server than in the browser, which is a hydration
+   mismatch. Gold and white only. */
+.pops{
   position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:3;
   border-radius:var(--r);
 }
-.glint{
-  position:absolute; top:-18px; z-index:3; width:14px; height:14px; opacity:0;
-  pointer-events:none; background:#F2A93B;
-  filter:drop-shadow(0 0 3px #B8791A) drop-shadow(0 0 9px rgba(242,169,59,.9));
+.pip{
+  position:absolute; bottom:8px; width:9px; height:9px; opacity:0;
+  pointer-events:none; background:#F2A93B; will-change:transform, opacity;
+  filter:drop-shadow(0 0 3px rgba(184,121,26,.9)) drop-shadow(0 0 8px rgba(242,169,59,.75));
+}
+/* Confetti is paper, so most of it is a torn scrap; the stars are the sparkle
+   that was there before, kept because a card of pure rectangles is a shredder. */
+.pip--bar{width:7px; height:11px; border-radius:1px}
+.pip--star{
+  width:12px; height:12px;
   clip-path:polygon(50% 0%,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0% 50%,39% 39%);
 }
-/* A white spark on warm cream is invisible without a halo, so the white ones
-   carry a hot amber one -- the glow is what makes the core read, not the core. */
-.glint:nth-child(2n){
-  background:#FFFFFF; width:12px; height:12px;
+/* White on warm cream is invisible without a halo, so the pale pieces carry a
+   hot amber one -- the glow is what makes the core read, not the core. */
+.pip:nth-child(2n){
+  background:#FFFFFF;
   filter:drop-shadow(0 0 2px #F2A93B) drop-shadow(0 0 7px #E39B29)
-         drop-shadow(0 0 15px rgba(242,169,59,.85));
+         drop-shadow(0 0 14px rgba(242,169,59,.8));
 }
-.glint:nth-child(5n){
-  background:#FFD166; width:18px; height:18px;
-  filter:drop-shadow(0 0 4px #B8791A) drop-shadow(0 0 13px rgba(242,169,59,.95));
+.pip:nth-child(3n){background:#FFD166}
+.pip:nth-child(7n){background:#FFF6DF}
+
+/* Out fast, then down -- one keyframe, because the shape of a thrown thing is
+   the same whatever direction it was thrown in. The launch is over inside the
+   first fifth; everything after it is falling. */
+@keyframes pop{
+  0%   {opacity:0; transform:translate(0,0) scale(.35) rotate(0deg)}
+  9%   {opacity:1;
+        transform:translate(calc(var(--dx) * .34), calc(var(--rise) * .78))
+                  scale(1.1) rotate(calc(var(--rot) * .22))}
+  22%  {opacity:1;
+        transform:translate(calc(var(--dx) * .62), var(--rise))
+                  scale(1) rotate(calc(var(--rot) * .45))}
+  100% {opacity:0;
+        transform:translate(var(--dx), var(--fall)) scale(.8) rotate(var(--rot))}
 }
-.glint:nth-child(7n){
-  background:#FFF6DF; width:9px; height:9px;
-  filter:drop-shadow(0 0 2px #C98A1E) drop-shadow(0 0 8px rgba(242,169,59,.9));
-}
-@keyframes rain{
-  0%   {opacity:0; transform:translateY(-16px) scale(.25) rotate(0deg)}
-  10%  {opacity:1; transform:translateY(6px) scale(1.25) rotate(60deg)}
-  55%  {opacity:1; transform:translateY(52px) scale(.8) rotate(200deg)}
-  100% {opacity:0; transform:translateY(128px) scale(1.35) rotate(400deg)}
-}
+
 @media (hover:hover){
   .dolly:hover{
     background:var(--warmbg); border-color:var(--amber);
     box-shadow:var(--pop, var(--shadow)), 0 0 0 1px rgba(242,169,59,.35) inset;
   }
-  .dolly:hover .glint{animation:rain 1.35s linear infinite}
+  .dolly:hover .pip{animation-name:pop; animation-iteration-count:infinite;
+    animation-timing-function:cubic-bezier(.16,.72,.36,1)}
   .dolly:hover .plane svg{stroke:var(--steel-ink)}
 }
 

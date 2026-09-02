@@ -96,31 +96,51 @@ export default function Dolly() {
         </svg>
           </div></div></div>
         </div>
-        <span className="glints" aria-hidden="true">
-          <i className="glint" style={{ left: '3.0%', animationDelay: '0.03s' }} />
-          <i className="glint" style={{ left: '8.0%', animationDelay: '0.41s' }} />
-          <i className="glint" style={{ left: '13.0%', animationDelay: '0.77s' }} />
-          <i className="glint" style={{ left: '17.0%', animationDelay: '0.20s' }} />
-          <i className="glint" style={{ left: '22.0%', animationDelay: '0.58s' }} />
-          <i className="glint" style={{ left: '26.0%', animationDelay: '0.85s' }} />
-          <i className="glint" style={{ left: '31.0%', animationDelay: '0.09s' }} />
-          <i className="glint" style={{ left: '35.0%', animationDelay: '0.47s' }} />
-          <i className="glint" style={{ left: '40.0%', animationDelay: '0.69s' }} />
-          <i className="glint" style={{ left: '44.0%', animationDelay: '0.27s' }} />
-          <i className="glint" style={{ left: '49.0%', animationDelay: '0.62s' }} />
-          <i className="glint" style={{ left: '53.0%', animationDelay: '0.81s' }} />
-          <i className="glint" style={{ left: '58.0%', animationDelay: '0.14s' }} />
-          <i className="glint" style={{ left: '62.0%', animationDelay: '0.52s' }} />
-          <i className="glint" style={{ left: '67.0%', animationDelay: '0.73s' }} />
-          <i className="glint" style={{ left: '71.0%', animationDelay: '0.24s' }} />
-          <i className="glint" style={{ left: '76.0%', animationDelay: '0.44s' }} />
-          <i className="glint" style={{ left: '80.0%', animationDelay: '0.84s' }} />
-          <i className="glint" style={{ left: '85.0%', animationDelay: '0.07s' }} />
-          <i className="glint" style={{ left: '89.0%', animationDelay: '0.37s' }} />
-          <i className="glint" style={{ left: '93.0%', animationDelay: '0.65s' }} />
-          <i className="glint" style={{ left: '96.0%', animationDelay: '0.31s' }} />
-          <i className="glint" style={{ left: '20.0%', animationDelay: '0.75s' }} />
-          <i className="glint" style={{ left: '64.0%', animationDelay: '0.01s' }} />
+        <span className="pops" aria-hidden="true">
+          <i className="pip pip--star" style={{ ['--dx' as any]: '291px', ['--rise' as any]: '-111px', ['--fall' as any]: '36px', ['--rot' as any]: '-274deg', animationDuration: '0.96s', animationDelay: '0.05s', left: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '155px', ['--rise' as any]: '-64px', ['--fall' as any]: '36px', ['--rot' as any]: '252deg', animationDuration: '0.75s', animationDelay: '0.08s', left: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '81px', ['--rise' as any]: '-102px', ['--fall' as any]: '36px', ['--rot' as any]: '-499deg', animationDuration: '0.72s', animationDelay: '0.05s', left: '10px' }} />
+          <i className="pip pip--star" style={{ ['--dx' as any]: '90px', ['--rise' as any]: '-56px', ['--fall' as any]: '20px', ['--rot' as any]: '-487deg', animationDuration: '0.73s', animationDelay: '0.05s', left: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '285px', ['--rise' as any]: '-77px', ['--fall' as any]: '22px', ['--rot' as any]: '435deg', animationDuration: '0.72s', animationDelay: '0.01s', left: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '202px', ['--rise' as any]: '-104px', ['--fall' as any]: '13px', ['--rot' as any]: '341deg', animationDuration: '0.95s', animationDelay: '0.05s', left: '10px' }} />
+          <i className="pip pip--star" style={{ ['--dx' as any]: '75px', ['--rise' as any]: '-60px', ['--fall' as any]: '14px', ['--rot' as any]: '235deg', animationDuration: '0.97s', animationDelay: '0.04s', left: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '68px', ['--rise' as any]: '-52px', ['--fall' as any]: '21px', ['--rot' as any]: '-206deg', animationDuration: '0.86s', animationDelay: '0.1s', left: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '263px', ['--rise' as any]: '-105px', ['--fall' as any]: '12px', ['--rot' as any]: '-578deg', animationDuration: '0.92s', animationDelay: '0.03s', left: '10px' }} />
+          <i className="pip pip--star" style={{ ['--dx' as any]: '219px', ['--rise' as any]: '-94px', ['--fall' as any]: '8px', ['--rot' as any]: '568deg', animationDuration: '1.0s', animationDelay: '0.01s', left: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '111px', ['--rise' as any]: '-53px', ['--fall' as any]: '11px', ['--rot' as any]: '588deg', animationDuration: '0.87s', animationDelay: '0.07s', left: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '156px', ['--rise' as any]: '-109px', ['--fall' as any]: '40px', ['--rot' as any]: '-554deg', animationDuration: '0.95s', animationDelay: '0.41s', left: '10px' }} />
+          <i className="pip pip--star" style={{ ['--dx' as any]: '256px', ['--rise' as any]: '-66px', ['--fall' as any]: '33px', ['--rot' as any]: '288deg', animationDuration: '0.72s', animationDelay: '0.52s', left: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '215px', ['--rise' as any]: '-54px', ['--fall' as any]: '21px', ['--rot' as any]: '-381deg', animationDuration: '1.02s', animationDelay: '0.46s', left: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '111px', ['--rise' as any]: '-57px', ['--fall' as any]: '17px', ['--rot' as any]: '-406deg', animationDuration: '0.8s', animationDelay: '0.5s', left: '10px' }} />
+          <i className="pip pip--star" style={{ ['--dx' as any]: '228px', ['--rise' as any]: '-89px', ['--fall' as any]: '32px', ['--rot' as any]: '-218deg', animationDuration: '0.75s', animationDelay: '0.45s', left: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '184px', ['--rise' as any]: '-53px', ['--fall' as any]: '31px', ['--rot' as any]: '498deg', animationDuration: '0.86s', animationDelay: '0.55s', left: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '307px', ['--rise' as any]: '-69px', ['--fall' as any]: '32px', ['--rot' as any]: '-501deg', animationDuration: '0.77s', animationDelay: '0.54s', left: '10px' }} />
+          <i className="pip pip--star" style={{ ['--dx' as any]: '187px', ['--rise' as any]: '-76px', ['--fall' as any]: '18px', ['--rot' as any]: '-531deg', animationDuration: '1.01s', animationDelay: '0.53s', left: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '100px', ['--rise' as any]: '-105px', ['--fall' as any]: '11px', ['--rot' as any]: '-235deg', animationDuration: '0.73s', animationDelay: '0.55s', left: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '182px', ['--rise' as any]: '-102px', ['--fall' as any]: '24px', ['--rot' as any]: '601deg', animationDuration: '0.99s', animationDelay: '0.43s', left: '10px' }} />
+          <i className="pip pip--star" style={{ ['--dx' as any]: '326px', ['--rise' as any]: '-74px', ['--fall' as any]: '12px', ['--rot' as any]: '-296deg', animationDuration: '0.86s', animationDelay: '0.47s', left: '10px' }} />
+          <i className="pip pip--star" style={{ ['--dx' as any]: '-97px', ['--rise' as any]: '-87px', ['--fall' as any]: '21px', ['--rot' as any]: '-563deg', animationDuration: '0.72s', animationDelay: '0.03s', right: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '-288px', ['--rise' as any]: '-83px', ['--fall' as any]: '11px', ['--rot' as any]: '-270deg', animationDuration: '0.8s', animationDelay: '0.05s', right: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '-127px', ['--rise' as any]: '-63px', ['--fall' as any]: '31px', ['--rot' as any]: '-410deg', animationDuration: '1.01s', animationDelay: '0.07s', right: '10px' }} />
+          <i className="pip pip--star" style={{ ['--dx' as any]: '-327px', ['--rise' as any]: '-69px', ['--fall' as any]: '10px', ['--rot' as any]: '-423deg', animationDuration: '0.99s', animationDelay: '0.07s', right: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '-77px', ['--rise' as any]: '-54px', ['--fall' as any]: '12px', ['--rot' as any]: '214deg', animationDuration: '0.94s', animationDelay: '0.03s', right: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '-97px', ['--rise' as any]: '-61px', ['--fall' as any]: '36px', ['--rot' as any]: '557deg', animationDuration: '0.73s', animationDelay: '0.09s', right: '10px' }} />
+          <i className="pip pip--star" style={{ ['--dx' as any]: '-126px', ['--rise' as any]: '-95px', ['--fall' as any]: '30px', ['--rot' as any]: '-530deg', animationDuration: '0.86s', animationDelay: '0.01s', right: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '-273px', ['--rise' as any]: '-55px', ['--fall' as any]: '39px', ['--rot' as any]: '-499deg', animationDuration: '0.92s', animationDelay: '0.04s', right: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '-66px', ['--rise' as any]: '-61px', ['--fall' as any]: '13px', ['--rot' as any]: '-507deg', animationDuration: '0.75s', animationDelay: '0.03s', right: '10px' }} />
+          <i className="pip pip--star" style={{ ['--dx' as any]: '-273px', ['--rise' as any]: '-94px', ['--fall' as any]: '32px', ['--rot' as any]: '405deg', animationDuration: '0.86s', animationDelay: '0.05s', right: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '-325px', ['--rise' as any]: '-117px', ['--fall' as any]: '9px', ['--rot' as any]: '487deg', animationDuration: '0.75s', animationDelay: '0.0s', right: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '-117px', ['--rise' as any]: '-115px', ['--fall' as any]: '39px', ['--rot' as any]: '185deg', animationDuration: '0.83s', animationDelay: '0.34s', right: '10px' }} />
+          <i className="pip pip--star" style={{ ['--dx' as any]: '-163px', ['--rise' as any]: '-118px', ['--fall' as any]: '18px', ['--rot' as any]: '517deg', animationDuration: '1.0s', animationDelay: '0.43s', right: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '-183px', ['--rise' as any]: '-93px', ['--fall' as any]: '33px', ['--rot' as any]: '281deg', animationDuration: '0.91s', animationDelay: '0.51s', right: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '-162px', ['--rise' as any]: '-79px', ['--fall' as any]: '32px', ['--rot' as any]: '-478deg', animationDuration: '1.0s', animationDelay: '0.35s', right: '10px' }} />
+          <i className="pip pip--star" style={{ ['--dx' as any]: '-128px', ['--rise' as any]: '-115px', ['--fall' as any]: '30px', ['--rot' as any]: '-544deg', animationDuration: '0.74s', animationDelay: '0.55s', right: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '-146px', ['--rise' as any]: '-66px', ['--fall' as any]: '36px', ['--rot' as any]: '320deg', animationDuration: '1.0s', animationDelay: '0.52s', right: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '-255px', ['--rise' as any]: '-118px', ['--fall' as any]: '39px', ['--rot' as any]: '546deg', animationDuration: '0.97s', animationDelay: '0.56s', right: '10px' }} />
+          <i className="pip pip--star" style={{ ['--dx' as any]: '-291px', ['--rise' as any]: '-93px', ['--fall' as any]: '12px', ['--rot' as any]: '-322deg', animationDuration: '0.98s', animationDelay: '0.31s', right: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '-203px', ['--rise' as any]: '-97px', ['--fall' as any]: '27px', ['--rot' as any]: '-508deg', animationDuration: '0.76s', animationDelay: '0.42s', right: '10px' }} />
+          <i className="pip pip--bar" style={{ ['--dx' as any]: '-72px', ['--rise' as any]: '-86px', ['--fall' as any]: '23px', ['--rot' as any]: '-587deg', animationDuration: '0.73s', animationDelay: '0.46s', right: '10px' }} />
+          <i className="pip pip--star" style={{ ['--dx' as any]: '-288px', ['--rise' as any]: '-65px', ['--fall' as any]: '31px', ['--rot' as any]: '-530deg', animationDuration: '0.78s', animationDelay: '0.51s', right: '10px' }} />
         </span>
         <img className="dolly__p" src={PORTRAIT} alt="" width={58} height={58} />
         <div>
