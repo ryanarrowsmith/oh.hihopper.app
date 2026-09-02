@@ -1,0 +1,44 @@
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+const PUBLIC = ['/sign-in', '/auth', '/no-access']
+
+export async function middleware(req: NextRequest) {
+  let res = NextResponse.next({ request: req })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => req.cookies.getAll(),
+        setAll: (list: { name: string; value: string; options: CookieOptions }[]) => {
+          list.forEach(({ name, value }) => req.cookies.set(name, value))
+          res = NextResponse.next({ request: req })
+          list.forEach(({ name, value, options }) => res.cookies.set(name, value, options))
+        },
+      },
+    },
+  )
+
+  // getUser, not getSession: getSession trusts the cookie, getUser asks.
+  const { data: { user } } = await supabase.auth.getUser()
+  const path = req.nextUrl.pathname
+  const open = PUBLIC.some((p) => path.startsWith(p))
+
+  if (!user && !open) {
+    const to = req.nextUrl.clone()
+    to.pathname = '/sign-in'
+    to.searchParams.set('next', path)
+    return NextResponse.redirect(to)
+  }
+  if (user && path === '/sign-in') {
+    const to = req.nextUrl.clone(); to.pathname = '/'; to.search = ''
+    return NextResponse.redirect(to)
+  }
+  return res
+}
+
+export const config = {
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|webp|ico)$).*)'],
+}
