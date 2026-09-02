@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation'
 
 type Entity = { id: string; name: string; parent_id: string | null }
 type Named = { id: string; name: string }
-type Crumb = { href: string; label: string }
+type Crumb = { href: string | null; label: string }
 
 /** Everything that isn't an organization id. */
 const NAMES: Record<string, string> = {
@@ -38,11 +38,19 @@ export default function Crumbs(
   const placeById = new Map(places.map((p) => [p.id, p]))
   const crumbs: Crumb[] = []
   let href = ''
+  // A word sitting directly after a record's id is a container in the URL, not
+  // a page: /admin/organizations/<org>/locations/<place> has no Locations page
+  // between the two, and linking it sent people to a 404. It still belongs in
+  // the trail -- it says where you are -- so it is printed rather than linked.
+  // Derived from the shape of the path rather than from a second copy of the
+  // route table, which would be one more place to be wrong.
+  let afterId = false
 
   for (const part of parts) {
     href += '/' + part
     const org = byId.get(part)
     if (org) {
+      afterId = true
       // An organization brings its ancestors with it, so the trail tells you
       // where in the portfolio you are and not merely which page you opened.
       const line: Entity[] = []
@@ -53,13 +61,14 @@ export default function Crumbs(
       continue
     }
     const place = placeById.get(part)
-    if (place) { crumbs.push({ href, label: place.name }); continue }
+    if (place) { afterId = true; crumbs.push({ href, label: place.name }); continue }
 
     // An id we cannot name is a page we should not pretend to label. Drop the
     // crumb rather than printing a uuid at somebody.
-    if (/^[0-9a-f-]{36}$/i.test(part)) continue
+    if (/^[0-9a-f-]{36}$/i.test(part)) { afterId = true; continue }
 
-    crumbs.push({ href, label: NAMES[part] ?? part.replace(/-/g, ' ') })
+    crumbs.push({ href: afterId ? null : href, label: NAMES[part] ?? part.replace(/-/g, ' ') })
+    afterId = false
   }
 
   return (
@@ -71,11 +80,13 @@ export default function Crumbs(
         </svg>
       </Link>
       {crumbs.map((c, i) => (
-        <span key={c.href + i} className="crumbs__step">
+        <span key={`${c.href ?? c.label}-${i}`} className="crumbs__step">
           <span className="crumbs__sep" aria-hidden="true">/</span>
           {i === crumbs.length - 1
             ? <span aria-current="page">{c.label}</span>
-            : <Link href={c.href as any}>{c.label}</Link>}
+            : c.href
+              ? <Link href={c.href as any}>{c.label}</Link>
+              : <span className="crumbs__plain">{c.label}</span>}
         </span>
       ))}
     </nav>

@@ -1480,3 +1480,7 @@ select.field{appearance:none}
      to go, so it aligns to the viewport instead and keeps its beak-less shape. */
   .notipop{right:-12px; width:min(344px, calc(100vw - 24px))}
 }
+
+/* A crumb with no page behind it. It still says where you are; it just does
+   not pretend to be somewhere you can go. */
+.crumbs__plain{cursor:default}
