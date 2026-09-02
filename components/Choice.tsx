@@ -39,6 +39,7 @@ export default function Choice({
   const [box, setBox] = useState<{ left: number; top: number; width: number; up: boolean } | null>(null)
   const btn = useRef<HTMLButtonElement>(null)
   const pop = useRef<HTMLDivElement>(null)
+  const list = useRef<HTMLDivElement>(null)
   const typed = useRef({ s: '', at: 0 })
 
   const chosen = options.find((o) => o.value === value)
@@ -50,17 +51,28 @@ export default function Choice({
       || (o.hint ?? '').toLowerCase().includes(q))
   }, [options, query])
 
-  /** Where the list goes: under the button, or over it when there is no room. */
+  /**
+   * Where the list goes: under the button, or over it when there is no room.
+   *
+   * It returns the SAME object when nothing has moved. It did not, and the
+   * layout effect that calls it had no dependency array -- so every render
+   * set a fresh object, which caused a render, which set another. React gave
+   * up at the depth limit and the page fell over the moment the list opened.
+   * A new object every time is a new value every time, even when every number
+   * in it is identical.
+   */
   const place = () => {
     const b = btn.current?.getBoundingClientRect()
     if (!b) return
     const want = Math.min(320, 44 + shown.length * 38)
     const below = window.innerHeight - b.bottom - 12
     const up = below < want && b.top > below
-    setBox({ left: b.left, top: up ? b.top - 8 : b.bottom + 8, width: b.width, up })
+    const next = { left: b.left, top: up ? b.top - 8 : b.bottom + 8, width: b.width, up }
+    setBox((prev) => (prev && prev.left === next.left && prev.top === next.top
+      && prev.width === next.width && prev.up === next.up) ? prev : next)
   }
 
-  useLayoutEffect(() => { if (open) place() })
+  useLayoutEffect(() => { if (open) place() }, [open, shown.length])
 
   useEffect(() => {
     if (!open) return
@@ -78,7 +90,7 @@ export default function Choice({
       window.removeEventListener('resize', move)
       document.removeEventListener('pointerdown', away)
     }
-  })
+  }, [open])
 
   function openList() {
     const i = Math.max(0, options.findIndex((o) => o.value === value))
@@ -114,6 +126,10 @@ export default function Choice({
       if (i >= 0) setActive(i)
     }
   }
+
+  // Focus lands once, when the list opens. A callback ref calling focus()
+  // fires on every render, which fights the filter box for the caret.
+  useEffect(() => { if (open && !showFilter) list.current?.focus() }, [open, showFilter])
 
   // keep the active option in view as the arrows walk past the fold
   useEffect(() => {
@@ -160,8 +176,7 @@ export default function Choice({
           )}
           <div className="choicepop__list" role="listbox" id={listId}
                aria-activedescendant={shown[active] ? `${listId}-${active}` : undefined}
-               tabIndex={showFilter ? -1 : 0}
-               ref={(el) => { if (el && !showFilter) el.focus() }}>
+               tabIndex={showFilter ? -1 : 0} ref={list}>
             {shown.length === 0 && <div className="choicepop__none">Nothing matches that.</div>}
             {shown.map((o, i) => (
               <div
