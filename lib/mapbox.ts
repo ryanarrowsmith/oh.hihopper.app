@@ -37,6 +37,25 @@ function countryCode(name?: string | null) {
 }
 
 /**
+ * What is wrong with a token, said without ever printing one. A 401 from
+ * Mapbox means the string it received is not a token it knows -- and by far
+ * the commonest cause is a paste that carried quotes, a newline, or only half
+ * the value. This describes the shape so the fault is visible without anyone
+ * having to reveal a secret in a dashboard.
+ */
+function tokenShape(raw: string) {
+  const bits: string[] = []
+  if (raw !== raw.trim()) bits.push('has surrounding whitespace')
+  const t = raw.trim()
+  if (/^['"]|['"]$/.test(t)) bits.push('is wrapped in quotes')
+  if (/\s/.test(t)) bits.push('contains a space or line break')
+  if (!/^(pk|sk|tk)\./.test(t)) bits.push(`does not start with pk. or sk. (starts "${t.slice(0, 3)}")`)
+  else bits.push(`starts ${t.slice(0, 3)}`)
+  bits.push(`${t.length} characters`)
+  return bits.join(', ')
+}
+
+/**
  * Structured lookup, not a mashed-together string. Mapbox matches street,
  * city, region and postcode far better as separate fields -- and address_line2
  * is deliberately left out, because a suite or mailbox number ("#52014") is
@@ -47,8 +66,9 @@ function countryCode(name?: string | null) {
  * to check an address that was never the fault.
  */
 export async function geocode(place: Place): Promise<GeocodeResult> {
-  const token = process.env.MAPBOX_TOKEN
-  if (!token) return { ok: false, reason: 'unconfigured' }
+  const raw = process.env.MAPBOX_TOKEN
+  if (!raw || !raw.trim()) return { ok: false, reason: 'unconfigured' }
+  const token = raw.trim().replace(/^['"]|['"]$/g, '')
 
   const q = new URLSearchParams({ access_token: token, limit: '1' })
   const put = (k: string, v?: string | null) => { if (v && v.trim()) q.set(k, v.trim()) }
@@ -65,7 +85,12 @@ export async function geocode(place: Place): Promise<GeocodeResult> {
   try {
     const res = await fetch(`${GEOCODE}?${q}`, { cache: 'no-store' })
     if (!res.ok) {
-      return { ok: false, reason: 'refused', detail: `Mapbox answered ${res.status}.` }
+      const said = await res.text().catch(() => '')
+      let why = ''
+      try { why = JSON.parse(said)?.message ?? '' } catch { why = said.slice(0, 120) }
+      const shape = res.status === 401 || res.status === 403 ? ` The token ${tokenShape(raw)}.` : ''
+      return { ok: false, reason: 'refused',
+               detail: `Mapbox answered ${res.status}${why ? ': ' + why : ''}.${shape}` }
     }
     const j = await res.json()
     const f = j?.features?.[0]
@@ -101,8 +126,9 @@ export function staticMapUrl(o: {
   latitude: number; longitude: number; zoom?: number
   width?: number; height?: number; dark?: boolean
 }) {
-  const token = process.env.MAPBOX_TOKEN
-  if (!token) return null
+  const raw = process.env.MAPBOX_TOKEN
+  if (!raw || !raw.trim()) return null
+  const token = raw.trim().replace(/^['"]|['"]$/g, '')
   const style = o.dark
     ? (process.env.MAPBOX_STYLE_DARK || 'mapbox/dark-v11')
     : (process.env.MAPBOX_STYLE || 'mapbox/light-v11')

@@ -28,7 +28,12 @@ export async function GET(req: Request) {
   if (!url) return new NextResponse('Maps are not configured.', { status: 503 })
 
   const res = await fetch(url, { next: { revalidate: 86400 } })
-  if (!res.ok) return new NextResponse('Mapbox refused it.', { status: 502 })
+  if (!res.ok) {
+    // Pass Mapbox's own words through. 'Mapbox refused it' told nobody
+    // anything; 'Not Authorized - Invalid Token' names the fault.
+    const said = (await res.text().catch(() => '')).slice(0, 200)
+    return new NextResponse(`Mapbox answered ${res.status}. ${said}`, { status: 502 })
+  }
 
   return new NextResponse(res.body, {
     headers: {
