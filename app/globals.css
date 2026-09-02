@@ -293,7 +293,11 @@ a.bub{text-decoration:none}
 .bub:focus-visible+.bubl{opacity:1}
 @media (hover:none){ .bubl{opacity:1} }
 
-.main{background:var(--paper); padding:clamp(18px,2.6vw,30px) clamp(16px,2.6vw,30px) 34px; min-width:0}
+.main{
+  background-color:var(--paper); background-image:radial-gradient(var(--dot) 1px, transparent 1px);
+  background-size:var(--dot-gap) var(--dot-gap); background-position:-1px -1px;
+  padding:clamp(18px,2.6vw,30px) clamp(16px,2.6vw,30px) 34px; min-width:0;
+}
 
 /* ============ GREETING ============ */
 .hi h1{font-size:clamp(1.7rem,3.4vw,2.3rem); font-weight:800; letter-spacing:-.035em; line-height:1.05}
