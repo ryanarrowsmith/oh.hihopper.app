@@ -60,26 +60,35 @@ export default function TopBar({ initials, entities }: { initials: string; entit
 
       <span className="tbar__sp" />
       <div className="tbar__act">
-        <button className="ibtn is-lit" type="button" aria-label="Notifications"
-                onClick={(e) => { e.stopPropagation(); setOpen(open === 'noti' ? null : 'noti') }}>
-          <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-2 8-2 8h16s-2-1-2-8" />
-            <path d="M13.7 21a2 2 0 0 1-3.4 0" /></svg>
-        </button>
+        {/* The popover hangs off the bell that raised it, the same way every
+            other popover in the product hangs off its own control. It used to
+            be a sibling of the whole bar with a hard-coded top and right, and
+            since neither the bar nor the container is positioned it was
+            measuring from the page -- which is why it landed beside the bell
+            rather than under it. */}
+        <span className="bellw">
+          <button className="ibtn is-lit" type="button" aria-label="Notifications"
+                  aria-expanded={open === 'noti'} aria-haspopup="dialog"
+                  onClick={(e) => { e.stopPropagation(); setOpen(open === 'noti' ? null : 'noti') }}>
+            <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-2 8-2 8h16s-2-1-2-8" />
+              <path d="M13.7 21a2 2 0 0 1-3.4 0" /></svg>
+          </button>
+
+          {open === 'noti' && (
+            <div className="notipop" role="dialog" aria-label="Notifications">
+              <p className="nhead">Notifications <em>all read</em></p>
+              <div className="empty" style={{ border: 0, background: 'transparent',
+                color: 'rgba(251,249,245,.55)' }}>
+                Nothing waiting. A notification is the small set that names you and that
+                you haven&rsquo;t seen — everything else is the Activity Log&rsquo;s job.
+              </div>
+            </div>
+          )}
+        </span>
         <form action="/auth/sign-out" method="post">
           <button className="avatar" type="submit" title="Sign out">{initials}</button>
         </form>
       </div>
-
-      {open === 'noti' && (
-        <div className="notipop" style={{ right: 16, top: 58 }}>
-          <p className="nhead">Notifications <em>all read</em></p>
-          <div className="empty" style={{ border: 0, background: 'transparent',
-            color: 'rgba(251,249,245,.55)' }}>
-            Nothing waiting. A notification is the small set that names you and that
-            you haven&rsquo;t seen — everything else is the Activity Log&rsquo;s job.
-          </div>
-        </div>
-      )}
     </header>
   )
 }

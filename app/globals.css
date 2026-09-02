@@ -1469,3 +1469,14 @@ select.field{appearance:none}
 /* The star sits on the card's name line, so a map card says head office the
    same way a row does. */
 .mapcard__name{display:flex; align-items:center; gap:8px}
+
+/* The bell is the anchor for its own popover. Without this the popover measured
+   from the page, because neither the top bar nor the container is positioned --
+   so it opened beside the bell instead of under it, and hung outside the
+   container's right edge. */
+.bellw{position:relative; display:inline-flex}
+@media (max-width:640px){
+  /* At this width a 344px popover hung off a button near the edge has nowhere
+     to go, so it aligns to the viewport instead and keeps its beak-less shape. */
+  .notipop{right:-12px; width:min(344px, calc(100vw - 24px))}
+}
