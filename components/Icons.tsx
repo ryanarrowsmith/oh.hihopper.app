@@ -30,10 +30,16 @@ export const Star = () => (
     <path d="M12 3.2l2.6 5.6 6.1.8-4.5 4.2 1.2 6.1L12 17l-5.4 2.9 1.2-6.1L3.3 9.6l6.1-.8z" />
   </svg>
 )
-export const HeadOffice = ({ on }: { on: boolean }) =>
+export const HeadOffice = ({ on, big }: { on: boolean; big?: boolean }) =>
   on
-    ? <span className="hoflag" role="img" aria-label="Head office" title="Head office"><Star /></span>
-    : <span className="hoflag hoflag--none" aria-hidden="true" />
+    ? (
+      <span className={`hoflag${big ? ' hoflag--lg' : ''}`} role="img" aria-label="Head office"
+            tabIndex={0}>
+        <Star />
+        <span className="hoflag__tip" aria-hidden="true">Head office</span>
+      </span>
+    )
+    : <span className={`hoflag hoflag--none${big ? ' hoflag--lg' : ''}`} aria-hidden="true" />
 
 /** The same pin that stands on the map. Lit when the address resolved. */
 export const PinMark = ({ on }: { on: boolean }) => (

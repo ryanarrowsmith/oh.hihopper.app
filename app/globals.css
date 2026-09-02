@@ -1301,16 +1301,52 @@ select.field{appearance:none}
    still start on one line.
    Steel is written out rather than taken from --steel, because that token flips
    to a pale blue in the dark theme and paper on pale blue is unreadable. */
+/* Canvas at rest so it sits in the page rather than shouting from it, steel
+   when the pointer arrives. inline-grid, not grid: block-level, it took a line
+   of its own the moment it followed text, which is how it ended up floating
+   under the organization link on the location page. */
 .hoflag{
-  width:24px; height:24px; flex:none; border-radius:var(--r);
-  display:grid; place-items:center; background:#2D5D7B; color:#FBF9F5;
+  position:relative; width:24px; height:24px; flex:none; border-radius:var(--r);
+  display:inline-grid; place-items:center; vertical-align:middle; cursor:default;
+  background:var(--canvas-2); border:1px solid var(--canvas-3); color:var(--ink-2);
+  transition:background .15s, border-color .15s, color .15s;
 }
 .hoflag svg{width:13px; height:13px; display:block; fill:currentColor}
 .hoflag--none{visibility:hidden}
+.hoflag:hover, .hoflag:focus-visible{background:#2D5D7B; border-color:#2D5D7B; color:#FBF9F5}
 @media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]) .hoflag{background:#3C7098}
+  :root:not([data-theme="light"]) .hoflag:hover,
+  :root:not([data-theme="light"]) .hoflag:focus-visible{background:#3C7098; border-color:#3C7098}
 }
-:root[data-theme="dark"] .hoflag{background:#3C7098}
+:root[data-theme="dark"] .hoflag:hover,
+:root[data-theme="dark"] .hoflag:focus-visible{background:#3C7098; border-color:#3C7098}
+
+/* Its own tooltip, not the browser's -- that one is slow, cannot be styled,
+   and never appears on a phone. A star is a good mark, but nobody is born
+   knowing what it means. */
+.hoflag__tip{
+  position:absolute; bottom:calc(100% + 9px); left:50%; transform:translateX(-50%);
+  padding:6px 10px; white-space:nowrap; z-index:80;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  box-shadow:var(--shadow); color:var(--ink);
+  font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  opacity:0; pointer-events:none; transition:opacity .14s;
+}
+.hoflag__tip::after{
+  content:""; position:absolute; top:100%; left:50%; width:8px; height:8px; margin:-4px 0 0 -4px;
+  background:var(--surface); border-right:1px solid var(--rule);
+  border-bottom:1px solid var(--rule); transform:rotate(45deg);
+}
+.hoflag:hover .hoflag__tip, .hoflag:focus-visible .hoflag__tip{opacity:1}
+
+/* Beside a page's own name, where it is anchored to the thing it describes. */
+.hi__name{display:flex; align-items:center; gap:12px}
+.hoflag--lg{width:34px; height:34px}
+.hoflag--lg svg{width:18px; height:18px}
+@media (max-width:640px){
+  .hoflag--lg{width:28px; height:28px}
+  .hoflag--lg svg{width:15px; height:15px}
+}
 
 /* ============ THE PIN ============
    Pinned and No pin were two words you had to read and compare. It is the same

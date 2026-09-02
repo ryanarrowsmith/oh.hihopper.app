@@ -30,9 +30,15 @@ export default async function Location({ params }: { params: { id: string; loc: 
   return (
     <>
       <div className="hi">
-        <h1>{l.name}</h1>
+        <h1 className="hi__name">
+          {/* Anchored to the location's own name -- the same slot it takes in
+              every list row. It used to trail the organization link below,
+              with nothing holding it and the panel already saying it. */}
+          <HeadOffice on={!!l.is_head_office} big />
+          {l.name}
+        </h1>
         <p className="scopeline">
-          <span>{org.name}{l.is_head_office ? ' · Head office' : ''}</span>
+          <span>{org.name}</span>
           <a href={`/admin/organizations/${org.id}`}>Back to {org.name}</a>
         </p>
       </div>
@@ -85,8 +91,7 @@ export default async function Location({ params }: { params: { id: string; loc: 
                     : <span className="muted">Nothing on file yet</span>}</td></tr>
                 <tr><th>Organization</th>
                   <td><a href={`/admin/organizations/${org.id}`}>{org.name}</a>
-                    {/* the same star that marks a head office in every list */}
-                    {l.is_head_office && <> <HeadOffice on /></>}
+
                   </td></tr>
                 <tr><th>Time zone</th>
                   <td><span className="mono">{l.time_zone}</span>
