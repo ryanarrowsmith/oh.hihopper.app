@@ -25,10 +25,17 @@ export type Opt = { value: string; label: string; hint?: string }
  */
 export default function Choice({
   name, options, defaultValue = '', placeholder = 'Choose…', id, required,
-  filterFrom = 8,
+  filterFrom = 8, onPick,
 }: {
   name: string; options: Opt[]; defaultValue?: string; placeholder?: string
   id?: string; required?: boolean; filterFrom?: number
+  /**
+   * Optional. The hidden input is the only thing the server needs, and React
+   * setting `value` on it fires no change event -- so a caller that must react
+   * to the choice (three dropdowns narrowing each other on the report form)
+   * cannot listen for one. This is that callback, and nothing else changed.
+   */
+  onPick?: (value: string) => void
 }) {
   const auto = useId()
   const listId = `${auto}-list`
@@ -97,7 +104,7 @@ export default function Choice({
     setQuery(''); setActive(i); setOpen(true)
   }
   function pick(o: Opt) {
-    setValue(o.value); setOpen(false); btn.current?.focus()
+    setValue(o.value); setOpen(false); btn.current?.focus(); onPick?.(o.value)
   }
 
   function onKey(e: React.KeyboardEvent) {

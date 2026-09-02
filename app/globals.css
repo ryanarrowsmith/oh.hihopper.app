@@ -2161,3 +2161,585 @@ a.crow:hover svg{stroke:var(--steel-ink)}
   .scrim{padding:0; place-items:end stretch}
   .ccard{width:100%; max-height:92vh; border-radius:var(--r) var(--r) 0 0; border-bottom:0}
 }
+
+/* ==================================================================
+   REPORTING
+   ================================================================== */
+
+/* The zebra band on a wide table. A mix rather than two hard-coded values so it
+   follows all three theme states -- light, dark, and the OS default -- without a
+   second block to keep in step. Faint on purpose: a stripe you notice is a
+   stripe competing with the numbers. */
+:root{ --stripe:color-mix(in srgb, var(--sunken) 62%, var(--surface)); }
+
+/* ============ THE BAR ABOVE THE GROUPS ============
+   Search and the density switch, in the place the density switch sits on
+   People. It governs every group below it, so it sits above all of them rather
+   than repeating itself inside each one. (The shared date range belongs here
+   too and is not built yet.)
+
+   Named .rbar and not .when: globals already has a .when, and it is an
+   activity timestamp. Two meanings for one class name is how a page starts
+   wearing styling nobody wrote for it. */
+.rbar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:16px 0 4px}
+
+.rbar__l{font-family:var(--mono); font-size:10px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-3); margin-right:auto}
+
+.rbar__f{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-3)}
+
+.rbar__f input{width:132px; font-size:12.5px; padding:6px 9px}
+
+/* ============ A DEPARTMENT'S REPORTS ============ */
+.rgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(268px,1fr)); gap:12px; margin-top:12px}
+
+.rcard{
+  display:block; text-decoration:none; background:var(--surface);
+  border:1px solid var(--rule); border-radius:var(--r); box-shadow:var(--shadow);
+  padding:15px; transition:border-color .15s, box-shadow .15s, transform .15s;
+}
+
+.rcard:hover{border-color:var(--canvas-3); box-shadow:var(--lift); transform:translateY(-1px)}
+
+.rcard__c{font-family:var(--mono); font-size:9.5px; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--ink-3); display:block}
+
+.rcard__n{display:block; font-size:15px; font-weight:800; letter-spacing:-.015em; color:var(--ink);
+  margin-top:7px; line-height:1.3}
+
+.rcard:hover .rcard__n{color:var(--steel-ink)}
+
+/* The number is the point of the card, so it gets the room. Tabular figures,
+   because a column of numbers that jitters is a column you cannot scan. */
+.rcard__v{display:block; margin-top:12px; font-size:31px; font-weight:800; letter-spacing:-.03em;
+  color:var(--ink); font-variant-numeric:tabular-nums; line-height:1}
+
+.rcard__v small{font-size:15px; font-weight:700; color:var(--ink-3); margin-left:3px}
+
+.rcard__none{display:block; margin-top:12px; font-size:14px; font-style:italic; color:var(--ink-3)}
+
+/* the last thirteen, drawn small -- a shape, not a chart */
+.spark{display:block; width:100%; height:34px; margin-top:10px; overflow:visible}
+
+.spark path{fill:none; stroke:var(--steel); stroke-width:1.8;
+  stroke-linecap:round; stroke-linejoin:round}
+
+.spark circle{fill:var(--amber)}
+
+.rcard__f{display:flex; align-items:center; gap:7px; margin-top:11px; padding-top:10px;
+  border-top:1px solid var(--rule-soft); font-size:11.5px; color:var(--ink-3)}
+
+.dot{width:7px; height:7px; border-radius:50%; flex:none; background:var(--canvas-3)}
+
+.dot--good{background:#3E8E5F}
+
+.dot--stale{background:var(--amber)}
+
+.dot--bad{background:#A73C2C}
+
+.rcard__f b{color:var(--ink-2); font-weight:700}
+
+/* A snapshot says so, permanently: it carries the date it was taken instead of
+   a freshness dot, because Hopper never went back to look and must not imply
+   that it did. */
+.snap{display:inline-flex; align-items:center; gap:6px; font-family:var(--mono); font-size:9.5px;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3)}
+
+.snap svg{width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:2;
+  stroke-linecap:round; stroke-linejoin:round}
+
+/* A source with no dates says so rather than pretending to be filtered. */
+.undated{margin-top:9px; font-size:11.5px; color:var(--ink-3); font-style:italic}
+
+/* ============ ADD A REPORT ============
+   Four steps, because the form asks four different kinds of question -- where
+   do the numbers live, is this the right data, what should the chart say, and
+   where does this hang -- and mixing them means each gets answered badly. The
+   second had never had a moment of its own, which is exactly where a wrong tab
+   or a header row that is really data gets caught; it was being caught after
+   the save instead. */
+.steps{display:flex; gap:2px; margin:18px 0 22px; border-bottom:1px solid var(--rule)}
+
+.step{
+  flex:1 1 0; display:flex; align-items:center; gap:9px; padding:11px 12px;
+  background:none; border:0; border-bottom:2px solid transparent; cursor:pointer;
+  text-align:left; font:700 12.5px/1.25 var(--sans); color:var(--ink-3);
+}
+
+.step:disabled{cursor:not-allowed; opacity:.55}
+
+.step__n{
+  flex:none; width:22px; height:22px; border-radius:50%; display:grid; place-items:center;
+  background:var(--canvas-2); color:var(--ink-2); font:800 11px/1 var(--sans);
+}
+
+.step[aria-current="step"]{color:var(--ink); border-bottom-color:var(--amber)}
+
+.step[aria-current="step"] .step__n{background:var(--amber); color:#231F20}
+
+.step[data-done="1"] .step__n{background:#3E8E5F; color:#FBF9F5}
+
+.step[data-done="1"]{color:var(--ink-2)}
+
+.step svg{width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:2.6;
+  stroke-linecap:round; stroke-linejoin:round}
+
+@media (max-width:700px){
+  .step span:not(.step__n){display:none}
+  .step{flex:0 0 auto; justify-content:center}
+}
+
+/* ---- the source tiles, split by whether it can be read again tomorrow ---- */
+.srcs{display:grid; grid-template-columns:repeat(auto-fill,minmax(196px,1fr)); gap:10px}
+
+.src{
+  display:block; text-align:left; padding:13px; cursor:pointer;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  transition:border-color .15s, box-shadow .15s;
+}
+
+.src:hover{border-color:var(--canvas-3); box-shadow:var(--shadow)}
+
+.src[aria-pressed="true"]{border-color:var(--amber); box-shadow:0 0 0 1px var(--amber) inset}
+
+.src__t{display:block; font-size:13.5px; font-weight:800; color:var(--ink); letter-spacing:-.01em}
+
+.src__s{display:block; font-size:11.5px; color:var(--ink-3); margin-top:4px; line-height:1.45}
+
+.src__f{display:inline-block; margin-top:9px; font-family:var(--mono); font-size:9px;
+  letter-spacing:.11em; text-transform:uppercase; padding:2px 7px; border-radius:var(--r)}
+
+.src__f--live{background:rgba(62,142,95,.15); color:#2C6B47}
+
+.src__f--snap{background:var(--canvas-2); color:var(--ink-2)}
+
+.srchead{font-family:var(--mono); font-size:9.5px; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--ink-3); margin:0 0 9px}
+
+.srchead + .srcs{margin-bottom:20px}
+
+/* ---- what came back ---- */
+.came{border:1px solid var(--rule); border-radius:var(--r); background:var(--surface); overflow:hidden}
+
+.came__h{display:flex; align-items:center; gap:10px; padding:10px 13px; background:var(--sunken);
+  border-bottom:1px solid var(--rule); font-size:12.5px; color:var(--ink-2)}
+
+.came__h b{color:var(--ink)}
+
+.came__h .ok{margin-left:auto; display:inline-flex; align-items:center; gap:6px;
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.11em; text-transform:uppercase;
+  color:#2C6B47}
+
+.cols{display:block}
+
+.col{display:flex; align-items:center; gap:11px; padding:9px 13px;
+  border-bottom:1px solid var(--rule-soft); font-size:13px}
+
+.cols .col:last-child{border-bottom:0}
+
+.col__k{flex:none; width:26px; height:20px; display:grid; place-items:center; border-radius:var(--r);
+  font-family:var(--mono); font-size:9px; font-weight:700; background:var(--canvas-2); color:var(--ink-2)}
+
+.col__k--num{background:var(--steelwash); color:var(--steel-ink)}
+
+.col__k--date{background:rgba(242,169,59,.22); color:#8A5A12}
+
+.col__n{font-weight:700; color:var(--ink)}
+
+.col__e{margin-left:auto; font-size:12px; color:var(--ink-3); font-family:var(--mono);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:44%}
+
+.came__note{padding:10px 13px; font-size:12px; color:var(--ink-3); border-top:1px solid var(--rule-soft);
+  line-height:1.55}
+
+.rcard__grab{
+  display:none; position:absolute; top:9px; right:9px; width:26px; height:26px;
+  place-items:center; border-radius:var(--r); background:var(--sunken);
+  border:1px solid var(--rule); color:var(--ink-3);
+}
+
+.rcard__grab svg{width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:2;
+  stroke-linecap:round; stroke-linejoin:round}
+
+/* ============ THREE DENSITIES ============
+   The same three the directory has, for the same reason: a page is read at
+   different intents. Large is one number you are watching; medium is a wall
+   you are scanning; the list is looking one up. */
+.rgrid--md{grid-template-columns:repeat(auto-fill,minmax(186px,1fr))}
+
+.rgrid--md .rcard{padding:12px}
+
+.rgrid--md .rcard__v{font-size:23px; margin-top:9px}
+
+.rgrid--md .rcard__n{font-size:13.5px}
+
+.rgrid--md .spark{display:none}
+
+/* at this size it is texture, not a shape */
+.rgrid--md .rcard__f{margin-top:9px; padding-top:8px}
+
+.rlist2{border:1px solid var(--rule); border-radius:var(--r); background:var(--surface); margin-top:12px}
+
+.rrow{display:flex; align-items:center; gap:14px; padding:11px 14px; text-decoration:none;
+  border-bottom:1px solid var(--rule-soft)}
+
+.rrow:last-child{border-bottom:0}
+
+.rrow:hover{background:var(--sunken)}
+
+.rrow__n{font-size:13.5px; font-weight:800; color:var(--steel-ink); min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 auto}
+
+.rrow__c{font-family:var(--mono); font-size:9.5px; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--ink-3); flex:none; width:132px}
+
+.rrow__v{font-size:14.5px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums;
+  flex:none; width:104px; text-align:right}
+
+.rrow__f{flex:none; width:186px; display:flex; align-items:center; gap:7px;
+  font-size:11.5px; color:var(--ink-3); justify-content:flex-end}
+
+@media (max-width:760px){
+  .rrow{flex-wrap:wrap; gap:8px}
+  .rrow__c{width:auto; order:-1; width:100%}
+  .rrow__v{width:auto; margin-left:auto}
+  .rrow__f{width:100%; justify-content:flex-start}
+}
+
+/* ============ A REPORT, OPENED ============
+   Centred over a scrim, the same as a person's contact card, and for the same
+   reason the anchored version failed there: a grid gives no z-order guarantee
+   and every card makes its own stacking context the moment it lifts. */
+.rscrim{
+  position:fixed; inset:0; z-index:95; display:grid; place-items:center; padding:20px;
+  background:rgba(35,31,32,.42); backdrop-filter:blur(2px); animation:rfade .16s ease-out;
+}
+
+@keyframes rfade{from{opacity:0}}
+
+.rpop{
+  /* As wide as the screen honestly allows. A report can have thirty columns,
+     and a 760px window over them is a keyhole. */
+  width:min(1440px, calc(100vw - 32px)); max-height:min(92vh, 980px); overflow:hidden;
+  display:flex; flex-direction:column; text-align:left;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  box-shadow:0 22px 60px rgba(35,31,32,.35);
+  animation:rin .18s cubic-bezier(.2,.7,.3,1);
+}
+
+@keyframes rin{from{opacity:0; transform:translateY(8px) scale(.985)}}
+
+@media (prefers-reduced-motion:reduce){ .rscrim,.rpop{animation:none} }
+
+.rpop__h{display:flex; align-items:flex-start; gap:14px; padding:16px 18px;
+  border-bottom:1px solid var(--rule); background:var(--sunken)}
+
+.rpop__t{min-width:0; flex:1 1 auto}
+
+.rpop__t b{display:block; font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--ink)}
+
+.rpop__t span{display:block; font-size:12.5px; color:var(--ink-3); margin-top:3px}
+
+.rpop__x{background:none; border:0; cursor:pointer; font-size:21px; line-height:1; padding:0 4px;
+  color:var(--ink-3)}
+
+.rpop__x:hover{color:var(--ink)}
+
+/* The two ways to look at a report: as a shape, or as the rows behind it. */
+.rpop__tabs{display:flex; gap:2px; padding:3px; margin:14px 18px 0;
+  background:var(--sunken); border:1px solid var(--rule); border-radius:var(--r)}
+
+.rpop__tabs button{flex:1 1 0; appearance:none; border:0; background:none; cursor:pointer;
+  padding:7px 10px; border-radius:var(--r); color:var(--ink-2); font:700 12.5px/1.2 var(--sans)}
+
+.rpop__tabs button[aria-selected="true"]{background:var(--surface); color:var(--ink); box-shadow:var(--shadow)}
+
+.rpop__b{padding:16px 18px; overflow-y:auto; flex:1 1 auto}
+
+/* The window is wide for the table's sake. A line chart stretched across 1400px
+   flattens every slope it has, so the shape keeps its own comfortable width and
+   sits in the middle of the room rather than filling it. */
+.shape{max-width:840px; margin:0 auto}
+
+.bigchart{width:100%; height:250px; display:block}
+
+.bigchart .ln{fill:none; stroke:var(--steel); stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round}
+
+.bigchart .ar{fill:var(--steelwash); stroke:none}
+
+.bigchart .gr{stroke:var(--rule-soft); stroke-width:1}
+
+.bigchart .pt{fill:var(--amber)}
+
+.bigchart text{font:600 10px var(--mono); fill:var(--ink-3)}
+
+.figs{display:flex; gap:22px; flex-wrap:wrap; margin-top:14px; padding-top:14px;
+  border-top:1px solid var(--rule-soft)}
+
+.fig{display:block}
+
+.fig__l{font-family:var(--mono); font-size:9px; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--ink-3); display:block}
+
+.fig__v{font-size:18px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums;
+  display:block; margin-top:3px}
+
+.fig__v small{font-size:12px; color:var(--ink-3); font-weight:700}
+
+.up{color:#2C6B47}
+
+.down{color:#9C3A2A}
+
+/* ---- the rows behind it ---- */
+.rawbar{display:flex; align-items:center; gap:10px; margin-bottom:11px; flex-wrap:wrap}
+
+.rawbar__l{font-size:12px; color:var(--ink-3); margin-right:auto}
+
+.rawnote{margin-top:10px; font-size:11.5px; color:var(--ink-3); line-height:1.55}
+
+.rpop__go{display:flex; gap:8px; padding:12px 18px; border-top:1px solid var(--rule);
+  background:var(--sunken)}
+
+.rpop__go .btn{flex:0 0 auto}
+
+.rpop__go .spacer{flex:1 1 auto}
+
+/* ============ A WIDE TABLE, READABLY ============
+   Four things carry this, and they matter in this order.
+
+   1. The first column freezes. Scroll right through fourteen columns and the
+      thing that tells you WHICH ROW you are on goes off the left edge -- after
+      which every number you read belongs to nobody.
+   2. The header freezes. Same argument, the other axis.
+   3. Rows alternate. Hairlines alone are enough at five columns; at fourteen
+      the eye loses the line halfway across, and a band is what carries it.
+      Very faint -- 40% of the sunken tone -- because a stripe you notice is a
+      stripe competing with the numbers.
+   4. Hover lights the whole row, over the top of the stripe, so pointing at a
+      row is still how you read one.
+*/
+.rawwrap{position:relative; border:1px solid var(--rule); border-radius:var(--r);
+  overflow:auto; max-height:min(56vh,520px)}
+
+.raw{width:100%; border-collapse:separate; border-spacing:0; font-size:12.5px}
+
+.raw th{
+  position:sticky; top:0; z-index:2; background:var(--sunken); text-align:left;
+  padding:9px 12px; border-bottom:1px solid var(--rule); white-space:nowrap;
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); cursor:pointer; user-select:none;
+}
+
+.raw th.num, .raw td.num{text-align:right}
+
+.raw td{padding:8px 12px; border-bottom:1px solid var(--rule-soft); color:var(--ink-2);
+  white-space:nowrap; background:var(--surface)}
+
+.raw tbody tr:nth-child(even) td{background:var(--stripe)}
+
+.raw tbody tr:hover td{background:var(--sunken)}
+
+.raw tr:last-child td{border-bottom:0}
+
+.raw td.num{font-variant-numeric:tabular-nums; color:var(--ink)}
+
+/* the key column travels with you */
+.raw th:first-child, .raw td:first-child{
+  position:sticky; left:0; z-index:1;
+  box-shadow:1px 0 0 var(--rule);
+  transition:box-shadow .18s;
+}
+
+/* Only once it is actually floating over something does it cast a shadow. A
+   pinned column that looks lifted while nothing has scrolled is just a heavy
+   border in the wrong place. */
+.rawbox.is-scrolled .raw th:first-child,
+.rawbox.is-scrolled .raw td:first-child{
+  box-shadow:1px 0 0 var(--rule), 7px 0 9px -7px rgba(35,31,32,.30);
+}
+
+.raw th:first-child{z-index:3}
+
+.raw td:first-child{font-weight:700; color:var(--ink)}
+
+.raw th svg{width:10px; height:10px; margin-left:5px; vertical-align:-1px;
+  fill:none; stroke:currentColor; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round;
+  opacity:0}
+
+.raw th:hover{color:var(--ink)}
+
+.raw th:hover svg{opacity:.4}
+
+.raw th[aria-sort]{color:var(--ink); background:var(--canvas-2)}
+
+.raw th[aria-sort] svg{opacity:1}
+
+.raw th[aria-sort="descending"] svg{transform:rotate(180deg)}
+
+/* compact drops the padding, not the type -- shrinking the numbers to fit more
+   of them on screen defeats the point of looking at them */
+.raw--tight td{padding:4px 12px}
+
+.raw--tight th{padding:7px 12px}
+
+/* A hint that there is more to the right, which a trackpad's hidden scrollbar
+   does not give. It hangs on a wrapper OUTSIDE the scroller -- an ::after on
+   the scroller itself scrolls away with the content -- and switches off once
+   you have actually reached the last column, so it never lies. */
+.rawbox{position:relative}
+
+.rawbox::after{
+  content:""; position:absolute; top:1px; right:1px; bottom:1px; width:30px;
+  pointer-events:none; opacity:1; transition:opacity .18s;
+  background:linear-gradient(90deg, rgba(35,31,32,0), rgba(35,31,32,.11));
+}
+
+.rawbox.at-end::after{opacity:0}
+
+/* ---- which columns ---- */
+.colpick{position:relative}
+
+.colpop{
+  position:absolute; z-index:80; top:calc(100% + 8px); right:0; width:236px; padding:6px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  box-shadow:var(--lift); max-height:300px; overflow-y:auto;
+}
+
+.colrow{display:flex; align-items:center; gap:10px; width:100%; padding:7px 9px;
+  background:none; border:0; cursor:pointer; text-align:left; border-radius:var(--r);
+  font:600 12.5px/1.2 var(--sans); color:var(--ink-2)}
+
+.colrow:hover{background:var(--sunken); color:var(--ink)}
+
+.colrow__k{flex:none; width:24px; height:18px; display:grid; place-items:center; border-radius:var(--r);
+  font-family:var(--mono); font-size:8.5px; font-weight:700; background:var(--canvas-2); color:var(--ink-2)}
+
+.colrow__k--num{background:var(--steelwash); color:var(--steel-ink)}
+
+.colrow__k--date{background:rgba(242,169,59,.22); color:#8A5A12}
+
+.colrow__c{margin-left:auto; width:15px; height:15px; flex:none; border-radius:var(--r);
+  border:1px solid var(--canvas-3); display:grid; place-items:center; color:transparent}
+
+.colrow[aria-pressed="true"] .colrow__c{background:var(--steel); border-color:var(--steel); color:#FBF9F5}
+
+.colrow__c svg{width:10px; height:10px; fill:none; stroke:currentColor; stroke-width:3;
+  stroke-linecap:round; stroke-linejoin:round}
+
+/* ---- the measure, findable among fifteen ----
+   One of these columns is the one the report is actually about. Without a mark
+   you hunt for it every time you scroll back; with a heavy tint it becomes a
+   stripe of its own and fights the zebra. So: the heading carries a small amber
+   square, and the cells sit at full ink weight while everything around them is
+   secondary. That is enough for the eye to land on. */
+.raw th.meas::before{content:""; display:inline-block; width:6px; height:6px; margin-right:6px;
+  background:var(--amber); vertical-align:1px}
+
+.raw td.meas{color:var(--ink); font-weight:700}
+
+/* status reads as a word, not a colour alone */
+.raw .pill{font-size:9px; padding:1px 6px}
+
+.pill--ok{color:#2C6B47; border-color:rgba(62,142,95,.5); background:rgba(62,142,95,.10)}
+
+.pill--warn{color:#8A5A0B; background:var(--warmbg); border-color:var(--warmrule)}
+
+.pill--open{color:var(--steel-ink); background:var(--steelwash); border-color:rgba(45,93,123,.35)}
+
+/* empty is empty, and should look it rather than looking like a bug */
+.raw td:empty::after{content:"\2014"; color:var(--canvas-3)}
+
+/* ============ THE ROWS, EDGE TO EDGE ============
+   Padding around a fifteen-column table costs two columns for nothing. So on
+   this tab the table runs to the container's own edges and the chrome around it
+   becomes bands instead of floating bits: a toolbar above with a rule under it,
+   a footnote below with a rule over it. The table is the page; those two are
+   its frame. */
+.rpop__b--data{padding:0; overflow:hidden; display:flex; flex-direction:column; min-height:0}
+
+.rpop__b--data .rawbar{
+  margin:0; padding:11px 18px; background:var(--surface);
+  border-bottom:1px solid var(--rule); flex:none;
+}
+
+.rpop__b--data .rawbar__l{font-size:12.5px}
+
+.rpop__b--data .rawbox{flex:1 1 auto; min-height:0; display:flex}
+
+.rpop__b--data .rawwrap{
+  flex:1 1 auto; min-height:0; max-height:none;
+  border-left:0; border-right:0; border-top:0; border-radius:0;
+}
+
+.rpop__b--data .rawbox::after{top:0; right:0; bottom:0}
+
+/* the footnote reads as a caption to the table, not a stray paragraph */
+.rpop__b--data .rawnote{
+  margin:0; padding:10px 18px; flex:none; display:flex; gap:9px; align-items:flex-start;
+  background:var(--sunken); border-top:1px solid var(--rule); color:var(--ink-3);
+}
+
+.rawnote svg{flex:none; width:13px; height:13px; margin-top:1px; fill:none; stroke:currentColor;
+  stroke-width:2; stroke-linecap:round; stroke-linejoin:round; opacity:.7}
+
+.rawnote b{color:var(--ink-2); font-weight:700}
+
+/* At the container's edge the frozen column has no border to sit against, so
+   it keeps a hairline of its own to separate it from the scrolling field. */
+.rpop__b--data .raw th:first-child, .rpop__b--data .raw td:first-child{padding-left:18px}
+
+.rpop__b--data .raw th:last-child, .rpop__b--data .raw td:last-child{padding-right:18px}
+
+/* On a phone the frame should not out-eat the table it frames. */
+@media (max-width:640px){
+  .rpop__b--data .rawbar{padding:10px 14px}
+  .rpop__b--data .rawnote{padding:8px 14px; font-size:11px; line-height:1.5}
+  .rpop__b--data .raw th:first-child, .rpop__b--data .raw td:first-child{padding-left:14px}
+  .rpop__b--data .raw th:last-child, .rpop__b--data .raw td:last-child{padding-right:14px}
+  .rawbar__l{width:100%}
+}
+
+/* An action in the page heading, pushed to the right of the title block. */
+.hi__go{flex:none; display:flex; gap:8px; align-items:center}
+
+/* Find a report. It narrows the groups rather than filtering inside one,
+   because "where is it" is usually the question, not "which of these". */
+.rbar__q{width:min(260px,42vw); font-size:13px; padding:7px 10px}
+
+/* A department's reports, under a heading that says how many. */
+.rgroup{margin-top:22px}
+.rgroup__h{display:flex; align-items:baseline; gap:9px; font-size:13px; font-weight:800;
+  letter-spacing:-.01em; color:var(--ink); padding-bottom:8px; border-bottom:1px solid var(--rule)}
+.rgroup__h span{font-family:var(--mono); font-size:10px; letter-spacing:.1em; color:var(--ink-3)}
+
+/* A card is a button, so it must not inherit one. */
+.rcard{width:100%; text-align:left; font:inherit; color:inherit; cursor:pointer;
+  appearance:none; -webkit-appearance:none}
+.rrow{width:100%; text-align:left; font:inherit; color:inherit; cursor:pointer;
+  background:none; border:0; border-bottom:1px solid var(--rule-soft)}
+
+/* A text column's mark in the column picker, alongside the number and date ones. */
+.colrow__k--text{background:var(--canvas-2); color:var(--ink-2)}
+
+/* What the footer says after a look. The failure is the report's own words,
+   repeated to the person who asked for it. */
+.rpop__ref{display:flex; align-items:center; gap:10px; margin:0}
+.rpop__said{font-size:12px; color:var(--good)}
+.rpop__fail{font-size:12px; color:var(--bad); max-width:52ch;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+/* ---- three small things the report form wanted ---- */
+
+/* The sentence under a field that says what it is for. Not a placeholder: a
+   placeholder disappears exactly when somebody starts needing it. */
+.hint{margin:6px 0 0; font-size:11.5px; line-height:1.5; color:var(--ink-3)}
+
+/* Picking the measures. Chips rather than a multi-select, because the cap is
+   part of the meaning -- three is where the palette stops separating at a
+   glance -- and a chip that will not light says so by being unclickable. */
+.chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:2px}
+.chips .chip{cursor:pointer; background:var(--sunken); border:1px solid var(--rule);
+  font:700 12px/1.2 var(--sans); color:var(--ink-2)}
+.chips .chip:hover:not(:disabled){border-color:var(--canvas-3); color:var(--ink)}
+.chips .chip:disabled{opacity:.45; cursor:not-allowed}
+.chip--on{background:var(--steelwash); border-color:var(--steel); color:var(--steel-ink)}
