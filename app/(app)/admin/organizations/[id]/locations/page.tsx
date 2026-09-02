@@ -81,9 +81,11 @@ export default async function Page({ params }: { params: { id: string } }) {
           <p className="empty">No locations yet.</p>
         ) : (
           <div className="rlist rlist--cols"
-               style={{ ['--cols' as any]: 'minmax(0,1.1fr) minmax(0,1.6fr) 56px' }}>
+               style={{ ['--cols' as any]: 'minmax(0,1.1fr) minmax(0,1.6fr) 96px 56px' }}>
             <div className="rhead">
-              <span>Name</span><span>Address</span><span className="rhead--end">Pin</span>
+              <span>Name</span><span>Address</span>
+              <span className="rhead--endish">Head office</span>
+              <span className="rhead--end">Pin</span>
             </div>
             {rows!.map((l: any) => (
               <div className="rrec" key={l.id}>
@@ -93,13 +95,20 @@ export default async function Page({ params }: { params: { id: string } }) {
                        style={{ fontWeight: 800, color: 'var(--steel-ink)', textDecoration: 'none' }}>
                       {l.name}
                     </a>
-                    <HeadOffice on={!!l.is_head_office} />
                   </span>
                   <span className="rcell">
                     <span className="rcell__lab">Address</span>
                     <span className="rcell__val">
                       {addressOf(l) || <span className="muted">No address yet</span>}
                     </span>
+                  </span>
+                  {/* Its own column, right of the name and left of the pin. Sharing the
+                      pin's cell would have labelled it "Pin" on a phone, where every
+                      cell prints its label; sitting in the name cell put a mark ahead
+                      of the name on some rows and a placeholder on the rest. */}
+                  <span className={`rcell rcell--endish${l.is_head_office ? '' : ' rcell--empty'}`}>
+                    <span className="rcell__lab">Head office</span>
+                    <span className="rcell__val"><HeadOffice on={!!l.is_head_office} /></span>
                   </span>
                   <span className="rcell rcell--end">
                     <span className="rcell__lab">Pin</span>

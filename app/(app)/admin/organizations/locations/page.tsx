@@ -78,16 +78,16 @@ export default async function Page() {
       >
         {(rows?.length ?? 0) === 0 ? <p className="empty">Nothing here yet.</p> : (
           <div className="rlist rlist--cols"
-               style={{ ['--cols' as any]: 'minmax(0,1.5fr) minmax(0,1.4fr) minmax(0,1fr) 56px' }}>
+               style={{ ['--cols' as any]: 'minmax(0,1.5fr) minmax(0,1.4fr) minmax(0,1fr) 96px 56px' }}>
             <div className="rhead">
               <span>Name</span><span>Organization</span><span>City</span>
+              <span className="rhead--endish">Head office</span>
               <span className="rhead--end">Pin</span>
             </div>
             {rows!.map((l: any) => (
               <div className="rrec" key={l.id}>
                 <div className="rrec__face">
                   <span className="rcell rcell--lead">
-                    <HeadOffice on={!!l.is_head_office} />
                     <a href={`/admin/organizations/${l.entity_id}/locations/${l.id}`}
                        style={{ fontWeight: 800, color: 'var(--steel-ink)', textDecoration: 'none' }}>
                       {l.name}
@@ -107,6 +107,14 @@ export default async function Page() {
                     <span className="rcell__val">
                       {[l.city, l.region].filter(Boolean).join(', ') || <span className="muted">—</span>}
                     </span>
+                  </span>
+                  {/* Its own column, right of the name and left of the pin. Sharing the
+                      pin's cell would have labelled it "Pin" on a phone, where every
+                      cell prints its label; sitting in the name cell put a mark ahead
+                      of the name on some rows and a placeholder on the rest. */}
+                  <span className={`rcell rcell--endish${l.is_head_office ? '' : ' rcell--empty'}`}>
+                    <span className="rcell__lab">Head office</span>
+                    <span className="rcell__val"><HeadOffice on={!!l.is_head_office} /></span>
                   </span>
                   <span className="rcell rcell--end">
                     <span className="rcell__lab">Pin</span>

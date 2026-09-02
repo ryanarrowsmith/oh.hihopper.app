@@ -1279,7 +1279,7 @@ select.field{appearance:none}
     display:grid; grid-template-columns:var(--cols); gap:14px; align-items:center;
   }
   .rlist--cols .rcell{justify-content:flex-start; min-width:0}
-  .rlist--cols .rcell--end{justify-content:flex-end}
+  .rlist--cols .rcell--end, .rlist--cols .rcell--endish{justify-content:flex-end}
   .rhead{
     display:grid; grid-template-columns:var(--cols); gap:14px;
     padding:10px 14px; border-bottom:1px solid var(--rule); background:var(--surface);
@@ -1288,9 +1288,15 @@ select.field{appearance:none}
     font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
     color:var(--ink-3);
   }
-  .rhead .rhead--end{text-align:right}
+  .rhead .rhead--end, .rhead .rhead--endish{text-align:right}
 }
 @media (max-width:640px){ .rhead{display:none} }
+
+/* A column whose mark is absent on this record. On a wide screen it still holds
+   its track, so the marks below it stay in a line; on a phone the row is a card
+   and every cell prints its own label, so an empty one would read "Head office"
+   against nothing. It is not drawn there. */
+@media (max-width:640px){ .rcell--empty{display:none} }
 
 /* ============ THE HEAD-OFFICE MARK ============
    Head office is a fact about the office, not a state that changes -- and the
