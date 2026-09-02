@@ -57,6 +57,7 @@ export async function updateEntity(_prev: Result | null, form: FormData): Promis
   const { error } = await db.schema('hopper').from('entity')
     .update({ name, legal_name: nul(form, 'legal_name'),
               mark: nul(form, 'mark')?.toUpperCase().slice(0, 4) ?? null,
+              logo_url: nul(form, 'logo_url'),
               status: str(form, 'status') || 'setup' })
     .eq('id', id)
 
@@ -459,4 +460,121 @@ export async function toggleFavorite(_prev: Result | null, form: FormData): Prom
   revalidatePath(str(form, 'back') || '/')
   revalidatePath('/')
   return { ok: true, message: had ? 'Taken out of your favourites.' : 'Added to your favourites.' }
+}
+
+/* ==========================================================================
+   EDITING A RECORD WHERE IT SITS
+   The organization page now opens each row in place instead of sending
+   everybody to a form of its own. Each of these is the smallest write that
+   answers one row -- and every one of them goes through the signed-in
+   session, so RLS is still the thing that permits or refuses it.
+   ========================================================================== */
+
+/** An administrator's own details, edited from the row that shows them. */
+export async function updateAdministrator(
+  _prev: Result | null, form: FormData,
+): Promise<Result> {
+  const { db, account } = await ctx()
+  const id = str(form, 'person_id'), entity_id = str(form, 'entity_id')
+  const full_name = str(form, 'full_name')
+  if (!id || !full_name) return { ok: false, message: 'A person needs a name.' }
+
+  const { error } = await db.schema('hopper').from('person')
+    .update({ full_name, role_title: nul(form, 'role_title') }).eq('id', id)
+  if (error) return { ok: false, message: refused(error.message, 'person') }
+
+  await logAudit(db, { account_id: account, kind: 'person', object: full_name,
+    object_id: id, summary: `Edited ${full_name}` })
+  if (entity_id) revalidatePath(`/admin/organizations/${entity_id}`)
+  revalidatePath('/admin/people')
+  return { ok: true, message: 'Saved.' }
+}
+
+/**
+ * Stand somebody down as administrator. They keep sight of the organization:
+ * taking that away is a different decision and it lives on Permissions, where
+ * it reads as one. Same rule setEntityAdmins already follows, so the two
+ * screens cannot disagree about what standing down means.
+ */
+export async function standDownAdministrator(
+  _prev: Result | null, form: FormData,
+): Promise<Result> {
+  const { db, account } = await ctx()
+  const person_id = str(form, 'person_id'), entity_id = str(form, 'entity_id')
+  if (!person_id || !entity_id) return { ok: false, message: 'Nothing to change.' }
+
+  const { data: had } = await db.schema('hopper').from('access_grant')
+    .select('id').eq('person_id', person_id).eq('object', 'entity')
+    .eq('scope_id', entity_id).maybeSingle()
+  if (!had) return { ok: false, message: 'They do not administer this one.' }
+
+  const { error } = await db.schema('hopper').from('access_grant')
+    .update({ may_edit: false, may_view: true }).eq('id', had.id)
+  if (error) return { ok: false, message: refused(error.message, 'administrator') }
+
+  await logAudit(db, { account_id: account, kind: 'access', object_id: entity_id,
+    summary: 'Stood an administrator down', payload: { person_id } })
+  revalidatePath(`/admin/organizations/${entity_id}`)
+  revalidatePath('/admin/permissions')
+  return { ok: true, message: 'Stood down. They can still see this organization.' }
+}
+
+/** A department's name and who runs it. */
+export async function updateDepartment(_prev: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const id = str(form, 'id'), entity_id = str(form, 'entity_id')
+  const name = str(form, 'name')
+  if (!id || !name) return { ok: false, message: 'A department needs a name.' }
+
+  const { error } = await db.schema('hopper').from('department')
+    .update({ name, leader_person_id: nul(form, 'leader_person_id') }).eq('id', id)
+  if (error) return { ok: false, message: refused(error.message, 'department') }
+
+  await logAudit(db, { account_id: account, kind: 'department', object: name,
+    object_id: entity_id, summary: `Edited the department ${name}` })
+  revalidatePath(`/admin/organizations/${entity_id}`)
+  return { ok: true, message: 'Saved.' }
+}
+
+export async function deleteDepartment(_prev: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const id = str(form, 'id'), entity_id = str(form, 'entity_id')
+  if (!id) return { ok: false, message: 'Nothing to remove.' }
+
+  const { data: was } = await db.schema('hopper').from('department')
+    .select('name').eq('id', id).maybeSingle()
+  const { error } = await db.schema('hopper').from('department').delete().eq('id', id)
+  if (error) return { ok: false, message: refused(error.message, 'department') }
+
+  await logAudit(db, { account_id: account, kind: 'department',
+    object: was?.name ?? null, object_id: entity_id,
+    summary: `Removed the department ${was?.name ?? ''}`.trim() })
+  revalidatePath(`/admin/organizations/${entity_id}`)
+  return { ok: true, message: 'Removed.' }
+}
+
+/**
+ * One module, for one organization, switched now. The page confirms before
+ * calling this because the change is live the moment it lands -- and switching
+ * off never deletes: the row stays with enabled=false, so turning it back on
+ * finds it where it was left.
+ */
+export async function setModule(_prev: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const entity_id = str(form, 'entity_id'), module_key = str(form, 'module_key')
+  const enabled = str(form, 'enabled') === 'true'
+  if (!entity_id || !module_key) return { ok: false, message: 'Nothing to switch.' }
+
+  const { error } = await db.schema('hopper').from('entity_module').upsert({
+    account_id: account, entity_id, module_key, enabled,
+    changed_at: new Date().toISOString(),
+  }, { onConflict: 'account_id,entity_id,module_key' })
+  if (error) return { ok: false, message: refused(error.message, 'module') }
+
+  await logAudit(db, { account_id: account, kind: 'module', object: module_key,
+    object_id: entity_id,
+    summary: `Turned ${module_key} ${enabled ? 'on' : 'off'} for this organization` })
+  revalidatePath(`/admin/organizations/${entity_id}`)
+  revalidatePath('/admin/modules'); revalidatePath('/')
+  return { ok: true, message: enabled ? 'On.' : 'Off. Nothing was deleted.' }
 }

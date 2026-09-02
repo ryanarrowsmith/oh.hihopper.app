@@ -1,26 +1,17 @@
 import { notFound } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
-import Section from '@/components/Section'
-import ActionForm from '@/components/ActionForm'
 import LocationMap from '@/components/LocationMap'
 import Avatar from '@/components/Avatar'
+import OrgLogo from '@/components/OrgLogo'
+import ModuleToggle from '@/components/ModuleToggle'
 import FavoriteButton from '@/components/CardActions'
+import { EditableSection, RecordRow, RowForm, RowDanger } from '@/components/RowEdit'
 import { MODULES } from '@/lib/access'
 import {
-  updateEntity, createDepartment, createLocation, setEntityAdmins,
-  addAdministrator, repinLocation, toggleFavorite,
+  updateEntity, createDepartment, updateDepartment, deleteDepartment,
+  createLocation, addAdministrator, updateAdministrator, standDownAdministrator,
+  toggleFavorite,
 } from '@/app/actions/admin'
-
-const Pencil = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-       strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 20h4L19 9a2.8 2.8 0 1 0-4-4L4 16z" /><path d="M14.5 5.5 18.5 9.5" />
-  </svg>
-)
-const Plus = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-       strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-)
 
 export default async function Entity({ params }: { params: { id: string } }) {
   const db = supabaseServer()
@@ -45,6 +36,9 @@ export default async function Entity({ params }: { params: { id: string } }) {
         .select('object_id').eq('object', 'entity').eq('object_id', params.id).maybeSingle(),
     ])
 
+  // The database decides. Every add, edit and delete below is rendered only
+  // when it says yes -- not greyed out, not present-but-refusing. Everyone
+  // else gets the page to read, which is the whole of what they are owed.
   const mayEdit = rights?.may_edit === true
   const on = new Set((mods ?? []).filter((m: any) => m.enabled).map((m: any) => m.module_key))
   const roster = people ?? []
@@ -52,25 +46,76 @@ export default async function Entity({ params }: { params: { id: string } }) {
   const adminIds = new Set((grants ?? []).filter((g: any) => g.may_edit).map((g: any) => g.person_id))
   const admins = roster.filter((p: any) => adminIds.has(p.id))
 
+  const leaderOptions = () => (
+    <>
+      <option value="">Nobody yet</option>
+      {roster.map((p: any) => (
+        <option key={p.id} value={p.id}>
+          {p.full_name}{p.role_title ? ` — ${p.role_title}` : ''}
+        </option>
+      ))}
+    </>
+  )
+
   return (
     <>
       <div className="hi">
-        <h1>{e.name}</h1>
-        <p className="scopeline">
-          <span>{e.legal_name ?? 'No legal name on file'} · {e.status}</span>
-          <a href="/admin/organizations">Back to the portfolio</a>
-        </p>
+        <div className="hi__t">
+          <h1>{e.name}</h1>
+          <p className="scopeline">
+            <span>{e.legal_name ?? 'No legal name on file'} · {e.status}</span>
+            <a href="/admin/organizations">Back to the portfolio</a>
+          </p>
+        </div>
+        <OrgLogo name={e.name} mark={e.mark} src={e.logo_url} />
       </div>
 
       {/* ---------------------------------------------- the organization ---- */}
-      <section className="sec">
-        <div className="sec__h">
-          <div className="sec__t">
-            <h2>This organization</h2>
-            <p>What it is called, where it sits, and whether it is running.</p>
-          </div>
-        </div>
-
+      <EditableSection
+        title="This organization"
+        blurb="What it is called, where it sits, and whether it is running."
+        editLabel="Edit this organization"
+        actions={
+          <FavoriteButton action={toggleFavorite} object="entity" objectId={e.id}
+                          back={`/admin/organizations/${e.id}`} on={!!fav} />
+        }
+        editForm={mayEdit ? (
+          <>
+            <div className="rrec__lab">Editing this organization</div>
+            <RowForm action={updateEntity} label="Save changes">
+              <input type="hidden" name="id" value={e.id} />
+              <div className="formrow">
+                <div><label htmlFor="x-name">Name</label>
+                  <input className="field" id="x-name" name="name" defaultValue={e.name} required /></div>
+                <div><label htmlFor="x-legal">Legal name</label>
+                  <input className="field" id="x-legal" name="legal_name"
+                         defaultValue={e.legal_name ?? ''} /></div>
+              </div>
+              <div className="formrow" style={{ marginTop: 12 }}>
+                <div><label htmlFor="x-mark">Mark</label>
+                  <input className="field" id="x-mark" name="mark" maxLength={4}
+                         defaultValue={e.mark ?? ''} /></div>
+                <div><label htmlFor="x-status">Status</label>
+                  <select className="field" id="x-status" name="status" defaultValue={e.status}>
+                    <option value="setup">Setting up</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select></div>
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <label htmlFor="x-logo">Logo</label>
+                <input className="field" id="x-logo" name="logo_url" type="url"
+                       defaultValue={e.logo_url ?? ''}
+                       placeholder="https://…" />
+                <p className="fine" style={{ marginTop: 6 }}>
+                  Leave it empty and the header shows the mark instead, the same
+                  way a person without a photograph shows their initials.
+                </p>
+              </div>
+            </RowForm>
+          </>
+        ) : undefined}
+      >
         <div className="locard">
           <div className="locard__body">
             <table className="tbl locard__tbl"><tbody>
@@ -79,6 +124,8 @@ export default async function Entity({ params }: { params: { id: string } }) {
                 <td>{e.legal_name ?? <span className="muted">Nothing on file</span>}</td></tr>
               <tr><th>Mark</th>
                 <td>{e.mark ? <span className="plate">{e.mark}</span> : <span className="muted">—</span>}</td></tr>
+              <tr><th>Logo</th>
+                <td>{e.logo_url ? 'On file' : <span className="muted">None — showing the mark</span>}</td></tr>
               <tr><th>Status</th>
                 <td><span className={`pill ${e.status === 'active' ? 'pill--good' : 'pill--setup'}`}>
                   {e.status}</span></td></tr>
@@ -87,222 +134,225 @@ export default async function Entity({ params }: { params: { id: string } }) {
             </tbody></table>
           </div>
         </div>
-
-        <div className="underbox">
-          <FavoriteButton action={toggleFavorite} object="entity" objectId={e.id}
-                          back={`/admin/organizations/${e.id}`} on={!!fav} />
-          {mayEdit && (
-            <a className="cbub" href="#edit-org" aria-label="Edit this organization"
-               title="Edit this organization"><Pencil /></a>
-          )}
-        </div>
-
-        {mayEdit && (
-          <section className="sheet" id="edit-org">
-              <div className="sheet__head">
-                <span className="sheet__pencil" aria-hidden="true"><Pencil /></span>
-              <span><b>Edit this organization</b>
-                <small>Its name, legal name, the mark on its plate, and where it stands.</small></span>
-                <a className="sheet__x" href="#">Close</a>
-              </div>
-            <div className="sheet__body">
-              <ActionForm action={updateEntity} label="Save changes">
-                <input type="hidden" name="id" value={e.id} />
-                <div className="formrow">
-                  <div><label htmlFor="x-name">Name</label>
-                    <input className="field" id="x-name" name="name" defaultValue={e.name} required /></div>
-                  <div><label htmlFor="x-legal">Legal name</label>
-                    <input className="field" id="x-legal" name="legal_name"
-                           defaultValue={e.legal_name ?? ''} /></div>
-                </div>
-                <div className="formrow">
-                  <div><label htmlFor="x-mark">Mark</label>
-                    <input className="field" id="x-mark" name="mark" maxLength={4}
-                           defaultValue={e.mark ?? ''} /></div>
-                  <div><label htmlFor="x-status">Status</label>
-                    <select className="field" id="x-status" name="status" defaultValue={e.status}>
-                      <option value="setup">Setting up</option>
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select></div>
-                </div>
-              </ActionForm>
-            </div>
-          </section>
-        )}
-      </section>
+      </EditableSection>
 
       {/* ---------------------------------------------- administrators ------ */}
-      <Section title="Administrators"
-        blurb="Only these people may edit this organization or add departments and offices to it. Everyone else can look. Naming somebody here also makes them an administrator of everything beneath this organization.">
-        {admins.length === 0 ? (
-          <p className="empty">
-            Nobody named yet, so only account owners can edit this one.
-          </p>
-        ) : (
-          <div className="plist">
-            {admins.map((p: any) => (
-              <div className="prow" key={p.id}>
-                <Avatar name={p.full_name} src={p.photo_url} size={38} />
-                <div>
-                  <div className="prow__name">{p.full_name}</div>
-                  <div className="prow__role">
-                    {p.role_title ?? <span className="muted">No title on file</span>}
-                  </div>
-                </div>
-                <span className="prow__tail pill pill--good">Administrator</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {mayEdit && (
+      <EditableSection
+        title="Administrators"
+        blurb="Only these people may edit this organization or add departments and offices to it. Everyone else can look. Naming somebody here also makes them an administrator of everything beneath this organization."
+        addLabel="Add an administrator"
+        addForm={mayEdit ? (
           <>
-            <div className="underbox">
-              <a className="cbub" href="#edit-admins" title="Change who administers this"
-                 aria-label="Change who administers this"><Pencil /></a>
-              <a className="cbub" href="#add-admin" title="Add an administrator"
-                 aria-label="Add an administrator"><Plus /></a>
-            </div>
-
-            <section className="sheet" id="edit-admins">
-              <div className="sheet__head">
-                <span className="sheet__pencil" aria-hidden="true"><Pencil /></span>
-                <span><b>Change who administers this</b>
-                  <small>Tick the people on the roster who should be able to edit it.</small></span>
-                <a className="sheet__x" href="#">Close</a>
+            <div className="rrec__lab">Adding an administrator</div>
+            <RowForm action={addAdministrator} label="Add them" busy="Adding…">
+              <input type="hidden" name="entity_id" value={e.id} />
+              <div className="formrow">
+                <div><label htmlFor="ad-name">Full name</label>
+                  <input className="field" id="ad-name" name="full_name" required /></div>
+                <div><label htmlFor="ad-email">Email</label>
+                  <input className="field" id="ad-email" name="email" type="email" /></div>
               </div>
-              <div className="sheet__body">
-                {roster.length === 0 ? (
-                  <p className="empty">Nobody on the roster yet.</p>
-                ) : (
-                  <ActionForm action={setEntityAdmins} label="Save administrators">
-                    <input type="hidden" name="entity_id" value={e.id} />
-                    {roster.map((p: any) => (
-                      <label className="checkline" key={p.id}>
-                        <input type="checkbox" name="admin" value={p.id}
-                               defaultChecked={adminIds.has(p.id)} />
-                        <Avatar name={p.full_name} src={p.photo_url} size={26} />
-                        <b style={{ fontWeight: 700 }}>{p.full_name}</b>
-                        {p.role_title && <span className="muted">· {p.role_title}</span>}
-                      </label>
-                    ))}
-                    <p className="fine">
-                      Standing somebody down leaves them able to see this organization.
-                      Taking away their sight of it is a different decision, and it lives
-                      on <a href="/admin/permissions">Permissions</a> where it reads as one.
-                    </p>
-                  </ActionForm>
-                )}
+              <div style={{ marginTop: 12 }}>
+                <label htmlFor="ad-role">Title</label>
+                <input className="field" id="ad-role" name="role_title"
+                       placeholder="Operations manager" />
               </div>
-            </section>
-
-            <section className="sheet" id="add-admin">
-              <div className="sheet__head">
-                <span className="sheet__pencil" aria-hidden="true"><Plus /></span>
-                <span><b>Add an administrator</b>
-                  <small>Somebody new — they go on the roster and administer this in one go.</small></span>
-                <a className="sheet__x" href="#">Close</a>
-              </div>
-              <div className="sheet__body">
-                <ActionForm action={addAdministrator} label="Add them" busy="Adding…">
-                  <input type="hidden" name="entity_id" value={e.id} />
-                  <div className="formrow">
-                    <div><label htmlFor="ad-name">Full name</label>
-                      <input className="field" id="ad-name" name="full_name" required /></div>
-                    <div><label htmlFor="ad-email">Email</label>
-                      <input className="field" id="ad-email" name="email" type="email" /></div>
-                  </div>
-                  <div><label htmlFor="ad-role">Title</label>
-                    <input className="field" id="ad-role" name="role_title"
-                           placeholder="Operations manager" /></div>
-                  <p className="fine">
-                    This puts them on the roster. It does not give them a login — the
-                    platform owns identity, and an invitation is a separate act.
-                  </p>
-                </ActionForm>
-              </div>
-            </section>
+              <p className="fine" style={{ marginTop: 10 }}>
+                This puts them on the roster. It does not give them a login — the
+                platform owns identity, and an invitation is a separate act.
+              </p>
+            </RowForm>
           </>
-        )}
-      </Section>
-
-      {/* ---------------------------------------------- departments --------- */}
-      <Section title="Departments"
-        blurb="A department hangs off this organization and has no page of its own — it appears here.">
-        {(departments?.length ?? 0) === 0 ? (
-          <p className="empty">No departments yet.</p>
+        ) : undefined}
+      >
+        {admins.length === 0 ? (
+          <p className="empty">Nobody named yet, so only account owners can edit this one.</p>
         ) : (
-          <div className="plist">
-            {departments!.map((d: any) => {
-              const lead: any = d.leader_person_id ? byPerson.get(d.leader_person_id) : null
-              return (
-                <div className="prow" key={d.id}>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div className="prow__name">{d.name}</div>
-                  </div>
-                  {lead ? (
-                    <span className="prow__tail" style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                      <Avatar name={lead.full_name} src={lead.photo_url} size={30} />
-                      <span>
-                        <span style={{ fontSize: 13.5, fontWeight: 700 }}>{lead.full_name}</span>
-                        <span className="prow__role">{lead.role_title ?? 'Leads this department'}</span>
-                      </span>
+          <div className="rlist">
+            {admins.map((p: any) => {
+              const face = (
+                <span className="rcell rcell--lead">
+                  <Avatar name={p.full_name} src={p.photo_url} size={38} />
+                  <span style={{ minWidth: 0 }}>
+                    <span className="prow__name" style={{ display: 'block' }}>{p.full_name}</span>
+                    <span className="prow__role" style={{ display: 'block' }}>
+                      {p.role_title ?? 'No title on file'}
                     </span>
-                  ) : (
-                    <span className="prow__tail muted" style={{ fontSize: 13 }}>No leader named</span>
-                  )}
-                </div>
+                  </span>
+                </span>
+              )
+              if (!mayEdit) {
+                return <div className="rrec" key={p.id}><div className="rrec__face">{face}</div></div>
+              }
+              return (
+                <RecordRow key={p.id} face={face} editLabel={`Edit ${p.full_name}`}>
+                  <div className="rrec__lab">Editing this administrator</div>
+                  <RowForm
+                    action={updateAdministrator}
+                    danger={
+                      <RowDanger action={standDownAdministrator} label="Stand down">
+                        <input type="hidden" name="person_id" value={p.id} />
+                        <input type="hidden" name="entity_id" value={e.id} />
+                      </RowDanger>
+                    }
+                  >
+                    <input type="hidden" name="person_id" value={p.id} />
+                    <input type="hidden" name="entity_id" value={e.id} />
+                    <div className="formrow">
+                      <div><label htmlFor={`n-${p.id}`}>Full name</label>
+                        <input className="field" id={`n-${p.id}`} name="full_name"
+                               defaultValue={p.full_name} required /></div>
+                      <div><label htmlFor={`t-${p.id}`}>Title</label>
+                        <input className="field" id={`t-${p.id}`} name="role_title"
+                               defaultValue={p.role_title ?? ''}
+                               placeholder="Operations manager" /></div>
+                    </div>
+                  </RowForm>
+                </RecordRow>
               )
             })}
           </div>
         )}
+      </EditableSection>
 
-        {mayEdit && (
+      {/* ---------------------------------------------- departments --------- */}
+      <EditableSection
+        title="Departments"
+        blurb="A department hangs off this organization and has no page of its own — it appears here."
+        addLabel="Add a department"
+        addForm={mayEdit ? (
           <>
-            <div className="underbox">
-              <a className="cbub" href="#add-dept" title="Add a department"
-                 aria-label="Add a department"><Plus /></a>
-            </div>
-            <section className="sheet" id="add-dept">
-              <div className="sheet__head">
-                <span className="sheet__pencil" aria-hidden="true"><Plus /></span>
-                <span><b>Add a department</b><small>And say who runs it, if anyone does yet.</small></span>
-                <a className="sheet__x" href="#">Close</a>
+            <div className="rrec__lab">Adding a department</div>
+            <RowForm action={createDepartment} label="Add it" busy="Adding…">
+              <input type="hidden" name="entity_id" value={e.id} />
+              <div className="formrow">
+                <div><label htmlFor="d-name">Name</label>
+                  <input className="field" id="d-name" name="name" required placeholder="Dispatch" /></div>
+                <div><label htmlFor="d-lead">Leader</label>
+                  <select className="field" id="d-lead" name="leader_person_id" defaultValue="">
+                    {leaderOptions()}
+                  </select></div>
               </div>
-              <div className="sheet__body">
-                <ActionForm action={createDepartment} label="Add it" busy="Adding…">
-                  <input type="hidden" name="entity_id" value={e.id} />
-                  <div className="formrow">
-                    <div><label htmlFor="d-name">Name</label>
-                      <input className="field" id="d-name" name="name" required
-                             placeholder="Dispatch" /></div>
-                    <div><label htmlFor="d-lead">Leader</label>
-                      <select className="field" id="d-lead" name="leader_person_id" defaultValue="">
-                        <option value="">Nobody yet</option>
-                        {roster.map((p: any) => (
-                          <option key={p.id} value={p.id}>
-                            {p.full_name}{p.role_title ? ` — ${p.role_title}` : ''}
-                          </option>
-                        ))}
-                      </select></div>
-                  </div>
-                  <p className="fine">
-                    A department without a named leader is a real and common state, not
-                    something to be filled in for the sake of it.
-                  </p>
-                </ActionForm>
-              </div>
-            </section>
+              <p className="fine" style={{ marginTop: 10 }}>
+                A department without a named leader is a real and common state, not
+                something to be filled in for the sake of it.
+              </p>
+            </RowForm>
           </>
+        ) : undefined}
+      >
+        {(departments?.length ?? 0) === 0 ? (
+          <p className="empty">No departments yet.</p>
+        ) : (
+          <div className="rlist">
+            {departments!.map((d: any) => {
+              const lead: any = d.leader_person_id ? byPerson.get(d.leader_person_id) : null
+              const face = (
+                <>
+                  <span className="rcell rcell--lead">
+                    <span className="prow__name">{d.name}</span>
+                  </span>
+                  <span className="rcell">
+                    <span className="rcell__lab">Leader</span>
+                    {lead ? (
+                      <span className="rcell__val"
+                            style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                        <Avatar name={lead.full_name} src={lead.photo_url} size={30} />
+                        <span style={{ textAlign: 'left' }}>
+                          <span style={{ fontSize: 13.5, fontWeight: 700, display: 'block' }}>
+                            {lead.full_name}</span>
+                          <span className="prow__role">
+                            {lead.role_title ?? 'Leads this department'}</span>
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="rcell__val muted" style={{ fontSize: 13 }}>No leader named</span>
+                    )}
+                  </span>
+                </>
+              )
+              if (!mayEdit) {
+                return <div className="rrec" key={d.id}><div className="rrec__face">{face}</div></div>
+              }
+              return (
+                <RecordRow key={d.id} face={face} editLabel={`Edit ${d.name}`}>
+                  <div className="rrec__lab">Editing this department</div>
+                  <RowForm
+                    action={updateDepartment}
+                    danger={
+                      <RowDanger action={deleteDepartment} label="Remove department">
+                        <input type="hidden" name="id" value={d.id} />
+                        <input type="hidden" name="entity_id" value={e.id} />
+                      </RowDanger>
+                    }
+                  >
+                    <input type="hidden" name="id" value={d.id} />
+                    <input type="hidden" name="entity_id" value={e.id} />
+                    <div className="formrow">
+                      <div><label htmlFor={`dn-${d.id}`}>Name</label>
+                        <input className="field" id={`dn-${d.id}`} name="name"
+                               defaultValue={d.name} required /></div>
+                      <div><label htmlFor={`dl-${d.id}`}>Leader</label>
+                        <select className="field" id={`dl-${d.id}`} name="leader_person_id"
+                                defaultValue={d.leader_person_id ?? ''}>
+                          {leaderOptions()}
+                        </select></div>
+                    </div>
+                  </RowForm>
+                </RecordRow>
+              )
+            })}
+          </div>
         )}
-      </Section>
+      </EditableSection>
 
       {/* ---------------------------------------------- locations ----------- */}
-      <Section title="Office locations"
-        blurb="A location supplies a person's address and the map. Its time zone is a fact about the office.">
+      <EditableSection
+        title="Office locations"
+        blurb="A location supplies a person's address and the map. It keeps its own page — the card opens it."
+        addLabel="Add a location"
+        addForm={mayEdit ? (
+          <>
+            <div className="rrec__lab">Adding a location</div>
+            <RowForm action={createLocation} label="Add it" busy="Adding…">
+              <input type="hidden" name="entity_id" value={e.id} />
+              <div className="formrow">
+                <div><label htmlFor="l-name">Name</label>
+                  <input className="field" id="l-name" name="name" required placeholder="Tulsa Yard" /></div>
+                <div><label htmlFor="l-addr">Street</label>
+                  <input className="field" id="l-addr" name="address_line1"
+                         autoComplete="address-line1" placeholder="4321 S Sheridan Rd" /></div>
+              </div>
+              <div className="formrow" style={{ marginTop: 12 }}>
+                <div><label htmlFor="l-addr2">Suite, unit, floor</label>
+                  <input className="field" id="l-addr2" name="address_line2" /></div>
+                <div><label htmlFor="l-city">City</label>
+                  <input className="field" id="l-city" name="city" /></div>
+              </div>
+              <div className="formrow" style={{ marginTop: 12 }}>
+                <div><label htmlFor="l-region">State</label>
+                  <input className="field" id="l-region" name="region" placeholder="OK" /></div>
+                <div><label htmlFor="l-zip">Postal code</label>
+                  <input className="field" id="l-zip" name="postal_code" /></div>
+                <div><label htmlFor="l-country">Country</label>
+                  <input className="field" id="l-country" name="country" defaultValue="United States" /></div>
+                <div><label htmlFor="l-tz">Time zone</label>
+                  <input className="field" id="l-tz" name="time_zone" defaultValue="America/Chicago" /></div>
+              </div>
+              <label className="checkline" style={{ marginTop: 12 }}>
+                <input type="checkbox" name="is_head_office" />
+                This is the head office
+              </label>
+              <p className="fine" style={{ marginTop: 8 }}>
+                One head office per organization — the database enforces it. The pin
+                is worked out from the address when you save.
+              </p>
+            </RowForm>
+          </>
+        ) : undefined}
+      >
         {(locations?.length ?? 0) === 0 ? <p className="empty">No locations yet.</p> : (
-          <div className="maps">
+          <div className="maps" style={{ marginTop: 0 }}>
             {locations!.map((l: any) => (
               <a key={l.id} href={`/admin/organizations/${e.id}/locations/${l.id}`}
                  className="mapcard">
@@ -320,81 +370,49 @@ export default async function Entity({ params }: { params: { id: string } }) {
             ))}
           </div>
         )}
-
-        {mayEdit && (
-          <>
-            <div className="underbox">
-              <a className="cbub" href="#add-loc" title="Add a location"
-                 aria-label="Add a location"><Plus /></a>
-            </div>
-            <section className="sheet" id="add-loc">
-              <div className="sheet__head">
-                <span className="sheet__pencil" aria-hidden="true"><Plus /></span>
-                <span><b>Add a location</b>
-                  <small>The pin is worked out from the address when you save.</small></span>
-                <a className="sheet__x" href="#">Close</a>
-              </div>
-              <div className="sheet__body">
-                <ActionForm action={createLocation} label="Add it" busy="Adding…">
-                  <input type="hidden" name="entity_id" value={e.id} />
-                  <div className="formrow">
-                    <div><label htmlFor="l-name">Name</label>
-                      <input className="field" id="l-name" name="name" required
-                             placeholder="Tulsa Yard" /></div>
-                    <div><label htmlFor="l-addr">Street</label>
-                      <input className="field" id="l-addr" name="address_line1"
-                             autoComplete="address-line1" placeholder="4321 S Sheridan Rd" /></div>
-                  </div>
-                  <div className="formrow">
-                    <div><label htmlFor="l-addr2">Suite, unit, floor</label>
-                      <input className="field" id="l-addr2" name="address_line2" /></div>
-                    <div><label htmlFor="l-city">City</label>
-                      <input className="field" id="l-city" name="city" /></div>
-                  </div>
-                  <div className="formrow">
-                    <div><label htmlFor="l-region">State</label>
-                      <input className="field" id="l-region" name="region" placeholder="OK" /></div>
-                    <div><label htmlFor="l-zip">Postal code</label>
-                      <input className="field" id="l-zip" name="postal_code" /></div>
-                    <div><label htmlFor="l-country">Country</label>
-                      <input className="field" id="l-country" name="country"
-                             defaultValue="United States" /></div>
-                    <div><label htmlFor="l-tz">Time zone</label>
-                      <input className="field" id="l-tz" name="time_zone"
-                             defaultValue="America/Chicago" /></div>
-                  </div>
-                  <label className="checkline">
-                    <input type="checkbox" name="is_head_office" />
-                    This is the head office
-                  </label>
-                  <p className="fine">One head office per organization — the database enforces it.</p>
-                </ActionForm>
-              </div>
-            </section>
-          </>
-        )}
-      </Section>
+      </EditableSection>
 
       {/* ---------------------------------------------- modules ------------- */}
-      <Section title="Modules"
-        blurb="What this organization runs. Switching one off never deletes — turn it back on and it is where you left it.">
-        <div className="tblwrap"><table className="tbl">
-          <thead><tr><th>Module</th><th>State</th></tr></thead>
-          <tbody>{MODULES.map((m) => (
-            <tr key={m.key}>
-              <td><b>{m.label}</b></td>
-              <td>{on.has(m.key)
-                ? <span className="pill pill--good">On</span>
-                : <span className="pill">Off</span>}</td>
-            </tr>
-          ))}</tbody>
-        </table></div>
+      <EditableSection
+        title="Modules"
+        blurb="What this organization runs. Switching one off never deletes — turn it back on and it is where you left it."
+      >
+        <div className="rlist">
+          {MODULES.map((m) => {
+            const live = on.has(m.key)
+            const face = (
+              <>
+                <span className="rcell rcell--lead">
+                  <span style={{ minWidth: 0 }}>
+                    <span className="prow__name" style={{ display: 'block' }}>{m.label}</span>
+                  </span>
+                </span>
+                <span className="rcell">
+                  <span className="rcell__lab">State</span>
+                  <span className="rcell__val">
+                    <span className={`pill${live ? ' pill--good' : ''}`}>{live ? 'On' : 'Off'}</span>
+                  </span>
+                </span>
+              </>
+            )
+            if (!mayEdit) {
+              return <div className="rrec" key={m.key}><div className="rrec__face">{face}</div></div>
+            }
+            return (
+              <RecordRow key={m.key} face={face} editLabel={`Switch ${m.label}`}>
+                <div className="rrec__lab">{m.label}, for this organization</div>
+                <ModuleToggle entityId={e.id} moduleKey={m.key} label={m.label}
+                              orgName={e.name} enabled={live} />
+              </RecordRow>
+            )
+          })}
+        </div>
         {mayEdit && (
           <p className="fine" style={{ marginTop: 12 }}>
             Set these across the whole portfolio on <a href="/admin/modules">Modules</a>.
           </p>
         )}
-      </Section>
+      </EditableSection>
     </>
   )
 }

@@ -1017,3 +1017,246 @@ select.field{appearance:none}
 }
 .mapcard:hover .lmap{border-color:var(--ink-3)}
 .mapcard:hover .mapcard__name{color:var(--sea)}
+
+/* ==========================================================================
+   THE ORGANIZATION PAGE, REWORKED
+   Signed off as a mockup first. Three ideas: a section's actions live at the
+   end of its own title, a record is edited where it sits, and a row of results
+   becomes a card on a phone.
+   ========================================================================== */
+
+/* ---- actions at the end of the section's title ---- */
+.sec__a .cbub{width:34px; height:34px; box-shadow:none}
+.sec__a .cbub svg{width:16px; height:16px}
+.sec__h{align-items:center}
+@media (max-width:640px){
+  /* Bubbles are already thumb-sized; stretching them the way text buttons
+     stretch would make two enormous circles. */
+  .sec__a{width:auto; margin-left:auto; margin-top:0}
+  .sec__h{flex-wrap:nowrap}
+}
+
+/* ============ A ROW'S CELLS ============
+   Standing rule: a row of results becomes a card on mobile. Same markup both
+   ways -- the row is not rebuilt, only re-read. Wide, it is one line and the
+   column names are implicit. Under 640px it stacks: one line per column, a
+   hairline between each, the column's name on the left in mono and its value
+   on the right. The row's action pins to the card's top right. */
+.rcell{display:flex; align-items:center; gap:9px; flex:none; min-width:0}
+.rcell--lead{flex:1 1 auto}
+.rcell__lab{display:none}
+.rcell__val{min-width:0}
+
+/* ============ AN EDITABLE RECORD ============
+   The pencil opens the record downward in place, so the rows below slide apart
+   rather than the page jumping, and you never lose your place in the list.
+   Saving closes it. */
+.rlist{border:1px solid var(--rule); border-radius:var(--r); background:var(--surface)}
+.rrec{position:relative; border-bottom:1px solid var(--rule-soft)}
+.rrec:last-child{border-bottom:0}
+.rrec.is-open{border-bottom-color:var(--rule); z-index:5}
+.rrec__face{
+  display:flex; align-items:center; gap:12px; padding:12px 14px;
+  transition:background .18s, box-shadow .18s;
+}
+.rrec.is-open .rrec__face{background:var(--sunken); box-shadow:inset 3px 0 0 var(--amber)}
+
+/* Quiet until the row is under the pointer, amber while the row is open. */
+.rpen{
+  margin-left:12px; flex:none; width:32px; height:32px; padding:0;
+  display:grid; place-items:center; cursor:pointer;
+  border:1px solid transparent; border-radius:50%;
+  background:transparent; color:var(--ink-3);
+  transition:background .15s, color .15s, border-color .15s, transform .15s;
+}
+.rpen svg{width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.8;
+  stroke-linecap:round; stroke-linejoin:round}
+@media (hover:hover){
+  .rrec:hover .rpen{border-color:var(--rule); background:var(--surface); color:var(--ink-2)}
+}
+@media (hover:none){ .rpen{border-color:var(--rule); background:var(--surface)} }
+.rpen:hover{background:var(--canvas-2); border-color:var(--canvas-3); color:var(--ink);
+  transform:scale(1.08)}
+.rrec.is-open .rpen{
+  background:var(--amber); border-color:var(--amber); color:#231F20; transform:none;
+}
+
+/* 0fr -> 1fr is the one way to animate to a height nobody knows in advance. */
+.rrec__drawer, .adrawer{display:grid; grid-template-rows:0fr;
+  transition:grid-template-rows .28s ease}
+.rrec.is-open .rrec__drawer, .adrawer.is-open{grid-template-rows:1fr}
+.rrec__clip{overflow:hidden; min-height:0}
+.rrec__form{padding:2px 14px 17px; background:var(--sunken);
+  box-shadow:inset 3px 0 0 var(--amber)}
+.rrec__lab{
+  font-family:var(--mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ink-3); padding-bottom:10px;
+}
+.rrec__form label, .addbox label{
+  display:block; font-size:12px; font-weight:700; color:var(--ink-2); margin-bottom:5px;
+}
+.rrec__form .field, .addbox .field{font-size:15px; padding:10px 12px}
+.rowacts{display:flex; align-items:center; gap:10px; margin-top:14px; flex-wrap:wrap}
+.lnk{
+  font-size:12.5px; font-weight:700; color:var(--ink-3); background:none;
+  border:0; padding:6px 4px; cursor:pointer; text-decoration:none;
+}
+.lnk:hover{color:var(--ink); text-decoration:underline}
+.lnk--go{margin-left:auto; color:var(--bad)}
+.lnk--go:hover{color:var(--bad)}
+
+/* ============ THE ADD DRAWER ============
+   The plus in the header opens the new-record form above the list, in the same
+   downward motion as a pencil. Adding and editing are one gesture, so they
+   should not be two pieces of furniture. */
+.addbox{
+  padding:16px 16px 18px; background:var(--surface);
+  border:1px solid var(--rule); border-left:3px solid var(--amber); margin-bottom:12px;
+}
+.cbub.is-open{background:var(--amber); border-color:var(--amber); color:#231F20}
+.cbub--plus svg, .cbub--pen svg{stroke-width:2}
+
+/* ============ THE ORGANIZATION'S OWN DRAWER ============ */
+.locard__drawer{display:grid; grid-template-rows:0fr; transition:grid-template-rows .3s ease}
+.locard__drawer.is-open{grid-template-rows:1fr}
+.locard__editin{padding:16px 16px 18px; background:var(--sunken);
+  border:1px solid var(--rule); border-top:0}
+
+/* ============ A COLLAPSIBLE PARENT ============
+   A checkbox nobody sees does the opening, so the row's own links stay
+   clickable -- inside a <summary> the browser eats the click. */
+.tnode{position:relative}
+.tvis{position:absolute; width:1px; height:1px; opacity:0; pointer-events:none}
+.tcar{
+  width:26px; height:26px; flex:none; display:grid; place-items:center;
+  cursor:pointer; color:var(--ink-3); border-radius:var(--r);
+  transition:background .14s, color .14s;
+}
+.tcar:hover{background:var(--sunken); color:var(--ink)}
+.tcar svg{width:11px; height:11px; fill:none; stroke:currentColor; stroke-width:2.6;
+  stroke-linecap:round; stroke-linejoin:round; transition:transform .22s ease}
+.tvis:checked ~ .tree__row .tcar svg{transform:rotate(90deg)}
+.tree__kids{display:grid; grid-template-rows:0fr; transition:grid-template-rows .26s ease}
+.tvis:checked ~ .tree__kids{grid-template-rows:1fr}
+.tree__clip{overflow:hidden; min-height:0}
+.tree__kids .tree__row:last-child{border-bottom:0}
+.tnode:last-child > .tree__row{border-bottom:0}
+.tvis:checked ~ .tree__row{border-bottom-color:var(--rule)}
+.tcar--none{visibility:hidden}   /* a leaf keeps the width so plates line up */
+.tcount{margin-left:auto; font-size:13px; color:var(--ink-3)}
+.lvm{display:none}               /* the level arrow: mobile only, see below */
+
+/* ============ A TOGGLE ============
+   Squared like everything else -- the knob is a sliding tile, not a pill. */
+.togline{display:flex; align-items:center; gap:13px; padding:12px 0; position:relative}
+.togline + .togline{border-top:1px solid var(--rule-soft)}
+.tog{position:relative; width:52px; height:28px; flex:none; display:inline-block}
+.tog input{position:absolute; inset:0; width:100%; height:100%; margin:0;
+  opacity:0; cursor:pointer; z-index:2}
+.tog__track{
+  position:absolute; inset:0; border-radius:var(--r);
+  background:var(--canvas-2); border:1px solid var(--canvas-3);
+  transition:background .18s, border-color .18s;
+}
+.tog__knob{
+  position:absolute; top:4px; left:4px; width:20px; height:20px; border-radius:var(--r);
+  background:var(--surface); border:1px solid var(--canvas-3);
+  box-shadow:0 1px 2px rgba(35,31,32,.2);
+  transition:transform .2s cubic-bezier(.3,.8,.4,1), border-color .18s;
+}
+.tog input:checked ~ .tog__track{background:var(--amber); border-color:var(--amber)}
+.tog input:checked ~ .tog__knob{transform:translateX(24px); border-color:#C9871F}
+.tog input:focus-visible ~ .tog__track{box-shadow:var(--focus)}
+.tog input:disabled{cursor:progress}
+.togstate{font-size:13.5px; font-weight:800; color:var(--ink); width:28px; flex:none}
+.togsay{font-size:13px; color:var(--ink-3); min-width:0}
+
+/* ============ THE CONFIRMATION ============
+   A module goes live the moment it is switched, so the switch asks first.
+   Paper popover in the same family as the mail one, anchored to the toggle
+   that raised it rather than thrown into the middle of the screen. */
+.confpop{
+  position:absolute; z-index:70; top:calc(100% + 10px); left:0; width:330px;
+  max-width:calc(100vw - 40px); text-align:left; padding:14px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  box-shadow:var(--lift);
+}
+.confpop::before{
+  content:""; position:absolute; top:-6px; left:18px; width:10px; height:10px;
+  background:var(--surface); border-left:1px solid var(--rule);
+  border-top:1px solid var(--rule); transform:rotate(45deg);
+}
+.confpop__h{font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-3); margin-bottom:9px}
+.confpop__q{font-size:15px; font-weight:800; letter-spacing:-.015em; line-height:1.25}
+.confpop__p{font-size:13px; color:var(--ink-2); margin-top:8px}
+.confpop__now{
+  margin-top:11px; padding:8px 10px; font-size:12.5px; font-weight:700;
+  background:var(--warmbg); border:1px solid var(--warmrule); color:#8A5A0B;
+}
+:root[data-theme="dark"] .confpop__now{color:var(--amber)}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .confpop__now{color:var(--amber)}
+}
+.confpop__acts{display:flex; gap:9px; margin-top:13px}
+.confpop__acts .btn{flex:1}
+
+/* ============ THE ORGANIZATION'S LOGO ============
+   Hard right of the page header, opposite its name. A tile of surface with the
+   artwork contained inside, so a transparent PNG, a wide wordmark and a square
+   badge all sit correctly without anyone cropping anything. No logo on file is
+   not an empty box: it falls back to the mark on its plate, one size up. */
+.hi{display:flex; align-items:center; gap:clamp(14px,2vw,22px)}
+.hi__t{flex:1; min-width:0}
+.orglogo{
+  flex:none; width:88px; height:88px; padding:10px;
+  display:grid; place-items:center; border-radius:var(--r);
+  background:var(--surface); border:1px solid var(--rule); box-shadow:var(--shadow);
+}
+.orglogo img, .orglogo svg{max-width:100%; max-height:100%; display:block}
+.orglogo--mark{
+  background:var(--steel); border-color:transparent; color:#FBF9F5; padding:0;
+  font-size:28px; font-weight:800; letter-spacing:-.035em;
+}
+
+/* ============ ROWS BECOME CARDS ============ */
+@media (max-width:640px){
+  .rrec__face, .tree__row{display:block; padding:0; position:relative}
+  .rcell{
+    display:flex; justify-content:space-between; align-items:center; gap:12px;
+    padding:10px 14px; border-top:1px solid var(--rule-soft);
+  }
+  .rcell--lead{padding:12px 14px; border-top:0; justify-content:flex-start; gap:10px}
+  .rrec .rcell--lead{padding-right:56px}          /* room for the pencil */
+  .rcell__lab{display:block; flex:none; font-family:var(--mono); font-size:10px;
+    letter-spacing:.11em; text-transform:uppercase; color:var(--ink-3)}
+  .rcell__val{text-align:right}
+  .rcell--act{padding:12px 14px}
+  .rcell--act .btn{width:100%}
+  .rpen{position:absolute; top:11px; right:12px; margin:0;
+    border-color:var(--rule); background:var(--surface)}
+
+  /* One card per record, with air between, so the eye does not have to work
+     out where one ends. The list stops being a box and becomes a stack. */
+  .rlist, .tree{border:0; background:transparent}
+  .rrec, .tree__row{
+    border:1px solid var(--rule); background:var(--surface);
+    margin-bottom:10px; border-radius:var(--r);
+  }
+  .rrec:last-child{margin-bottom:0; border-bottom-width:1px}
+  .rrec.is-open .rrec__face{box-shadow:inset 3px 0 0 var(--amber)}
+  .tnode:last-child > .tree__row:last-child{margin-bottom:0}
+
+  /* A child. The indent has to be small here -- the card is most of the screen
+     -- so the level arrow does the saying, in the deeper shade of the canvas
+     the rail's submenu already uses. */
+  .tree__row.kid{
+    margin-left:18px; padding-left:0; background:var(--sunken); border-color:var(--rule);
+  }
+  .tree__row.kid .tcar--none{display:none}
+  .tree__row.kid .lvm{display:block; margin-right:-2px}
+
+  .confpop{left:0; right:0; width:auto}
+  .orglogo{width:60px; height:60px; padding:7px}
+  .orglogo--mark{font-size:19px}
+}
