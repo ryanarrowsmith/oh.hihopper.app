@@ -1,4 +1,5 @@
 'use client'
+import { useEffect, useRef, useState } from 'react'
 
 /**
  * One chart kit, drawn once and used everywhere.
@@ -21,10 +22,21 @@ const SERIES_VAR = ['--s1', '--s2', '--s3'] as const
 const PIE_VAR = ['--s1', '--s2', '--s3', '--steel', '--amber', '--canvas-3'] as const
 
 const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
-const short = (n: number) =>
-  Math.abs(n) >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M`
-  : Math.abs(n) >= 1_000 ? `${(n / 1_000).toFixed(1)}k`
-  : nf.format(n)
+
+/**
+ * An axis figure, abbreviated only when abbreviating still tells them apart.
+ *
+ * Churn revenue running 1,984 to 2,150 was labelled "2.1k / 2.1k / 2.0k" —
+ * two identical ticks on the same axis, which is worse than a long number. So
+ * the SPAN decides, not the magnitude: k and M only once the range itself is
+ * wide enough that a rounded figure is still a distinct figure.
+ */
+function axisFigure(n: number, span: number) {
+  if (span >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (span >= 1_000) return `${(n / 1_000).toFixed(1)}k`
+  if (Number.isInteger(n) || span >= 10) return nf.format(Math.round(n))
+  return n.toFixed(span >= 1 ? 1 : 2)
+}
 const day = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
@@ -38,11 +50,49 @@ const day = (iso: string) =>
  */
 const SPREAD_LIMIT = 25
 
+/**
+ * Whether these measures will be drawn as separate plots. Exported because a
+ * caller has to know: a legend under split plots is a second label for
+ * something each plot already labels itself.
+ */
+export function isSplit(series: Series[]) {
+  const live = series.filter((s) => s.points.length > 0)
+  return live.length > 1 && spreadOf(live) > SPREAD_LIMIT
+}
+
 function spreadOf(series: Series[]) {
   const scale = series.map((s) => Math.max(...s.points.map((p) => Math.abs(p.v)), 0))
     .filter((n) => n > 0)
   if (scale.length < 2) return 1
   return Math.max(...scale) / Math.min(...scale)
+}
+
+/**
+ * How wide the chart actually is.
+ *
+ * Every plot used to be an 820-unit viewBox squashed into whatever box it
+ * landed in with preserveAspectRatio="none". That stretches the DRAWING, not
+ * just the data: a 2.2px stroke becomes 3.9px horizontally and 2.2px
+ * vertically, and the axis text is scaled with it, which is why the figures
+ * looked subtly wrong at every size but never at one you could point at.
+ *
+ * Measuring instead means one unit is one pixel, the type is the size it says
+ * it is, and the chart genuinely fills the room it is given.
+ */
+function useWidth() {
+  const ref = useRef<HTMLDivElement>(null)
+  const [w, setW] = useState(820)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(([e]) => {
+      const next = Math.round(e.contentRect.width)
+      if (next > 0) setW(next)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  return { ref, w }
 }
 
 export default function Chart({
@@ -106,8 +156,11 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0 }: {
    *  it is pulled out onto a plot of its own. */
   colourFrom?: number
 }) {
-  const w = 820, h = height
-  const padL = bare ? 2 : 46, padR = bare ? 2 : 16
+  const { ref, w } = useWidth()
+  const h = height
+  // Wide enough for a grouped five-figure number, which is what an unabbreviated
+  // tick can now be.
+  const padL = bare ? 2 : 56, padR = bare ? 2 : 16
   const padT = bare ? 4 : 16, padB = bare ? 4 : (labels ? 30 : 12)
 
   // Every series is drawn against ONE scale. Two y-axes on one plot is a chart
@@ -127,15 +180,20 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0 }: {
 
   const ticks = [lo, lo + span / 2, hi]
   const first = series[0]?.points ?? []
-  const every = Math.max(1, Math.ceil(first.length / 7))
+  // One label per ~110px of plot. Guessing a fixed count crowded them on a
+  // narrow card and stranded them on a wide page.
+  const room = Math.max(2, Math.floor((w - padL - padR) / 110))
+  const every = Math.max(1, Math.ceil(first.length / room))
 
   return (
-    <svg className="chart" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none"
+    <div className="chartbox" ref={ref} style={{ height: h }}>
+    <svg className="chart" viewBox={`0 0 ${w} ${h}`} width={w} height={h}
          role="img" aria-label={series.map((s) => s.measure).join(', ')}>
       {!bare && ticks.map((t, i) => (
         <g key={i}>
           <line className="chart__gr" x1={padL} x2={w - padR} y1={y(t)} y2={y(t)} />
-          <text className="chart__ax" x={padL - 8} y={y(t) + 3.5} textAnchor="end">{short(t)}</text>
+          <text className="chart__ax" x={padL - 8} y={y(t) + 3.5} textAnchor="end">
+            {axisFigure(t, span)}</text>
         </g>
       ))}
 
@@ -176,6 +234,7 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0 }: {
         <text key={p.on} className="chart__ax" x={x(i)} y={h - 9} textAnchor="middle">{day(p.on)}</text>
       ) : null)}
     </svg>
+    </div>
   )
 }
 

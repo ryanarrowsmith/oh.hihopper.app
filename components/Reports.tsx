@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import { refreshReport } from '@/app/actions/reports'
-import Chart, { Legend, type Series } from '@/components/Chart'
+import Chart, { Legend, isSplit, type Series } from '@/components/Chart'
 import RawTable from '@/components/RawTable'
 
 export type Card = {
@@ -205,15 +205,17 @@ function Shape({ c }: { c: Card }) {
   return (
     <div className="rpop__b">
       <div className="shape">
+        <div className="shape__c">
         {head.length < 2
           ? <p className="empty">
               {c.freshness === 'new'
                 ? 'Hopper has not read this one yet. Refresh it and the shape appears.'
                 : 'One reading so far — a shape needs two.'}
             </p>
-          : <><Chart type={c.chartType} series={c.series} height={250} />
-              <Legend series={c.series} /></>}
-        <div className="figs">
+          : <><Chart type={c.chartType} series={c.series} height={300} />
+              {!isSplit(c.series) && <Legend series={c.series} />}</>}
+        </div>
+        <div className="figs shape__f">
           <span className="fig"><span className="fig__l">Now</span>
             <span className="fig__v">{c.value == null ? '—' : nf.format(c.value)}</span></span>
           {head.length > 1 && <span className="fig"><span className="fig__l">Move</span>

@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { useFormState, useFormStatus } from 'react-dom'
-import Chart, { Legend, type Series } from '@/components/Chart'
+import Chart, { Legend, isSplit, type Series } from '@/components/Chart'
 import RawTable from '@/components/RawTable'
 import { refreshReport } from '@/app/actions/reports'
 
@@ -77,7 +77,8 @@ export default function ReportPage({ report, state, series, notes, checks, relat
           <p>What the number has been doing, from the readings Hopper has actually taken.</p>
         </div></div>
 
-        <div className="card" style={{ padding: 18 }}>
+        <div className="card" style={{ padding: 18 }}><div className="shape">
+          <div className="shape__c">
           {head.length < 2
             ? <p className="empty" style={{ margin: 0 }}>
                 {state.lastLook
@@ -89,10 +90,14 @@ export default function ReportPage({ report, state, series, notes, checks, relat
                     does not have: measures orders of magnitude apart get a plot
                     each rather than one scale that flattens the small ones. */}
                 <Chart type={report.chartType} series={series} height={400} />
-                <Legend series={series} />
+                {/* Only when the plot is shared. Split plots each carry their
+                    own name and swatch, so a legend under them is a second
+                    label for something already labelled. */}
+                {!isSplit(series) && <Legend series={series} />}
               </>}
+          </div>
 
-          <div className="figs">
+          <div className="figs shape__f">
             <span className="fig"><span className="fig__l">Now</span>
               <span className="fig__v">{state.value == null ? '—' : nf.format(state.value)}</span></span>
             {move != null && <span className="fig"><span className="fig__l">Move</span>
@@ -108,7 +113,7 @@ export default function ReportPage({ report, state, series, notes, checks, relat
             <span className="fig"><span className="fig__l">Goes back</span>
               <span className="fig__v" style={{ fontSize: 15 }}>{cadence(report.refresh)}</span></span>
           </div>
-        </div>
+        </div></div>
       </section>
 
       <section className="sec">

@@ -19,14 +19,18 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const db = supabaseServer()
 
   const { data, error } = await db.schema('hopper').from('report_rows')
-    .select('columns, rows, row_count, truncated, fetched_at')
+    // `display` is what the sheet itself shows, cell for cell. It was added
+    // after this route was written and not added here, so the table went on
+    // re-deriving from the raw values and printing a Year of 2026 as "2,026".
+    .select('columns, rows, display, row_count, truncated, fetched_at')
     .eq('report_id', params.id).maybeSingle()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   if (!data) {
     // Nothing has been read yet. That is a state, not a failure, and the tab
     // says so rather than drawing an empty table that looks broken.
-    return NextResponse.json({ columns: [], rows: [], row_count: 0, truncated: false, fetched_at: null })
+    return NextResponse.json({ columns: [], rows: [], display: null,
+                               row_count: 0, truncated: false, fetched_at: null })
   }
   return NextResponse.json(data)
 }

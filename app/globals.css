@@ -2744,7 +2744,7 @@ a.crow:hover svg{stroke:var(--steel-ink)}
    from the chart palette as tokens, which is what makes them follow the theme;
    three series is the cap on a plot because only the first three separate for
    every kind of colour vision. */
-.chart{display:block; width:100%; overflow:visible}
+.chart{display:block; overflow:visible}
 .chart__gr{stroke:var(--rule-soft); stroke-width:1}
 .chart__ax{font:600 10px var(--mono); fill:var(--ink-3)}
 .chart__ln{fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round}
@@ -2765,8 +2765,7 @@ a.crow:hover svg{stroke:var(--steel-ink)}
 /* The chart on a card: a shape you glance at on the way past the number, not
    something you read. Medium density drops it, the same as the sparkline it
    replaced -- at that size it is texture. */
-.rcard__chart{display:block; margin-top:10px; height:64px; overflow:hidden}
-.rcard__chart .chart{height:64px}
+.rcard__chart{display:block; margin-top:10px}
 .rgrid--md .rcard__chart{display:none}
 
 /* Measures orders of magnitude apart get a plot each rather than one shared
@@ -2813,3 +2812,26 @@ a.crow:hover svg{stroke:var(--steel-ink)}
 /* .card carries no padding of its own -- its header and footer bring their own
    -- so a bare list of facts inside one needs some. */
 .facts{padding:3px 15px}
+
+/* ---- the shape, and the figures beside it ----
+   The plot fills the room it is given; the figures move to a rail on the right
+   once there is width for one, because the space beside a chart is the only
+   space actually going spare on a wide screen. Below that they go back under
+   it in a row, which is the only thing that fits on a phone. */
+.shape{max-width:1240px; margin:0 auto}
+.shape__c{min-width:0}
+.shape__f{display:flex; flex-wrap:wrap; gap:22px; margin-top:14px; padding-top:14px;
+  border-top:1px solid var(--rule-soft)}
+@media (min-width:1000px){
+  .shape{display:grid; grid-template-columns:minmax(0,1fr) 236px; gap:26px; align-items:start}
+  .shape__f{display:block; margin:0; padding:0 0 0 22px;
+    border-top:0; border-left:1px solid var(--rule-soft)}
+  .shape__f .fig{display:block; padding:12px 0; border-bottom:1px solid var(--rule-soft)}
+  .shape__f .fig:first-child{padding-top:0}
+  .shape__f .fig:last-child{border-bottom:0}
+}
+
+/* The measured box the plot draws into. It has a fixed height and the SVG is
+   sized in real pixels inside it, so nothing is stretched to fit. */
+.chartbox{width:100%; overflow:hidden}
+.chartbox .chart{display:block; width:auto; max-width:none}
