@@ -16,6 +16,10 @@ export type Card = {
 type Rows = {
   columns: { key: string; label: string; type: 'text' | 'number' | 'date' }[]
   rows: (string | number | null)[][]
+  /** What the sheet itself shows, cell for cell. A sheet already knows how it
+   *  wants its numbers written; re-deriving that turned a Year of 2026 into
+   *  "2,026". The table prints this; sorting and export use `rows`. */
+  display: (string | null)[][] | null
   row_count: number; truncated: boolean; fetched_at: string | null
 }
 
@@ -94,12 +98,15 @@ function ReportCard({ c, onOpen }: { c: Card; onOpen: () => void }) {
       {c.value == null
         ? <span className="rcard__none">Not read yet</span>
         : <span className="rcard__v">{nf.format(c.value)}</span>}
-      {/* Every card carries its own chart -- bar, line or pie, whichever it was
-          registered with -- so one report is one picture wherever you meet it.
-          Unlabelled at this size: axis text at 64px is texture, not reading. */}
-      {c.series.some((s) => s.points.length > 1) && (
+      {/* The card carries its registered chart type, but only the HEADLINE
+          measure -- the one the number above it belongs to. Three measures on a
+          64px plot share one scale, and the moment they differ in magnitude two
+          of them lie flat along the bottom saying nothing. The other measures
+          are a click away, where there is room to read them. */}
+      {(c.series[0]?.points.length ?? 0) > 1 && (
         <span className="rcard__chart">
-          <Chart type={c.chartType} series={c.series} height={64} labels={false} compact />
+          <Chart type={c.chartType} series={c.series.slice(0, 1)}
+                 height={64} labels={false} bare compact />
         </span>
       )}
       <span className="rcard__f"><Fresh c={c} /></span>
@@ -123,8 +130,14 @@ function Fresh({ c }: { c: Card }) {
   return <><span className={`dot${tone ? ` dot--${tone}` : ''}`} />{said}</>
 }
 
+/**
+ * A date the sheet supplied is a DAY, not an instant. `new Date('2026-08-08')`
+ * is parsed as UTC midnight, which west of Greenwich renders as the 7th -- so
+ * the card said "Still since Aug 7" about a row dated the 8th. Anchoring at
+ * local midnight is what makes a day mean the day.
+ */
 const on = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
 function ago(iso: string) {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
@@ -167,12 +180,16 @@ function ReportPop({ c, onClose }: { c: Card; onClose: () => void }) {
   const view = useMemo<Rows | null>(() => {
     if (!data) return null
     const keep = data.columns.map((_, i) => i).filter((i) => !hidden.has(i))
-    const rows = [...data.rows]
+
+    // Sort the INDEXES, not the rows, so the display strings travel with the
+    // values they belong to. Sorting two parallel arrays separately is how a
+    // table ends up showing one row's numbers under another row's label.
+    let order = data.rows.map((_, n) => n)
     if (sort) {
       const { i, dir } = sort
       const t = data.columns[i]?.type
-      rows.sort((a, b) => {
-        const x = a[i], y = b[i]
+      order = order.sort((a, b) => {
+        const x = data.rows[a][i], y = data.rows[b][i]
         if (x == null) return 1
         if (y == null) return -1
         if (t === 'number') return ((x as number) - (y as number)) * dir
@@ -182,7 +199,10 @@ function ReportPop({ c, onClose }: { c: Card; onClose: () => void }) {
     return {
       ...data,
       columns: keep.map((i) => data.columns[i]),
-      rows: rows.map((r) => keep.map((i) => r[i])),
+      rows: order.map((n) => keep.map((i) => data.rows[n][i])),
+      display: data.display
+        ? order.map((n) => keep.map((i) => data.display![n]?.[i] ?? null))
+        : null,
     }
   }, [data, sort, hidden])
 
@@ -200,7 +220,8 @@ function ReportPop({ c, onClose }: { c: Card; onClose: () => void }) {
     fetch(`/api/report/${c.id}/rows`)
       .then((r) => r.json())
       .then((d) => setData(d))
-      .catch(() => setData({ columns: [], rows: [], row_count: 0, truncated: false, fetched_at: null }))
+      .catch(() => setData({ columns: [], rows: [], display: null,
+                             row_count: 0, truncated: false, fetched_at: null }))
       .finally(() => setLoading(false))
   }, [tab, data, loading, c.id])
 
@@ -305,13 +326,16 @@ function RawTab({ c, data, loading, sort, setSort, hidden, setHidden }: {
   const boxEl = useRef<HTMLDivElement>(null)
 
   const cols = data?.columns ?? []
-  const rows = useMemo(() => {
-    const r = [...(data?.rows ?? [])]
-    if (!sort) return r
+
+  // The same index sort the popover does, for the same reason: the display
+  // strings have to move with the values they belong to.
+  const order = useMemo(() => {
+    const ix = (data?.rows ?? []).map((_, n) => n)
+    if (!sort || !data) return ix
     const { i, dir } = sort
     const t = cols[i]?.type
-    return r.sort((a, b) => {
-      const x = a[i], y = b[i]
+    return ix.sort((a, b) => {
+      const x = data.rows[a][i], y = data.rows[b][i]
       if (x == null) return 1
       if (y == null) return -1
       if (t === 'number') return ((x as number) - (y as number)) * dir
@@ -346,8 +370,8 @@ function RawTab({ c, data, loading, sort, setSort, hidden, setHidden }: {
       <div className="rawbar">
         <span className="rawbar__l">
           {data.truncated
-            ? <>The most recent <b>{rows.length.toLocaleString()}</b> rows of <b>{data.row_count.toLocaleString()}</b></>
-            : <><b>{rows.length.toLocaleString()}</b> row{rows.length === 1 ? '' : 's'}</>}
+            ? <>The most recent <b>{order.length.toLocaleString()}</b> rows of <b>{data.row_count.toLocaleString()}</b></>
+            : <><b>{order.length.toLocaleString()}</b> row{order.length === 1 ? '' : 's'}</>}
           {data.fetched_at ? `, read ${ago(data.fetched_at)}.` : '.'}
         </span>
         <div className="seg">
@@ -412,11 +436,11 @@ function RawTab({ c, data, loading, sort, setSort, hidden, setHidden }: {
               })}
             </tr></thead>
             <tbody>
-              {rows.map((r, n) => (
+              {order.map((n) => (
                 <tr key={n}>
                   {shownCols.map((i) => (
                     <td key={i} className={cols[i].type === 'number' ? 'num' : undefined}>
-                      {r[i] == null ? '' : cols[i].type === 'number' ? nf.format(r[i] as number) : String(r[i])}
+                      {shown(data!, n, i)}
                     </td>
                   ))}
                 </tr>
@@ -435,6 +459,22 @@ function RawTab({ c, data, loading, sort, setSort, hidden, setHidden }: {
       </p>
     </div>
   )
+}
+
+/**
+ * What one cell prints.
+ *
+ * The sheet's own formatting first, because a sheet already knows whether a
+ * column is money, a percentage or a year — and a year re-derived from the raw
+ * number comes out as "2,026". Falling back to Intl only where the source had
+ * no format of its own.
+ */
+function shown(data: Rows, n: number, i: number) {
+  const d = data.display?.[n]?.[i]
+  if (d != null && d !== '') return d
+  const v = data.rows[n]?.[i]
+  if (v == null) return ''
+  return typeof v === 'number' ? nf.format(v) : String(v)
 }
 
 /**

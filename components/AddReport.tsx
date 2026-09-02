@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Choice from '@/components/Choice'
+import Chart, { Legend, type Series } from '@/components/Chart'
 import { createReport } from '@/app/actions/reports'
 
 type Org = { id: string; name: string }
@@ -54,6 +55,30 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
   const [said, setSaid] = useState<string | null>(null)
 
   const snapshot = kind === 'upload' || kind === 'paste'
+
+  /**
+   * What this chart will actually look like, drawn from the rows that came back
+   * — not a stock picture of a bar chart.
+   *
+   * It goes through the same chart kit the card and the report page use, so
+   * what you approve here is what gets drawn later. A preview rendered by
+   * something else is a preview that can be wrong in a way nobody finds until
+   * the report is live.
+   */
+  const preview = useMemo<Series[]>(() => {
+    if (!cols || !dateCol || measures.length === 0) return []
+    const di = cols.findIndex((c) => c.label === dateCol)
+    if (di < 0) return []
+    return measures.map((m) => {
+      const mi = cols.findIndex((c) => c.label === m)
+      return {
+        measure: m,
+        points: sample
+          .map((r) => ({ on: String(r[di] ?? ''), v: Number(r[mi]) }))
+          .filter((p) => /^\d{4}-\d{2}-\d{2}/.test(p.on) && Number.isFinite(p.v)),
+      }
+    }).filter((s) => s.points.length > 0)
+  }, [cols, dateCol, measures, sample])
   const myDepts = useMemo(() => depts.filter((d) => d.entity_id === org), [depts, org])
   const myCats = useMemo(() => cats.filter((c) => c.department_id === dept), [cats, dept])
 
@@ -210,6 +235,30 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
 
       {step === 3 && (
         <>
+          {/* The preview leads the screen. It used to sit under the controls,
+              which put the thing you are deciding about below the thing you are
+              deciding with — every adjustment meant scrolling away from the
+              answer. */}
+          <div className="came" style={{ marginBottom: 18 }}>
+            <div className="came__h">
+              <b>Live preview</b>
+              <span style={{ color: 'var(--ink-3)' }}>
+                {preview.length
+                  ? `the first ${preview[0].points.length} row${preview[0].points.length === 1 ? '' : 's'} of your sheet`
+                  : 'choose a date column and a measure'}
+              </span>
+            </div>
+            <div style={{ padding: 14 }}>
+              {preview.length
+                ? <><Chart type={chartType} series={preview} height={220} />
+                    <Legend series={preview} /></>
+                : <p className="empty" style={{ margin: 0 }}>
+                    Nothing to draw yet — a chart needs something along the bottom
+                    and something to measure.
+                  </p>}
+            </div>
+          </div>
+
           <div className="srcs">
             {([['line', 'A line', 'What it has been doing over time.'],
                ['bar', 'Bars', 'How periods compare with each other.'],

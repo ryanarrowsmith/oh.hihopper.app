@@ -29,23 +29,31 @@ const day = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
 export default function Chart({
-  type, series, height = 250, labels = true, compact = false,
-}: { type: string; series: Series[]; height?: number; labels?: boolean; compact?: boolean }) {
+  type, series, height = 250, labels = true, compact = false, bare = false,
+}: {
+  type: string; series: Series[]; height?: number
+  labels?: boolean; compact?: boolean
+  /** No gridlines, no axis figures. For a card, where the chart is a shape you
+   *  glance at on the way past the number rather than something you read. */
+  bare?: boolean
+}) {
   const live = series.filter((s) => s.points.length > 0)
   if (live.length === 0) return null
   if (type === 'pie') return <Pie series={live} height={height} compact={compact} />
-  return <Axes type={type === 'bar' ? 'bar' : 'line'} series={live} height={height} labels={labels} />
+  return <Axes type={type === 'bar' ? 'bar' : 'line'} series={live}
+                height={height} labels={labels && !bare} bare={bare} />
 }
 
 /**
  * Bars and lines share an axis, a scale and a set of gridlines, so they share
  * a component. Only the marks differ, which is the only thing that should.
  */
-function Axes({ type, series, height, labels }: {
-  type: 'bar' | 'line'; series: Series[]; height: number; labels: boolean
+function Axes({ type, series, height, labels, bare }: {
+  type: 'bar' | 'line'; series: Series[]; height: number; labels: boolean; bare?: boolean
 }) {
   const w = 820, h = height
-  const padL = 46, padR = 16, padT = 16, padB = labels ? 30 : 12
+  const padL = bare ? 2 : 46, padR = bare ? 2 : 16
+  const padT = bare ? 4 : 16, padB = bare ? 4 : (labels ? 30 : 12)
 
   // Every series is drawn against ONE scale. Two y-axes on one plot is a chart
   // that can be made to say anything by choosing where each axis starts.
@@ -69,7 +77,7 @@ function Axes({ type, series, height, labels }: {
   return (
     <svg className="chart" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none"
          role="img" aria-label={series.map((s) => s.measure).join(', ')}>
-      {ticks.map((t, i) => (
+      {!bare && ticks.map((t, i) => (
         <g key={i}>
           <line className="chart__gr" x1={padL} x2={w - padR} y1={y(t)} y2={y(t)} />
           <text className="chart__ax" x={padL - 8} y={y(t) + 3.5} textAnchor="end">{short(t)}</text>
