@@ -4,7 +4,7 @@ import ActionForm from '@/components/ActionForm'
 import { createPerson } from '@/app/actions/admin'
 import Choice from '@/components/Choice'
 
-export default async function People() {
+export default async function Users() {
   const db = supabaseServer()
   const { data: people } = await db.schema('hopper')
     .from('person').select('id, full_name, email, role_title, active, entity_id, profile_id')
@@ -14,14 +14,16 @@ export default async function People() {
 
   return (
     <>
-      <div className="hi"><h1>People</h1>
+      <div className="hi"><div className="hi__t">
+        <h1>Users</h1>
         <p className="scopeline"><span>
-          The roster, narrowed to the organizations you can already see. Somebody
-          with no login yet is on the roster all the same.
+          Who can sign in to Hopper, and who is on the roster waiting to be invited.
+          One record per person either way — the directory at{' '}
+          <a href="/people">People</a> is the same human, seen from the other side.
         </span></p>
-      </div>
+      </div></div>
 
-      <Section title="Everyone" blurb={`${people?.length ?? 0} on the roster.`}
+      <Section title="Everyone" blurb={`${people?.length ?? 0} on the roster, with and without a login.`}
         action={null}>
         {(people?.length ?? 0) === 0 ? <p className="empty">Nobody you can see.</p> : (
           <div className="tblwrap"><table className="tbl">

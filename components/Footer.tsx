@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 const PAGES = ['Home', 'Organizations', 'Calendar', 'Wiki', 'News', 'Activity Log',
-  'Reporting', 'Projects', 'Staff Development', 'Meetings', 'Support', 'Admin']
+  'Reporting', 'Projects', 'Staffing', 'Meetings', 'Support', 'Admin']
 
 export default function Footer() {
   const [open, setOpen] = useState(false)

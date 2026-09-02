@@ -47,12 +47,12 @@ export const PLACE_VERBS: Verb[] = ['view']
 export const MODULES = [
   { key: 'reporting',         label: 'Reporting' },
   { key: 'projects',          label: 'Projects' },
-  { key: 'staff_development', label: 'Staff Development' },
+  { key: 'staffing',          label: 'Staffing' },
   { key: 'meetings',          label: 'Meetings' },
 ] as const
 
 export const CORE_MODULES = [
-  'home', 'organizations', 'calendar', 'wiki', 'news',
+  'home', 'organizations', 'people', 'calendar', 'wiki', 'news',
   'activity_log', 'support', 'profile', 'favorites',
 ] as const
 

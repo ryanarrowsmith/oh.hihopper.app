@@ -309,7 +309,7 @@ export async function addAdministrator(_prev: Result | null, form: FormData): Pr
     summary: existing ? `Made ${full_name} an administrator`
                       : `Added ${full_name} and made them an administrator` })
   revalidatePath(`/admin/organizations/${entity_id}`)
-  revalidatePath('/admin/people'); revalidatePath('/admin/permissions')
+  revalidatePath('/admin/users'); revalidatePath('/admin/permissions')
   return { ok: true, message: `${full_name} administers this organization now.` }
 }
 
@@ -330,7 +330,7 @@ export async function createPerson(_prev: Result | null, form: FormData): Promis
 
   await logAudit(db, { account_id: account, kind: 'person', object: full_name,
     summary: `Added ${full_name} to the roster` })
-  revalidatePath('/admin/people'); revalidatePath('/admin/permissions')
+  revalidatePath('/admin/users'); revalidatePath('/admin/permissions')
   return { ok: true, message: `${full_name} added.` }
 }
 
@@ -343,7 +343,7 @@ export async function setPersonActive(_prev: Result | null, form: FormData): Pro
 
   await logAudit(db, { account_id: account, kind: 'person', object: data.full_name,
     object_id: id, summary: `${active ? 'Reactivated' : 'Deactivated'} ${data.full_name}` })
-  revalidatePath('/admin/people')
+  revalidatePath('/admin/users')
   return { ok: true, message: 'Saved.' }
 }
 
@@ -486,7 +486,7 @@ export async function updateAdministrator(
   await logAudit(db, { account_id: account, kind: 'person', object: full_name,
     object_id: id, summary: `Edited ${full_name}` })
   if (entity_id) revalidatePath(`/admin/organizations/${entity_id}`)
-  revalidatePath('/admin/people')
+  revalidatePath('/admin/users')
   return { ok: true, message: 'Saved.' }
 }
 

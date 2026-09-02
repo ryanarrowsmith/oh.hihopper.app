@@ -40,7 +40,7 @@ export const MODULE_NAV: Record<string, Item> = {
     icon: I('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>') },
   projects: { href: '/projects', label: 'Projects',
     icon: I('<path d="M4 6h16M4 12h16M4 18h9"/><circle cx="19.5" cy="18" r="1.6"/>') },
-  staff_development: { href: '/people', label: 'Staff Development',
+  staffing: { href: '/staffing', label: 'Staffing',
     icon: I('<circle cx="9" cy="8" r="3.4"/><path d="M3 20c0-3.3 2.7-5.4 6-5.4s6 2.1 6 5.4"/><path d="M17 11h5M19.5 8.5v5"/>') },
   meetings: { href: '/meetings', label: 'Meetings',
     icon: I('<path d="M3 6h18v11H8l-5 4z"/><path d="M8 10h8M8 13h5"/>') },

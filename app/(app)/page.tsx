@@ -100,7 +100,7 @@ export default async function Home() {
                     </div>
                     <div className="card__f">
                       <a className="btn" href={`/admin/organizations/${e.id}`}>Open</a>
-                      <a className="btn" href="/admin/people">People</a>
+                      <a className="btn" href="/admin/users">Users</a>
                     </div>
                   </article>
                 ))}

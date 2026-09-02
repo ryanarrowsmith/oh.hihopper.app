@@ -3,8 +3,8 @@ import Section from '@/components/Section'
 const AREAS = [
   { href: '/admin/organizations', title: 'Organizations',
     blurb: 'The tree, its departments and its office locations.' },
-  { href: '/admin/people', title: 'People',
-    blurb: 'Who is on the roster, where they sit, and who they answer to.' },
+  { href: '/admin/users', title: 'Users',
+    blurb: 'Who can sign in, who is only on the roster, and where each one sits.' },
   { href: '/admin/permissions', title: 'Permissions',
     blurb: 'What each person may open. Grants are held per person, not by a group.' },
   { href: '/admin/modules', title: 'Modules',
