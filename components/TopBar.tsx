@@ -60,7 +60,7 @@ export default function TopBar({ initials, entities }: { initials: string; entit
 
       <span className="tbar__sp" />
       <div className="tbar__act">
-        <button className="ibtn" type="button" aria-label="Notifications"
+        <button className="ibtn is-lit" type="button" aria-label="Notifications"
                 onClick={(e) => { e.stopPropagation(); setOpen(open === 'noti' ? null : 'noti') }}>
           <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-2 8-2 8h16s-2-1-2-8" />
             <path d="M13.7 21a2 2 0 0 1-3.4 0" /></svg>
