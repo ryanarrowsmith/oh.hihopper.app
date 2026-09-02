@@ -17,7 +17,7 @@ export default async function Reporting() {
   const db = supabaseServer()
 
   const [{ data: state }, { data: cats }, { data: depts }, { data: ents }, { data: readings },
-         { data: rights }] =
+         { data: rights }, { data: specs }] =
     await Promise.all([
       db.schema('hopper').from('report_state').select('*'),
       db.schema('hopper').from('report_category').select('id, name, department_id'),
@@ -29,6 +29,7 @@ export default async function Reporting() {
         .select('report_id, observed_on, value, measure')
         .order('observed_on', { ascending: true }),
       db.schema('hopper').from('entity_rights').select('entity_id, may_edit'),
+      db.schema('hopper').from('report').select('id, chart_measures'),
     ])
 
   // Where this person may register one. The button is not rendered at all when
@@ -39,12 +40,21 @@ export default async function Reporting() {
   const deptName = new Map((depts ?? []).map((d: any) => [d.id, d.name]))
   const entName = new Map((ents ?? []).map((e: any) => [e.id, e.name]))
 
-  const series = new Map<string, { on: string; v: number }[]>()
+  // One entry per report per measure. The card and the chart both read this,
+  // so a report with three measures draws three lines rather than one line
+  // made of three measures interleaved -- which is what a single flat list
+  // would have produced.
+  const series = new Map<string, Map<string, { on: string; v: number }[]>>()
   for (const r of readings ?? []) {
-    const list = series.get(r.report_id) ?? []
+    const byMeasure = series.get(r.report_id) ?? new Map()
+    const key = r.measure ?? 'Value'
+    const list = byMeasure.get(key) ?? []
     list.push({ on: r.observed_on, v: Number(r.value) })
-    series.set(r.report_id, list)
+    byMeasure.set(key, list)
+    series.set(r.report_id, byMeasure)
   }
+
+  const measuresOf = new Map((specs ?? []).map((r: any) => [r.id, r.chart_measures as string[] | null]))
 
   const cards: Card[] = (state ?? []).map((r: any) => ({
     id: r.report_id,
@@ -62,7 +72,10 @@ export default async function Reporting() {
     lastLookOk: r.last_look_ok,
     lastFailure: r.last_failure,
     freshness: freshnessOf(r),
-    spark: (series.get(r.report_id) ?? []).slice(-13).map((p) => p.v),
+    // In the order the chart builder named them, so the first measure is the
+    // one the headline number belongs to and the colours never shuffle between
+    // one look at the page and the next.
+    series: orderedSeries(series.get(r.report_id), measuresOf.get(r.report_id)),
   }))
 
   return (
@@ -76,6 +89,9 @@ export default async function Reporting() {
         </p>
       </div>
       {mayAdd && <div className="hi__go">
+        {/* Categories live under Reporting rather than beside it: one entry in
+            the menu, and the vocabulary is reachable from the place it governs. */}
+        <Link className="btn" href="/reporting/categories">Categories</Link>
         <Link className="btn btn--amber" href="/reporting/new">Add a report</Link>
       </div>}</div>
 
@@ -88,6 +104,25 @@ export default async function Reporting() {
         : <Reports cards={cards} />}
     </>
   )
+}
+
+/**
+ * The series a report draws, in the order its chart names them.
+ *
+ * Reading order out of the database is by date, not by measure, and a Map keeps
+ * insertion order -- so without this the colours would follow whichever measure
+ * happened to have the oldest row, and could change between two loads of the
+ * same page.
+ */
+function orderedSeries(
+  byMeasure: Map<string, { on: string; v: number }[]> | undefined,
+  named: string[] | null | undefined,
+) {
+  if (!byMeasure) return []
+  const order = named?.length ? named : [...byMeasure.keys()]
+  return order
+    .filter((m) => byMeasure.has(m))
+    .map((m) => ({ measure: m, points: byMeasure.get(m)!.slice(-13) }))
 }
 
 /**

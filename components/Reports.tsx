@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import { refreshReport } from '@/app/actions/reports'
+import Chart, { Legend, type Series } from '@/components/Chart'
 
 export type Card = {
   id: string; name: string; entity: string; department: string; category: string | null
@@ -9,7 +10,7 @@ export type Card = {
   chartType: string; refresh: string; snapshotAt: string | null; restricted: boolean
   lastLook: string | null; lastLookOk: boolean | null; lastFailure: string | null
   freshness: 'new' | 'good' | 'behind' | 'failed' | 'snapshot'
-  spark: number[]
+  series: Series[]
 }
 
 type Rows = {
@@ -93,25 +94,16 @@ function ReportCard({ c, onOpen }: { c: Card; onOpen: () => void }) {
       {c.value == null
         ? <span className="rcard__none">Not read yet</span>
         : <span className="rcard__v">{nf.format(c.value)}</span>}
-      {c.spark.length > 1 && <Spark values={c.spark} />}
+      {/* Every card carries its own chart -- bar, line or pie, whichever it was
+          registered with -- so one report is one picture wherever you meet it.
+          Unlabelled at this size: axis text at 64px is texture, not reading. */}
+      {c.series.some((s) => s.points.length > 1) && (
+        <span className="rcard__chart">
+          <Chart type={c.chartType} series={c.series} height={64} labels={false} compact />
+        </span>
+      )}
       <span className="rcard__f"><Fresh c={c} /></span>
     </button>
-  )
-}
-
-/** The last thirteen, drawn small. A shape, not a chart. */
-function Spark({ values }: { values: number[] }) {
-  const w = 240, h = 34
-  const lo = Math.min(...values), hi = Math.max(...values)
-  const span = hi - lo || 1
-  const x = (i: number) => (i / (values.length - 1)) * w
-  const y = (v: number) => h - 2 - ((v - lo) / span) * (h - 4)
-  const d = values.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ')
-  return (
-    <svg className="spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
-      <path d={d} />
-      <circle cx={x(values.length - 1)} cy={y(values[values.length - 1])} r="2.6" />
-    </svg>
   )
 }
 
@@ -250,23 +242,25 @@ function ReportPop({ c, onClose }: { c: Card; onClose: () => void }) {
 }
 
 function Shape({ c }: { c: Card }) {
-  const v = c.spark
+  const head = c.series[0]?.points ?? []
   return (
     <div className="rpop__b">
       <div className="shape">
-        {v.length < 2
+        {head.length < 2
           ? <p className="empty">
               {c.freshness === 'new'
                 ? 'Hopper has not read this one yet. Refresh it and the shape appears.'
                 : 'One reading so far — a shape needs two.'}
             </p>
-          : <Big values={v} />}
+          : <><Chart type={c.chartType} series={c.series} height={250} />
+              <Legend series={c.series} /></>}
         <div className="figs">
           <span className="fig"><span className="fig__l">Now</span>
             <span className="fig__v">{c.value == null ? '—' : nf.format(c.value)}</span></span>
-          {v.length > 1 && <span className="fig"><span className="fig__l">Move</span>
-            <span className={`fig__v ${v[v.length - 1] >= v[0] ? 'up' : 'down'}`}>
-              {v[v.length - 1] >= v[0] ? '+' : ''}{nf.format(v[v.length - 1] - v[0])}
+          {head.length > 1 && <span className="fig"><span className="fig__l">Move</span>
+            <span className={`fig__v ${head[head.length - 1].v >= head[0].v ? 'up' : 'down'}`}>
+              {head[head.length - 1].v >= head[0].v ? '+' : ''}
+              {nf.format(head[head.length - 1].v - head[0].v)}
             </span></span>}
           <span className="fig"><span className="fig__l">Dated</span>
             <span className="fig__v">{c.valueOn ? on(c.valueOn) : '—'}</span></span>
@@ -280,32 +274,6 @@ function Shape({ c }: { c: Card }) {
 
 const said = (r: string) => r === 'hourly' ? 'Every 30 min' : r === 'twice_daily' ? 'Hourly'
   : r === 'daily' ? 'Every 4 hours' : r === 'weekly' ? 'Daily, 3 AM' : 'Never — a snapshot'
-
-/**
- * The window is wide for the table's sake. A line stretched across 1400px
- * flattens every slope it has, so the shape keeps its own comfortable width and
- * sits in the middle of the room rather than filling it.
- */
-function Big({ values }: { values: number[] }) {
-  const w = 820, h = 250, pad = 26
-  const lo = Math.min(...values), hi = Math.max(...values)
-  const span = hi - lo || 1
-  const x = (i: number) => pad + (i / (values.length - 1)) * (w - pad * 2)
-  const y = (v: number) => h - pad - ((v - lo) / span) * (h - pad * 2)
-  const line = values.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ')
-  const area = `${line} L${x(values.length - 1).toFixed(1)} ${h - pad} L${x(0).toFixed(1)} ${h - pad} Z`
-  return (
-    <svg className="bigchart" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
-      {[0, .5, 1].map((t) => (
-        <line key={t} className="gr" x1={pad} x2={w - pad}
-              y1={pad + t * (h - pad * 2)} y2={pad + t * (h - pad * 2)} />
-      ))}
-      <path className="ar" d={area} />
-      <path className="ln" d={line} />
-      <circle className="pt" cx={x(values.length - 1)} cy={y(values[values.length - 1])} r="4" />
-    </svg>
-  )
-}
 
 // ------------------------------------------------------- the rows behind it
 

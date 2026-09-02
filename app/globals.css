@@ -2218,13 +2218,8 @@ a.crow:hover svg{stroke:var(--steel-ink)}
 
 .rcard__none{display:block; margin-top:12px; font-size:14px; font-style:italic; color:var(--ink-3)}
 
-/* the last thirteen, drawn small -- a shape, not a chart */
-.spark{display:block; width:100%; height:34px; margin-top:10px; overflow:visible}
-
-.spark path{fill:none; stroke:var(--steel); stroke-width:1.8;
-  stroke-linecap:round; stroke-linejoin:round}
-
-.spark circle{fill:var(--amber)}
+/* .spark is gone: the card draws its own registered chart type through the one
+   chart kit now, rather than a line the report never asked for. */
 
 .rcard__f{display:flex; align-items:center; gap:7px; margin-top:11px; padding-top:10px;
   border-top:1px solid var(--rule-soft); font-size:11.5px; color:var(--ink-3)}
@@ -2373,7 +2368,6 @@ a.crow:hover svg{stroke:var(--steel-ink)}
 
 .rgrid--md .rcard__n{font-size:13.5px}
 
-.rgrid--md .spark{display:none}
 
 /* at this size it is texture, not a shape */
 .rgrid--md .rcard__f{margin-top:9px; padding-top:8px}
@@ -2743,3 +2737,34 @@ a.crow:hover svg{stroke:var(--steel-ink)}
 .chips .chip:hover:not(:disabled){border-color:var(--canvas-3); color:var(--ink)}
 .chips .chip:disabled{opacity:.45; cursor:not-allowed}
 .chip--on{background:var(--steelwash); border-color:var(--steel); color:var(--steel-ink)}
+
+/* ---- one chart kit ----
+   The card, the popover and the report's own page all draw through the same
+   component, so one report is one picture wherever you meet it. Colours come
+   from the chart palette as tokens, which is what makes them follow the theme;
+   three series is the cap on a plot because only the first three separate for
+   every kind of colour vision. */
+.chart{display:block; width:100%; overflow:visible}
+.chart__gr{stroke:var(--rule-soft); stroke-width:1}
+.chart__ax{font:600 10px var(--mono); fill:var(--ink-3)}
+.chart__ln{fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round}
+.chart__ar{opacity:.12}
+.chart--pie{flex:none; width:auto}
+
+.pie{display:flex; gap:22px; align-items:center; flex-wrap:wrap}
+
+.legend{list-style:none; margin:12px 0 0; padding:0; display:grid; gap:6px; font-size:12.5px;
+  color:var(--ink-2); min-width:180px}
+.legend--row{display:flex; flex-wrap:wrap; gap:6px 18px}
+.legend li{display:flex; align-items:center; gap:8px}
+.legend b{color:var(--ink); font-weight:700; font-variant-numeric:tabular-nums; margin-left:auto}
+.legend__k{width:11px; height:11px; flex:none; border-radius:var(--r)}
+.legend__p{font-family:var(--mono); font-size:10px; color:var(--ink-3); width:34px; text-align:right}
+.legend--row .legend b, .legend--row .legend__p{margin-left:0}
+
+/* The chart on a card: a shape you glance at on the way past the number, not
+   something you read. Medium density drops it, the same as the sparkline it
+   replaced -- at that size it is texture. */
+.rcard__chart{display:block; margin-top:10px; height:64px; overflow:hidden}
+.rcard__chart .chart{height:64px}
+.rgrid--md .rcard__chart{display:none}
