@@ -102,8 +102,8 @@ export default async function Location({ params }: { params: { id: string; loc: 
           </article>
 
           {mayEdit ? (
-            <details className="sheet" id="edit">
-              <summary>
+            <section className="sheet" id="edit">
+              <div className="sheet__head">
                 <span className="sheet__pencil" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
                        strokeLinecap="round" strokeLinejoin="round">
@@ -114,7 +114,8 @@ export default async function Location({ params }: { params: { id: string; loc: 
                   <b>Edit this location</b>
                   <small>Changing the address re-pins it. A pin you typed by hand is left alone.</small>
                 </span>
-              </summary>
+                <a className="sheet__x" href="#">Close</a>
+              </div>
               <div className="sheet__body">
                 <ActionForm action={updateLocation} label="Save changes">
                   <input type="hidden" name="id" value={l.id} />
@@ -162,7 +163,7 @@ export default async function Location({ params }: { params: { id: string; loc: 
                   </p>
                 </ActionForm>
               </div>
-            </details>
+            </section>
           ) : (
             <p className="fine" style={{ marginTop: 22 }}>
               You can see this office but not change it. Its administrators can —

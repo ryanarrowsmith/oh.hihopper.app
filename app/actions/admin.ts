@@ -73,7 +73,8 @@ export async function createDepartment(_prev: Result | null, form: FormData): Pr
   if (!entity_id || !name) return { ok: false, message: 'A department needs a name.' }
 
   const { error } = await db.schema('hopper').from('department')
-    .insert({ account_id: account, entity_id, name })
+    .insert({ account_id: account, entity_id, name,
+              leader_person_id: nul(form, 'leader_person_id') })
   if (error) return { ok: false, message: refused(error.message, 'department') }
 
   await logAudit(db, { account_id: account, kind: 'department', object: name,
@@ -256,6 +257,59 @@ export async function setEntityAdmins(_prev: Result | null, form: FormData): Pro
   return { ok: true, message: admins.size
     ? `Saved — ${admins.size} ${admins.size === 1 ? 'administrator' : 'administrators'}.`
     : 'Saved — nobody named, so only account owners can edit this one.' }
+}
+
+/**
+ * Add somebody to the roster and make them an administrator of this
+ * organization in the same act -- because "add an administrator" is what the
+ * person doing it thinks they are doing, and making them visit two screens to
+ * finish one thought is how a step gets forgotten.
+ */
+export async function addAdministrator(_prev: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const entity_id = str(form, 'entity_id')
+  const full_name = str(form, 'full_name')
+  if (!entity_id || !full_name) return { ok: false, message: 'An administrator needs a name.' }
+
+  const existing = str(form, 'person_id')
+  let person_id = existing
+
+  if (!person_id) {
+    const { data, error } = await db.schema('hopper').from('person').insert({
+      account_id: account, full_name,
+      email: nul(form, 'email'), role_title: nul(form, 'role_title'),
+      entity_id,
+    }).select('id').single()
+    if (error) return { ok: false, message: refused(error.message, 'person') }
+    person_id = data.id
+  }
+
+  const { error: gErr } = await db.schema('hopper').from('access_grant').upsert({
+    account_id: account, person_id, object: 'entity', scope_id: entity_id,
+    may_view: true, may_edit: true,
+  }, { onConflict: 'account_id,person_id,object,scope_id' })
+  if (gErr) {
+    // The unique index keys on coalesce(scope_id, ...), which upsert cannot
+    // name, so fall back to reading and writing.
+    const { data: had } = await db.schema('hopper').from('access_grant')
+      .select('id').eq('person_id', person_id).eq('object', 'entity')
+      .eq('scope_id', entity_id).maybeSingle()
+    const res = had
+      ? await db.schema('hopper').from('access_grant')
+          .update({ may_view: true, may_edit: true }).eq('id', had.id)
+      : await db.schema('hopper').from('access_grant').insert({
+          account_id: account, person_id, object: 'entity', scope_id: entity_id,
+          may_view: true, may_edit: true })
+    if (res.error) return { ok: false, message: refused(res.error.message, 'administrator') }
+  }
+
+  await logAudit(db, { account_id: account, kind: 'access', object: full_name,
+    object_id: entity_id,
+    summary: existing ? `Made ${full_name} an administrator`
+                      : `Added ${full_name} and made them an administrator` })
+  revalidatePath(`/admin/organizations/${entity_id}`)
+  revalidatePath('/admin/people'); revalidatePath('/admin/permissions')
+  return { ok: true, message: `${full_name} administers this organization now.` }
 }
 
 // -------------------------------------------------------------------- people
