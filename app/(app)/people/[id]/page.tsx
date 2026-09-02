@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import Avatar from '@/components/Avatar'
 import Favorites, { type Profile } from '@/components/Favorites'
+import GetToKnowEdit, { type Answers } from '@/components/GetToKnowEdit'
 import { OrgMark, PlaceMark } from '@/components/Icons'
 
 export const dynamic = 'force-dynamic'
@@ -29,6 +30,8 @@ export default async function PersonPage({ params }: { params: { id: string } })
   const mapSrc = d.restaurant_lat != null && d.restaurant_lng != null
     ? `/api/map?lat=${d.restaurant_lat}&lng=${d.restaurant_lng}&w=640&h=208&z=15`
     : null
+
+  const heading = `Get to know ${d.is_me ? 'me' : d.full_name.split(' ')[0]}`
 
   return (
     <>
@@ -89,10 +92,12 @@ export default async function PersonPage({ params }: { params: { id: string } })
       </div>
 
       <div className="gtkm">
-        <div className="gtkm__h">
-          <h3>Get to know {d.is_me ? 'me' : d.full_name.split(' ')[0]}</h3>
-          <span className="rule" />
-        </div>
+        {d.may_edit ? (
+          <GetToKnowEdit personId={d.id} mine={!!d.is_me} title={heading}
+                         answers={d as unknown as Answers} />
+        ) : (
+          <div className="gtkm__h"><h3>{heading}</h3><span className="rule" /></div>
+        )}
         <Favorites p={d as unknown as Profile} mapSrc={mapSrc} />
       </div>
     </>

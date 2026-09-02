@@ -1874,3 +1874,54 @@ a.gcard:hover{border-color:var(--canvas-3); box-shadow:var(--lift)}
    <span>, and a span that inherits display:inline silently drops its width and
    height. Said out loud so it cannot be moved somewhere that breaks it. */
 .swatch__c{display:block}
+
+/* ============ ANSWERING GET TO KNOW ME ============
+   The same drawer every other edit in Hopper uses: 0fr to 1fr, so it opens to
+   a height nobody knows in advance, and inert when shut because clipped is not
+   hidden as far as the keyboard is concerned. */
+.gedit{display:grid; grid-template-rows:0fr; transition:grid-template-rows .28s ease}
+.gedit.is-open{grid-template-rows:1fr}
+.gedit__clip{overflow:hidden; min-height:0}
+.gedit__p{
+  padding:16px; margin-bottom:14px; background:var(--sunken);
+  border:1px solid var(--rule); border-radius:var(--r);
+  box-shadow:inset 3px 0 0 var(--amber);
+}
+.gedit__p label{display:block; font-size:12px; font-weight:700; color:var(--ink-2); margin-bottom:5px}
+.gedit__p .fine{font-size:11.5px; color:var(--ink-3); margin:5px 0 0; line-height:1.5}
+.formerr{margin:12px 0 0; font-size:13px; color:#9C3A2A; font-weight:700}
+
+/* A palette, not the operating system's colour wheel -- the answer is a thing
+   you can say out loud rather than a hex code. */
+.pal{display:grid; grid-template-columns:repeat(9,1fr); gap:5px; max-width:340px}
+.pal__c{
+  aspect-ratio:1; border:1px solid rgba(0,0,0,.18); border-radius:var(--r);
+  padding:0; cursor:pointer; position:relative;
+  transition:transform .12s, box-shadow .12s;
+}
+.pal__c:hover{transform:scale(1.12)}
+.pal__c[aria-pressed="true"]{box-shadow:0 0 0 2px var(--paper), 0 0 0 4px var(--ink)}
+.pal__c:focus-visible{outline:2px solid var(--steel); outline-offset:2px}
+.vh{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+
+/* ---- one looked-up answer ---- */
+.lk{margin-top:16px}
+.lk__has{display:flex; align-items:center; gap:11px; padding:9px 11px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r)}
+.lk__i{width:38px; height:38px; flex:none; border-radius:var(--r); object-fit:cover;
+  background:var(--canvas-2); border:1px solid var(--canvas-3)}
+.lk__i--none{display:block}
+.lk__t{display:block; min-width:0; flex:1 1 auto}
+.lk__t b{display:block; font-size:13.5px; color:var(--ink); overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap}
+.lk__t span{display:block; font-size:12px; color:var(--ink-3); margin-top:1px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+.lk__list{list-style:none; margin:8px 0 0; padding:0; max-height:260px; overflow-y:auto;
+  border:1px solid var(--rule); border-radius:var(--r); background:var(--surface)}
+.lk__list li + li{border-top:1px solid var(--rule-soft)}
+.lk__list button{
+  display:flex; align-items:center; gap:11px; width:100%; padding:9px 11px;
+  background:none; border:0; cursor:pointer; text-align:left; font:inherit;
+}
+.lk__list button:hover{background:var(--sunken)}
