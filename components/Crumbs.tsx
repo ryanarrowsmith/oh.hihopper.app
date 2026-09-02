@@ -27,6 +27,19 @@ const NAMES: Record<string, string> = {
   profile: 'Profile',
 }
 
+/**
+ * Segments that DO have an index page of their own beneath a record --
+ * /admin/organizations/<org>/locations lists that organization's offices.
+ * Everything else sitting directly after an id is a container in the URL and
+ * gets printed rather than linked, because there is no page there to reach.
+ *
+ * This is a small list rather than a copy of the route table, and it has to be
+ * added to when such a page is built. The alternative -- guessing from the
+ * shape of the path alone -- is what sent people to a 404 in the first place,
+ * and then, once the page existed, refused to link the one crumb that worked.
+ */
+const INDEXED_UNDER_RECORD = new Set(['locations'])
+
 export default function Crumbs(
   { entities, places = [] }: { entities: Entity[]; places?: Named[] },
 ) {
@@ -67,7 +80,8 @@ export default function Crumbs(
     // crumb rather than printing a uuid at somebody.
     if (/^[0-9a-f-]{36}$/i.test(part)) { afterId = true; continue }
 
-    crumbs.push({ href: afterId ? null : href, label: NAMES[part] ?? part.replace(/-/g, ' ') })
+    const container = afterId && !INDEXED_UNDER_RECORD.has(part)
+    crumbs.push({ href: container ? null : href, label: NAMES[part] ?? part.replace(/-/g, ' ') })
     afterId = false
   }
 
