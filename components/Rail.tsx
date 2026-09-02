@@ -24,6 +24,8 @@ export const FRAME: Item[] = [
       { href: '/admin/organizations/departments', label: 'Departments' },
       { href: '/admin/organizations/locations', label: 'Locations' },
     ] },
+  { href: '/people', label: 'People',
+    icon: I('<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M17 11a3 3 0 1 0 0-6"/><path d="M17.5 20a6 6 0 0 0-2-4.5"/>') },
   { href: '/calendar', label: 'Calendar',
     icon: I('<rect x="3" y="5" width="18" height="16"/><path d="M3 10h18M8 3v4M16 3v4"/>') },
   { href: '/wiki', label: 'Wiki',
