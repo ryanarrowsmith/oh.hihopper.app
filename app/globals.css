@@ -2822,8 +2822,13 @@ a.crow:hover svg{stroke:var(--steel-ink)}
 .shape__c{min-width:0}
 .shape__f{display:flex; flex-wrap:wrap; gap:22px; margin-top:14px; padding-top:14px;
   border-top:1px solid var(--rule-soft)}
-@media (min-width:1000px){
-  .shape{display:grid; grid-template-columns:minmax(0,1fr) 236px; gap:26px; align-items:start}
+/* 1180 and not 1000: the app already spends ~180px on its own rail, so at a
+   1024 viewport the content column is about 660 and splitting that 404/236
+   gives the rail more than a third of the room for five short lines. Measured
+   at 1440 / 1200 / 1024 / 999 / 860 / 700 / 390 -- the plot keeps 584px or more
+   wherever the rail appears, and takes the full width everywhere it does not. */
+@media (min-width:1180px){
+  .shape{display:grid; grid-template-columns:minmax(0,1fr) 216px; gap:26px; align-items:start}
   .shape__f{display:block; margin:0; padding:0 0 0 22px;
     border-top:0; border-left:1px solid var(--rule-soft)}
   .shape__f .fig{display:block; padding:12px 0; border-bottom:1px solid var(--rule-soft)}
