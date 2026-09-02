@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import Signature from '@/components/Signature'
 
 /* Lines that are actually hers. One per load, so the card is never quite the
    same twice and never a rotation you can predict. */
@@ -17,6 +18,9 @@ const PORTRAIT = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUEBAQ
 export default function Dolly() {
   const [line, setLine] = useState(LINES[0])
   const [flying, setFlying] = useState(false)
+  const [shown, setShown] = useState(false)
+  const btn = useRef<HTMLButtonElement>(null)
+  const card = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState<string | null>(null)
@@ -48,6 +52,30 @@ export default function Dolly() {
   // Hovering again flies her again, once the crossing she is on has finished.
   // Re-entering mid-flight does nothing, so sweeping the pointer back and
   // forth cannot stack four butterflies on top of each other.
+  /**
+   * Her card hangs off her own face, the way every other popover in Hopper
+   * hangs off the control that raised it. It grows from the top-left corner,
+   * which is the corner nearest the button, so it reads as coming out of her
+   * rather than as arriving.
+   */
+  function openCard() { setShown(true) }
+
+  // Escape closes it, and the page behind must not scroll while it is up.
+  useEffect(() => {
+    if (!shown) return
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setShown(false) }
+    const away = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (!card.current?.contains(t) && !btn.current?.contains(t)) setShown(false)
+    }
+    document.addEventListener('keydown', esc)
+    document.addEventListener('click', away)
+    return () => {
+      document.removeEventListener('keydown', esc)
+      document.removeEventListener('click', away)
+    }
+  }, [shown])
+
   const CROSS = 4400
   function wake() {
     if (flying || reduced.current) return
@@ -73,6 +101,22 @@ export default function Dolly() {
 
   return (
     <>
+      {/* She sits in the tools row with the other round buttons, at her
+          neighbours' size so the row stays one row. Toned out at rest and full
+          colour under the pointer -- in colour all the time she would be the
+          brightest thing on the page every time you land on it, which is not
+          what she is for. */}
+      <div className="bubw dollyw">
+        <button className="dbtn" type="button" ref={btn} aria-haspopup="dialog"
+                aria-expanded={shown} aria-label="What would Dolly say"
+                onClick={openCard}>
+          <img src={PORTRAIT} alt="" />
+        </button>
+        <span className="bubl" aria-hidden="true">Dolly</span>
+
+        {shown && (
+        <div className="dpop" ref={card} role="dialog"
+             aria-label="What would Dolly say">
       <div className="dolly" onMouseEnter={wake}>
         <div className={'flutter' + (flying ? ' flying' : '')} aria-hidden="true">
           <div className="bfly-x"><div className="bfly-y"><div className="bfly-orbit">
@@ -147,9 +191,13 @@ export default function Dolly() {
         <img className="dolly__p" src={PORTRAIT} alt="" width={58} height={58} />
         <div>
           <span className="dolly__q">{line}</span>
-          <cite>Dolly Parton</cite>
+          {/* Her name in her own hand. The <cite> stays for anything that is
+              reading rather than looking. */}
+          <Signature />
+          <cite className="vh">Dolly Parton</cite>
         </div>
-        <div className="bubw plane">
+        <div className="dolly__acts">
+        <div className="bubw">
           <button className="bub" type="button" aria-label="Email this quote"
                   aria-expanded={open}
                   onClick={() => { setOpen(!open); setSent(null); setErr(null) }}>
@@ -200,10 +248,16 @@ export default function Dolly() {
             </div>
           )}
         </div>
+        <button className="bub" type="button" aria-label="Close"
+                onClick={() => setShown(false)}>
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+        </div>
 
       </div>
-
-
+        </div>
+        )}
+      </div>
     </>
   )
 }

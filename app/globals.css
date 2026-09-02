@@ -345,8 +345,6 @@ a.bub{text-decoration:none}
   display:block; font-style:normal; font-family:var(--hand); font-size:25px;
   line-height:1; color:var(--ink-2); margin-top:9px;
 }
-.dolly .plane{position:absolute; top:14px; right:14px}
-.dolly .plane svg{stroke:var(--ink-3)}
 
 /* ============ THE GLITTER ============
    Dolly's card carries something she said, and she is gone. So this is not a
@@ -419,6 +417,99 @@ a.bub{text-decoration:none}
 .dolly__acts .bub svg{width:15px; height:15px}
 .dolly__acts .bub:hover{background:var(--sunken); border-color:var(--rule); color:var(--ink-2)}
 
+/* ============ DOLLY, IN THE TOOLS ROW ============
+   Her card left the page. It was the first thing under the greeting every
+   morning whether you wanted it or not; now her face is a button among the
+   other round ones and the card comes when it is asked for.
+
+   Her neighbours' size exactly, so the row stays one row rather than three
+   buttons and a portrait. Toned out at rest -- which is also what puts her at
+   the same weight as the canvas line drawings beside her -- and full colour
+   under the pointer. */
+.dbtn{
+  width:38px; height:38px; border-radius:50%; padding:0; cursor:pointer;
+  border:1px solid var(--rule); background:var(--sunken);
+  overflow:hidden; display:grid; place-items:center;
+  filter:grayscale(1) brightness(.97) contrast(.9); opacity:.55;
+  transition:filter .2s, opacity .2s, transform .16s, border-color .16s;
+}
+.dbtn img{display:block; width:100%; height:100%; object-fit:cover}
+.dbtn:hover, .dbtn:focus-visible, .dbtn[aria-expanded="true"]{
+  filter:none; opacity:1; transform:translateY(-1px) scale(1.04); border-color:var(--amber);
+}
+.dbtn:focus-visible{outline:2px solid var(--steel); outline-offset:2px}
+
+/* ---- her card hangs off her own face ----
+   The same move every other popover in Hopper makes: it comes out of the
+   control that raised it, so the page underneath never shifts and the thing
+   you were looking at is still there behind it. Below 560px it gives up the
+   anchor and spans the column, because at that width a 560px panel hung off a
+   38px button has nowhere to go. */
+/* The tools row is justify-content:flex-end, so she sits near the right edge
+   of the column -- a panel hung off her left corner runs straight off the
+   screen. It hangs off her right corner instead, and the beak moves with it. */
+.dollyw{position:relative}
+.dpop{
+  position:absolute; z-index:80; top:calc(100% + 14px); right:-4px;
+  width:min(560px, calc(100vw - 40px)); text-align:left;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  box-shadow:var(--lift);
+  transform-origin:calc(100% - 20px) -14px;
+  animation:stream .26s cubic-bezier(.18,.74,.3,1) both;
+}
+.dpop::before{
+  content:""; position:absolute; top:-6px; right:16px; width:10px; height:10px;
+  background:var(--surface); border-left:1px solid var(--rule);
+  border-top:1px solid var(--rule); transform:rotate(45deg);
+}
+/* It grows from the corner nearest the button, so it reads as coming out of
+   her rather than as arriving from nowhere. */
+@keyframes stream{
+  from{opacity:0; transform:scale(.82) translateY(-6px)}
+  to  {opacity:1; transform:scale(1) translateY(0)}
+}
+/* Below 560 it stops hanging off a 38px button -- there is nowhere for a
+   560px panel to go -- and pins to the viewport instead. Fixed rather than
+   absolute, because absolute would resolve against .dollyw, which is 40px
+   wide: left:0;right:0 there is a 40px popover. */
+@media (max-width:560px){
+  .dpop{position:fixed; top:auto; bottom:16px; left:16px; right:16px; width:auto;
+        transform-origin:50% 100%}
+  .dpop::before{display:none}
+}
+
+/* Inside the popover the card is the card: no second border, no second
+   shadow. The right inset is 96px because there are two 30px buttons up there
+   with a gap between them and 12px of air outside -- at the old 62px the quote
+   ran underneath them. */
+.dpop .dolly{
+  margin:0; border:0; box-shadow:none; background:transparent;
+  padding:18px 96px 18px 18px; align-items:flex-start;
+}
+.dpop .dolly:hover{background:transparent; border-color:transparent; box-shadow:none}
+.dolly__p{margin-top:2px}
+
+/* Her name, in her own hand, under what she said. */
+.sig{
+  display:block; width:112px; height:auto; margin-top:11px;
+  color:var(--ink-3); opacity:.85;
+}
+.vh{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0);
+  white-space:nowrap}
+
+/* The shower is simply on while the card is open. Hover was right when the
+   card sat on the page and you might never have wanted it; once you have
+   opened her on purpose, waiting for a second gesture is a card that looks
+   broken until you touch it. */
+.dpop .mote{animation:fall var(--dur) linear infinite; animation-delay:var(--dly)}
+.dpop .mote i{
+  animation:sway var(--sway) ease-in-out infinite alternate,
+            twinkle var(--tw) ease-in-out infinite;
+  animation-delay:var(--dly), var(--dly);
+}
+
+@media (prefers-reduced-motion:reduce){ .dpop{animation:none} }
+
 @media (prefers-reduced-motion:reduce){
   .mote, .mote i{animation:none !important}
   .mote i{opacity:.45}
@@ -429,12 +520,8 @@ a.bub{text-decoration:none}
     background:var(--warmbg); border-color:var(--amber);
     box-shadow:var(--pop, var(--shadow)), 0 0 0 1px rgba(242,169,59,.35) inset;
   }
-  .dolly:hover .mote{animation:fall var(--dur) linear infinite; animation-delay:var(--dly)}
-  .dolly:hover .mote i{
-    animation:sway var(--sway) ease-in-out infinite alternate,
-              twinkle var(--tw) ease-in-out infinite;
-    animation-delay:var(--dly), var(--dly);
-  }
+  /* The butterfly still waits to be hovered -- she is a small thing to find.
+     The glitter does not: it runs while the popover is open. */
   .dolly:hover .plane svg{stroke:var(--steel-ink)}
 }
 

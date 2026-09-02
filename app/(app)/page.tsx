@@ -41,6 +41,7 @@ export default async function Home() {
           </a>
           <span className="bubl" aria-hidden="true">Favorites</span>
         </div>
+        <Dolly />
         <div className="bubw">
           <button className="bub" type="button" aria-label="Add a widget">
             <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" />
@@ -67,8 +68,6 @@ export default async function Home() {
           </span>
         </p>
       </div>
-
-      <Dolly />
 
       <div className="desk">
         <div>
