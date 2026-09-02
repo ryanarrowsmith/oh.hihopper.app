@@ -1179,7 +1179,14 @@ select.field{appearance:none}
 .tvis:checked ~ .tree__row{border-bottom-color:var(--rule)}
 .tcar--none{visibility:hidden}   /* a leaf keeps the width so plates line up */
 .tcount{margin-left:auto; font-size:13px; color:var(--ink-3)}
-.lvm{display:none}               /* the level arrow: mobile only, see below */
+/* The level arrow on a child row. It used to be mobile-only: on a wide screen
+   the indent carried the hierarchy by itself, and an arrow as well was one
+   signal too many. Now that a child is its own tile on its own ground, the
+   indent alone reads as a style rather than as a relationship -- so the arrow
+   says which of the two it is, at every width. Canvas-3, the same shade and
+   the same glyph the rail's submenu uses, so a child looks like a child
+   wherever it turns up. */
+.lvm{display:block; flex:none}
 
 /* ============ A TOGGLE ============
    Squared like everything else -- the knob is a sliding tile, not a pill. */
@@ -1293,7 +1300,7 @@ select.field{appearance:none}
     margin-left:18px; padding-left:0; background:var(--sunken); border-color:var(--rule);
   }
   .tree__row.kid .tcar--none{display:none}
-  .tree__row.kid .lvm{display:block; margin-right:-2px}
+  .tree__row.kid .lvm{margin-right:-2px}
 
   .confpop{left:0; right:0; width:auto}
   .orglogo{width:60px; height:60px; padding:7px}
