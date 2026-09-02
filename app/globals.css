@@ -3059,3 +3059,84 @@ a.crow:hover svg{stroke:var(--steel-ink)}
    what separate it; a hairline on top of both was a third thing saying the
    same thing, and it read as a seam. */
 .rpop{border:0}
+
+/* ---- what you can do to a card ----
+   The card is a div with one invisible button stretched across it, because a
+   button cannot contain buttons and these have to be real controls rather than
+   click targets pretending to be. The row is quiet until the pointer is near --
+   the same rule the reordering handles follow -- and faintly present on touch,
+   which has no hover to wait for. */
+.rcard{position:relative}
+.rcard__hit{position:absolute; inset:0; z-index:0; background:none; border:0;
+  cursor:pointer; padding:0; font:inherit; color:inherit}
+.rcard__hit:focus-visible{outline:0; box-shadow:var(--focus)}
+.rcard > :not(.rcard__hit):not(.cardacts){position:relative; pointer-events:none}
+
+.cardacts{position:absolute; top:9px; right:9px; z-index:2; display:flex; gap:5px;
+  opacity:0; transform:translateY(-3px); transition:opacity .16s, transform .16s}
+.rcard:hover .cardacts, .rcard:focus-within .cardacts,
+.rcard.is-picked .cardacts{opacity:1; transform:none}
+@media (hover:none){ .cardacts{opacity:.6; transform:none} }
+.cardacts .cbub{width:28px; height:28px}
+.cardacts .cbub svg{width:15px; height:15px}
+/* The tick is a choice, not a favourite, so it takes the Steel rather than the
+   amber the heart owns. */
+.cbub--tick.is-on{background:var(--steel); border-color:var(--steel); color:#FBF9F5}
+.cbub--tick.is-on:hover{background:var(--steel-ink); border-color:var(--steel-ink); color:#FBF9F5}
+.rcard.is-picked{border-color:var(--steel); box-shadow:0 0 0 1px var(--steel) inset, var(--shadow)}
+
+/* Arrives with the first tick, leaves with the last. It floats rather than
+   sitting in the flow: a bar that pushed the page down would move the cards you
+   are still choosing from. */
+.pickfloat{
+  position:fixed; z-index:60; left:50%; bottom:22px; transform:translateX(-50%);
+  display:flex; align-items:center; gap:12px; padding:9px 12px 9px 16px;
+  background:var(--topbar); color:var(--topbar-ink); box-shadow:var(--lift);
+  font-size:13px; border-radius:var(--r);
+}
+.pickfloat b{font-size:15px; font-variant-numeric:tabular-nums}
+.pickfloat .lnk{color:rgba(251,249,245,.72)}
+.pickfloat .lnk:hover{color:var(--topbar-ink)}
+
+/* ============ ON PAPER ============
+   A page of its own rather than a print stylesheet over the list. The cards on
+   the list draw at 64px, which is a shape to glance at and not something anyone
+   wants printed, and page breaks have to be decided by something that knows
+   where a report starts and ends -- which a grid of cards does not. */
+.sheet{max-width:840px; margin:0 auto; padding:26px 22px 40px; background:var(--surface)}
+.sheet__h{display:flex; align-items:center; gap:16px; padding-bottom:14px;
+  border-bottom:2px solid var(--ink); margin-bottom:22px}
+.sheet__meta{margin-left:auto; text-align:right; font-size:12px; color:var(--ink-3)}
+.sheet__meta b{display:block; font-size:13.5px; color:var(--ink); letter-spacing:-.01em}
+
+/* The whole reason this is a page: a report cut in half by a page break is a
+   report somebody has to hold two sheets up to read. */
+.sheet__r{break-inside:avoid; page-break-inside:avoid;
+  padding:16px 0 18px; border-bottom:1px solid var(--rule)}
+.sheet__r:last-child{border-bottom:0}
+.sheet__rh{display:flex; align-items:baseline; gap:16px; margin-bottom:10px}
+.sheet__t b{display:block; font-size:16px; font-weight:800; letter-spacing:-.02em; color:var(--ink)}
+.sheet__t span{display:block; font-size:11.5px; color:var(--ink-3); margin-top:2px}
+.sheet__v{margin-left:auto; font-size:26px; font-weight:800; letter-spacing:-.03em;
+  color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap}
+.sheet__v i{font-style:normal; font-size:13px; font-weight:700; margin-left:9px}
+.sheet__none{margin:0; font-size:13px; font-style:italic; color:var(--ink-3)}
+.sheet__f{margin:10px 0 0; font-size:11px; color:var(--ink-3)}
+
+@media print{
+  /* Paper is white and ink is ink, whatever the screen was doing. A dark theme
+     printed is a cartridge emptied for nothing. */
+  :root, :root[data-theme="dark"]{
+    --paper:#fff; --surface:#fff; --sunken:#fff; --ground:#fff;
+    --ink:#111; --ink-2:#333; --ink-3:#666;
+    --rule:#ccc; --rule-soft:#e4e4e4; --stripe:#f6f6f6;
+    --shadow:none; --lift:none;
+  }
+  @page{ margin:14mm }
+  body{background:#fff}
+  .noprint, .app > .tbar, .rail, .foot, .menubtn{display:none !important}
+  .sheet{max-width:none; padding:0}
+  .sheet__h{border-bottom-width:1.5px}
+  .charts__one{background:#fff; box-shadow:none; border-color:#ddd; break-inside:avoid}
+  .chart__ar{opacity:.5}
+}

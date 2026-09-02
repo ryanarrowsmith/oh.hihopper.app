@@ -28,7 +28,11 @@ const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
 export default function Reports({ cards: raw }: { cards: Card[] }) {
   const [density, setDensity] = useState<'lg' | 'md' | 'list'>('lg')
   const [open, setOpen] = useState<Card | null>(null)
+  const [openOn, setOpenOn] = useState<'shape' | 'rows'>('shape')
   const [q, setQ] = useState('')
+  // Which cards are chosen for printing. A set of ids and not a flag per card,
+  // because the answer has to survive the list re-sorting under it.
+  const [picked, setPicked] = useState<Set<string>>(new Set())
   const { range, setRange, window: win } = useRange()
 
   /**
@@ -108,29 +112,89 @@ export default function Reports({ cards: raw }: { cards: Card[] }) {
                 </button>))}
               </div>
             : <div className={`rgrid${density === 'md' ? ' rgrid--md' : ''}`}>
-                {list.map((c) => <ReportCard key={c.id} c={c} onOpen={() => setOpen(c)} />)}
+                {list.map((c) => (
+                  <ReportCard key={c.id} c={c}
+                    onOpen={() => { setOpenOn('shape'); setOpen(c) }}
+                    onRows={() => { setOpenOn('rows'); setOpen(c) }}
+                    selected={picked.has(c.id)}
+                    onSelect={() => setPicked((p) => {
+                      const n = new Set(p); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n
+                    })} />
+                ))}
               </div>}
         </section>
       ))}
 
-      {open && <ReportPop c={open} onClose={() => setOpen(null)} />}
+      {open && <ReportPop c={open} startOn={openOn} onClose={() => setOpen(null)} />}
+
+      {/* Choosing cards is only worth doing if something happens next, so the
+          bar arrives with the first tick and leaves with the last. It floats
+          rather than sitting in the flow, because a bar that pushed the page
+          down would move the cards you are still choosing from. */}
+      {picked.size > 0 && (
+        <div className="pickfloat" role="region" aria-label="Chosen reports">
+          <b>{picked.size}</b> chosen
+          <button className="lnk" type="button" onClick={() => setPicked(new Set())}>Clear</button>
+          <a className="btn btn--amber"
+             href={`/reporting/print?ids=${[...picked].join(',')}`}
+             target="_blank" rel="noreferrer">Print them</a>
+        </div>
+      )}
     </>
   )
 }
 
-function ReportCard({ c, onOpen }: { c: Card; onOpen: () => void }) {
+/**
+ * A card, and the row of things you can do to it.
+ *
+ * The card stopped being a <button> to get here: a button cannot contain
+ * buttons, and the actions have to be real controls rather than click targets
+ * pretending. So the card is a div with one invisible button stretched across
+ * it — that is what opens the report — and the actions sit above it.
+ *
+ * The row is hidden until the pointer is near, the same rule the reordering
+ * handles follow, and faintly visible on touch, which has no hover to wait for.
+ */
+function ReportCard({ c, onOpen, onRows, selected, onSelect }: {
+  c: Card; onOpen: () => void; onRows: () => void
+  selected: boolean; onSelect: () => void
+}) {
   return (
-    <button className="rcard" type="button" onClick={onOpen}>
+    <div className={`rcard${selected ? ' is-picked' : ''}`}>
+      <button className="rcard__hit" type="button" onClick={onOpen}
+              aria-label={`Open ${c.name}`} />
+
+      <div className="cardacts" onClick={(e) => e.stopPropagation()}>
+        <button className={`cbub cbub--tick${selected ? ' is-on' : ''}`} type="button"
+                aria-pressed={selected} onClick={onSelect}
+                title={selected ? 'Not this one' : 'Choose this one'}
+                aria-label={selected ? 'Not this one' : 'Choose this one'}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"
+               strokeLinecap="round" strokeLinejoin="round"><path d="M4 12l6 6L20 6" /></svg>
+        </button>
+        <CardHeart id={c.id} on={c.favorite} />
+        <button className="cbub" type="button" onClick={onRows}
+                title="The rows behind it" aria-label="The rows behind it">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+               strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="16" /><path d="M3 9h18M3 14h18M9 9v11" /></svg>
+        </button>
+        <button className="cbub" type="button" onClick={onOpen}
+                title="Open it" aria-label="Open it">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+               strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 3h6v6" /><path d="M21 3l-9 9" />
+            <path d="M20 14v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h6" /></svg>
+        </button>
+      </div>
+
       <span className="rcard__c">{c.category ?? 'Uncategorized'}</span>
       <span className="rcard__n">{c.name}</span>
       {c.value == null
         ? <span className="rcard__none">Not read yet</span>
         : <span className="rcard__v">{nf.format(c.value)}</span>}
-      {/* The card carries its registered chart type, but only the HEADLINE
-          measure -- the one the number above it belongs to. Three measures on a
-          64px plot share one scale, and the moment they differ in magnitude two
-          of them lie flat along the bottom saying nothing. The other measures
-          are a click away, where there is room to read them. */}
+      {/* The card carries its own registered chart type, but only the HEADLINE
+          measure -- the one the number above it belongs to. */}
       {(c.series[0]?.points.length ?? 0) > 1 && (
         <span className="rcard__chart">
           <Chart type={c.chartType} series={c.series.slice(0, 1)}
@@ -138,6 +202,32 @@ function ReportCard({ c, onOpen }: { c: Card; onOpen: () => void }) {
         </span>
       )}
       <span className="rcard__f"><Fresh c={c} /></span>
+    </div>
+  )
+}
+
+function CardHeart({ id, on }: { id: string; on: boolean }) {
+  const [, run] = useFormState(toggleFavorite, null)
+  return (
+    <form action={run} className="barform">
+      <input type="hidden" name="object" value="report" />
+      <input type="hidden" name="object_id" value={id} />
+      <input type="hidden" name="back" value="/reporting" />
+      <CardHeartGo on={on} />
+    </form>
+  )
+}
+
+function CardHeartGo({ on }: { on: boolean }) {
+  const { pending } = useFormStatus()
+  return (
+    <button className={`cbub${on ? ' is-on' : ''}`} type="submit" disabled={pending}
+            aria-pressed={on}
+            title={on ? 'In your favourites' : 'Add to your favourites'}
+            aria-label={on ? 'In your favourites' : 'Add to your favourites'}>
+      <svg viewBox="0 0 24 24" fill={on ? 'currentColor' : 'none'} stroke="currentColor"
+           strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 20.2S4 15 4 9.6a4.4 4.4 0 0 1 8-2.5 4.4 4.4 0 0 1 8 2.5c0 5.4-8 10.6-8 10.6z" /></svg>
     </button>
   )
 }
@@ -193,8 +283,12 @@ function ago(iso: string) {
  * never open the second, and the ones who do are usually about to argue with
  * the first.
  */
-function ReportPop({ c, onClose }: { c: Card; onClose: () => void }) {
-  const [tab, setTab] = useState<'shape' | 'rows'>('shape')
+function ReportPop({ c, startOn, onClose }: {
+  c: Card; startOn: 'shape' | 'rows'; onClose: () => void
+}) {
+  // Opened from the rows icon, it opens on the rows. Landing on the chart and
+  // making somebody click again is the icon not having meant anything.
+  const [tab, setTab] = useState<'shape' | 'rows'>(startOn)
   const box = useRef<HTMLDivElement>(null)
 
   return (
