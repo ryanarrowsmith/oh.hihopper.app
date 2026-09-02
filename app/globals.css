@@ -1206,7 +1206,11 @@ select.field{appearance:none}
    artwork contained inside, so a transparent PNG, a wide wordmark and a square
    badge all sit correctly without anyone cropping anything. No logo on file is
    not an empty box: it falls back to the mark on its plate, one size up. */
-.hi{display:flex; align-items:center; gap:clamp(14px,2vw,22px)}
+/* Only the headers that carry a logo become a row. Making .hi flex outright
+   put the heading and its scopeline side by side on the seven pages that were
+   never rewritten for it -- the home page among them. A rule that changes
+   pages you did not open is not a rule, it is a bug with good intentions. */
+.hi:has(> .hi__t){display:flex; align-items:center; gap:clamp(14px,2vw,22px)}
 .hi__t{flex:1; min-width:0}
 .orglogo{
   flex:none; width:88px; height:88px; padding:10px;
@@ -1425,3 +1429,7 @@ select.field{appearance:none}
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 @media (max-width:640px){ .leadline__nm{white-space:normal; text-align:right} }
+
+/* The star sits on the card's name line, so a map card says head office the
+   same way a row does. */
+.mapcard__name{display:flex; align-items:center; gap:8px}

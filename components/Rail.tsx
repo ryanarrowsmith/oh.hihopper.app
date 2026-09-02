@@ -53,20 +53,26 @@ const TAIL: Item[] = [
     icon: I('<path d="M12 3l7.5 3.4v5.2c0 4.3-3 7.6-7.5 9.4-4.5-1.8-7.5-5.1-7.5-9.4V6.4z"/>') },
 ]
 
-function Group({ items, path }: { items: Item[]; path: string }) {
+function Group({ items, path, here }: { items: Item[]; path: string; here: string }) {
   const [open, setOpen] = useState<Record<string, boolean>>({})
   return (
     <div className="nav">
       {items.map((it) => {
-        const on = it.href === '/' ? path === '/' : path.startsWith(it.href)
+        const on = it.href === here
         if (!it.kids) return (
-          <Link key={it.href} href={it.href as any} className={on ? 'on' : ''}>{it.icon}{it.label}</Link>
+          <Link key={it.href} href={it.href as any} className={on ? 'on' : ''}
+                aria-current={on ? 'page' : undefined}>{it.icon}{it.label}</Link>
         )
-        const isOpen = open[it.href] ?? false
+        // A submenu holding the current page opens itself. The old default of
+        // closed meant landing on Locations lit the parent and hid the child --
+        // the one item that was actually where you are.
+        const holds = it.kids.some((k) => k.href === here)
+        const isOpen = open[it.href] ?? (on || holds)
         return (
           <div key={it.href}>
             <div className="par" aria-expanded={isOpen}>
-              <Link href={it.href as any} className={on ? 'on' : ''}>{it.icon}{it.label}</Link>
+              <Link href={it.href as any} className={on ? 'on' : ''}
+                    aria-current={on ? 'page' : undefined}>{it.icon}{it.label}</Link>
               <button className="navcar" type="button"
                 aria-label={`${isOpen ? 'Hide' : 'Show'} what's under ${it.label}`}
                 onClick={() => setOpen({ ...open, [it.href]: !isOpen })}>
@@ -76,7 +82,8 @@ function Group({ items, path }: { items: Item[]; path: string }) {
             </div>
             <div className="kids">
               {it.kids.map((k) => (
-                <Link key={k.href} href={k.href as any} className={path === k.href ? 'on' : ''}>
+                <Link key={k.href} href={k.href as any} className={k.href === here ? 'on' : ''}
+                      aria-current={k.href === here ? 'page' : undefined}>
                   <Elbow />{k.label}
                 </Link>
               ))}
@@ -88,12 +95,30 @@ function Group({ items, path }: { items: Item[]; path: string }) {
   )
 }
 
+/**
+ * Which one entry is the current page.
+ *
+ * `startsWith` lit every ancestor at once: on /admin/organizations/locations
+ * both Organizations and Admin claimed to be where you are, which is three
+ * highlights for one location. The longest matching href wins instead -- the
+ * most specific answer is the true one -- and matching stops at a path
+ * boundary, so /admin/organizations never claims /admin/organizations-archive.
+ */
+function currentHref(path: string, items: Item[]) {
+  const holds = (href: string) =>
+    href === '/' ? path === '/' : path === href || path.startsWith(href + '/')
+  const all = items.flatMap((i) => [i.href, ...(i.kids ?? []).map((k) => k.href)])
+  return all.filter(holds).sort((a, b) => b.length - a.length)[0] ?? '/'
+}
+
 export default function Rail({ modules }: { modules: string[] }) {
   const path = usePathname()
   const [open, setOpen] = useState(false)
   const mods = modules.map((m) => MODULE_NAV[m]).filter(Boolean)
-  const here = [...FRAME, ...mods, ...TAIL].find(
-    (i) => (i.href === '/' ? path === '/' : path.startsWith(i.href)))?.label ?? 'Home'
+  const items = [...FRAME, ...mods, ...TAIL]
+  const here = currentHref(path, items)
+  const label = items.flatMap((i) => [i, ...(i.kids ?? [])])
+    .find((i) => i.href === here)?.label ?? 'Home'
 
   return (
     <>
@@ -101,7 +126,7 @@ export default function Rail({ modules }: { modules: string[] }) {
               onClick={() => setOpen(!open)}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
              strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
-        Menu <span className="cur">· {here}</span>
+        Menu <span className="cur">· {label}</span>
         <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
              strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
       </button>
@@ -109,14 +134,14 @@ export default function Rail({ modules }: { modules: string[] }) {
       <nav className={`rail${open ? ' open' : ''}`} id="rail" aria-label="Main"
            onClick={(e) => { if ((e.target as HTMLElement).closest('a')) setOpen(false) }}>
         <p className="rail__lbl">The frame</p>
-        <Group items={FRAME} path={path} />
+        <Group items={FRAME} path={path} here={here} />
         {/* A module that is off is absent, not greyed out. */}
         {mods.length > 0 && <>
           <p className="rail__lbl">Modules</p>
-          <Group items={mods} path={path} />
+          <Group items={mods} path={path} here={here} />
         </>}
         <div className="rail__cut" />
-        <Group items={TAIL} path={path} />
+        <Group items={TAIL} path={path} here={here} />
       </nav>
     </>
   )

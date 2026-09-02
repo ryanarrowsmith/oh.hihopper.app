@@ -7,6 +7,7 @@ import ModuleToggle from '@/components/ModuleToggle'
 import FavoriteButton from '@/components/CardActions'
 import { EditableSection, RecordRow, RowForm, RowDanger, Toggle } from '@/components/RowEdit'
 import Choice from '@/components/Choice'
+import { HeadOffice } from '@/components/Icons'
 import { MODULES } from '@/lib/access'
 import {
   updateEntity, createDepartment, updateDepartment, deleteDepartment,
@@ -341,10 +342,11 @@ export default async function Entity({ params }: { params: { id: string } }) {
                   : <div className="lmap lmap--none" style={{ minHeight: 150 }}>
                       <div>No pin yet</div>
                     </div>}
-                <span className="mapcard__name">{l.name}</span>
+                <span className="mapcard__name">
+                  <HeadOffice on={!!l.is_head_office} />{l.name}
+                </span>
                 <span className="mapcard__sub">
                   {[l.city, l.region].filter(Boolean).join(', ') || 'No address yet'}
-                  {l.is_head_office && ' · Head office'}
                 </span>
               </a>
             ))}
