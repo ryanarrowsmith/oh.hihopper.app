@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { supabaseServer } from '@/lib/supabase/server'
 import { currentSession } from '@/lib/tenant'
 import { logAudit } from '@/lib/audit'
+import { addressOf, geocode } from '@/lib/mapbox'
 
 export type Result = { ok: boolean; message: string }
 
@@ -87,25 +88,61 @@ export async function createLocation(_prev: Result | null, form: FormData): Prom
   const entity_id = str(form, 'entity_id'), name = str(form, 'name')
   if (!entity_id || !name) return { ok: false, message: 'A location needs a name.' }
 
-  const { error } = await db.schema('hopper').from('location').insert({
-    account_id: account, entity_id, name,
+  const place = {
     address_line1: nul(form, 'address_line1'), address_line2: nul(form, 'address_line2'),
     city: nul(form, 'city'), region: nul(form, 'region'),
     postal_code: nul(form, 'postal_code'),
     country: str(form, 'country') || 'United States',
+  }
+
+  // A pin typed by hand wins. Somebody who moved it did so because the
+  // geocoder was wrong about their yard, and re-resolving would undo that.
+  let latitude = num(form, 'latitude'), longitude = num(form, 'longitude')
+  let geocoded_at: string | null = null
+  if (latitude == null || longitude == null) {
+    const pin = await geocode(addressOf(place))
+    if (pin) { latitude = pin.latitude; longitude = pin.longitude; geocoded_at = new Date().toISOString() }
+  }
+
+  const { error } = await db.schema('hopper').from('location').insert({
+    account_id: account, entity_id, name, ...place,
     time_zone: str(form, 'time_zone') || 'America/Chicago',
     is_head_office: form.get('is_head_office') === 'on',
-    // A pin is a pair or it is nothing -- the database refuses half of one,
-    // because half a pin draws a map of the wrong place.
-    latitude: num(form, 'latitude'), longitude: num(form, 'longitude'),
+    latitude, longitude, geocoded_at,
   })
   if (error) return { ok: false, message: refused(error.message, 'location') }
 
   await logAudit(db, { account_id: account, kind: 'location', object: name,
-    object_id: entity_id, summary: `Added the location ${name}` })
+    object_id: entity_id, summary: `Added the location ${name}`,
+    note: latitude == null ? 'No pin — the address did not resolve.' : null })
   revalidatePath(`/admin/organizations/${entity_id}`)
   revalidatePath('/admin/organizations/locations')
-  return { ok: true, message: `${name} added.` }
+  return { ok: true, message: latitude == null
+    ? `${name} added. The address did not resolve to a map pin — check it, or type coordinates.`
+    : `${name} added and pinned.` }
+}
+
+/** Re-resolve a pin from the address on demand. */
+export async function repinLocation(_prev: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const id = str(form, 'id')
+  const { data: loc, error: readErr } = await db.schema('hopper').from('location')
+    .select('*').eq('id', id).maybeSingle()
+  if (readErr || !loc) return { ok: false, message: 'That location is not there.' }
+
+  const pin = await geocode(addressOf(loc))
+  if (!pin) return { ok: false, message:
+    'Mapbox could not place that address confidently. Check it, or type coordinates by hand.' }
+
+  const { error } = await db.schema('hopper').from('location')
+    .update({ latitude: pin.latitude, longitude: pin.longitude,
+              geocoded_at: new Date().toISOString() }).eq('id', id)
+  if (error) return { ok: false, message: refused(error.message, 'location') }
+
+  await logAudit(db, { account_id: account, kind: 'location', object: loc.name,
+    object_id: loc.entity_id, summary: `Re-pinned ${loc.name} from its address` })
+  revalidatePath(`/admin/organizations/${loc.entity_id}`)
+  return { ok: true, message: 'Pinned.' }
 }
 
 /**
@@ -123,12 +160,9 @@ export async function setEntityAdmins(_prev: Result | null, form: FormData): Pro
   if (!entity_id) return { ok: false, message: 'No organization.' }
   const admins = new Set(form.getAll('admin').map(String))
 
-  // Only the grants scoped to THIS organization are rewritten. A person's view
-  // grant elsewhere, or on a parent, is none of this screen's business.
   const cur = await db.schema('hopper').from('access_grant')
     .select('id, person_id, may_view').eq('object', 'entity').eq('scope_id', entity_id)
   if (cur.error) return { ok: false, message: refused(cur.error.message, 'administrator') }
-
   const had = new Map((cur.data ?? []).map((r: any) => [r.person_id, r]))
 
   for (const person_id of admins) {
@@ -144,7 +178,7 @@ export async function setEntityAdmins(_prev: Result | null, form: FormData): Pro
 
   // Standing down as administrator leaves the person able to SEE the
   // organization. Removing their sight of it is a different decision, and it
-  // belongs on the Permissions screen where it is visible as one.
+  // belongs on Permissions where it reads as one.
   for (const [person_id, row] of had) {
     if (admins.has(person_id)) continue
     const res = await db.schema('hopper').from('access_grant')

@@ -827,3 +827,35 @@ select.field{appearance:none}
 .crumbs__step{display:inline-flex; align-items:center}
 .crumbs__sep{margin:0 8px; color:var(--canvas-2); font-weight:600}
 .crumbs [aria-current="page"]{color:var(--ink-3)}
+
+/* ============ LOCATION MAP ============ */
+.lmap{
+  position:relative; margin:0; overflow:hidden;
+  border:1px solid var(--rule); border-radius:var(--r); background:var(--sunken);
+}
+.lmap img{width:100%; height:100%; object-fit:cover; display:block}
+/* the pin sits on the centre of the frame, which is the point the image is
+   centred on -- no offset maths, and it cannot drift out of agreement */
+.lmap__pin{
+  position:absolute; left:50%; top:50%; width:22px; height:29px;
+  transform:translate(-50%,-100%); filter:drop-shadow(0 2px 3px rgba(35,31,32,.45));
+}
+.lmap__pin svg{width:100%; height:100%; display:block}
+.lmap__cap{
+  position:absolute; left:0; right:0; bottom:0;
+  background:linear-gradient(to top, rgba(35,31,32,.82), rgba(35,31,32,0));
+  color:#FBF9F5; font-size:12.5px; font-weight:700; padding:22px 12px 9px;
+}
+.lmap--none{
+  display:grid; place-items:center; text-align:center; padding:18px;
+  color:var(--ink-3); font-size:13px; background:var(--sunken);
+  border:1px dashed var(--rule);
+}
+.maps{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; margin-top:14px}
+
+/* A form whose only control is a quiet repair action. */
+.lmap--none .formgrid__go .btn{
+  background:var(--surface); border-color:var(--rule); color:var(--ink);
+}
+.lmap--none .formgrid__go .btn:hover{border-color:var(--ink-3); background:var(--sunken)}
+.lmap--none .formgrid{gap:8px}

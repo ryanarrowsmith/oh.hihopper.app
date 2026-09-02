@@ -3,7 +3,9 @@ import { supabaseServer } from '@/lib/supabase/server'
 import Section from '@/components/Section'
 import { MODULES } from '@/lib/access'
 import ActionForm from '@/components/ActionForm'
-import { updateEntity, createDepartment, createLocation, setEntityAdmins } from '@/app/actions/admin'
+import { updateEntity, createDepartment, createLocation, setEntityAdmins,
+         repinLocation } from '@/app/actions/admin'
+import LocationMap from '@/components/LocationMap'
 
 export default async function Entity({ params }: { params: { id: string } }) {
   const db = supabaseServer()
@@ -134,6 +136,32 @@ export default async function Entity({ params }: { params: { id: string } }) {
             ))}</tbody>
           </table></div>
         )}
+
+        {(locations?.length ?? 0) > 0 && (
+          <div className="maps">
+            {locations!.map((l: any) => (
+              l.latitude != null
+                ? <LocationMap key={l.id} lat={l.latitude} lng={l.longitude}
+                               label={l.name} />
+                : <div className="lmap lmap--none" key={l.id} style={{ minHeight: 190 }}>
+                    <div>
+                      <b style={{ display: 'block', color: 'var(--ink-2)', marginBottom: 6 }}>
+                        {l.name}
+                      </b>
+                      No pin yet. Mapbox could not place this address, or maps
+                      are not configured.
+                      <div style={{ marginTop: 10 }}>
+                        <ActionForm action={repinLocation} label="Try pinning it"
+                                    busy="Looking…">
+                          <input type="hidden" name="id" value={l.id} />
+                        </ActionForm>
+                      </div>
+                    </div>
+                  </div>
+            ))}
+          </div>
+        )}
+
         <details className="add">
           <summary>Add a location</summary>
           <div className="add__body">
@@ -166,6 +194,11 @@ export default async function Entity({ params }: { params: { id: string } }) {
                   <input className="field" id="l-tz" name="time_zone"
                          defaultValue="America/Chicago" /></div>
               </div>
+              <p className="fine">
+                The pin is worked out from the address when you save. Type
+                coordinates only to overrule it — a hand-placed pin is never
+                re-resolved, because somebody moved it for a reason.
+              </p>
               <div className="formrow">
                 <div><label htmlFor="l-lat">Latitude</label>
                   <input className="field" id="l-lat" name="latitude" inputMode="decimal"
