@@ -1,5 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server'
 import Section from '@/components/Section'
+import ActionForm from '@/components/ActionForm'
+import { savePermissions } from '@/app/actions/admin'
 import { FLAT_OBJECTS, PLACE_VERBS, held, type Grant } from '@/lib/access'
 
 export default async function Permissions({
@@ -43,6 +45,9 @@ export default async function Permissions({
             </table></div>
           </Section>
 
+          <ActionForm action={savePermissions} label="Save permissions" busy="Saving…"
+                      className="">
+          <input type="hidden" name="person_id" value={who} />
           <Section title="Everything else"
             blurb="The things that are not places. Each row carries only the verbs that mean something for it.">
             <div className="tblwrap"><table className="matrix">
@@ -78,6 +83,7 @@ export default async function Permissions({
               ))}</tbody>
             </table></div>
           </Section>
+          </ActionForm>
         </>
       )}
     </>

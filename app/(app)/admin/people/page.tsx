@@ -1,5 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server'
 import Section from '@/components/Section'
+import ActionForm from '@/components/ActionForm'
+import { createPerson } from '@/app/actions/admin'
 
 export default async function People() {
   const db = supabaseServer()
@@ -19,7 +21,7 @@ export default async function People() {
       </div>
 
       <Section title="Everyone" blurb={`${people?.length ?? 0} on the roster.`}
-        action={<a className="btn btn--amber">Add a person</a>}>
+        action={null}>
         {(people?.length ?? 0) === 0 ? <p className="empty">Nobody you can see.</p> : (
           <div className="tblwrap"><table className="tbl">
             <thead><tr><th>Name</th><th>Role</th><th>Organization</th><th>Sign-in</th><th>Status</th></tr></thead>
@@ -36,6 +38,36 @@ export default async function People() {
             ))}</tbody>
           </table></div>
         )}
+
+        <details className="add">
+          <summary>Add a person</summary>
+          <div className="add__body">
+            <ActionForm action={createPerson} label="Add them" busy="Adding…">
+              <div className="formrow">
+                <div><label htmlFor="p-name">Full name</label>
+                  <input className="field" id="p-name" name="full_name" required /></div>
+                <div><label htmlFor="p-email">Email</label>
+                  <input className="field" id="p-email" name="email" type="email" /></div>
+              </div>
+              <div className="formrow">
+                <div><label htmlFor="p-role">Role</label>
+                  <input className="field" id="p-role" name="role_title"
+                         placeholder="Dispatch manager" /></div>
+                <div><label htmlFor="p-entity">Organization</label>
+                  <select className="field" id="p-entity" name="entity_id" defaultValue="">
+                    <option value="">Not placed yet</option>
+                    {(entities ?? []).map((e: any) => (
+                      <option key={e.id} value={e.id}>{e.name}</option>
+                    ))}
+                  </select></div>
+              </div>
+              <p className="fine">
+                Adding somebody puts them on the roster. It does not give them a login —
+                the platform owns identity, and an invitation is a separate, deliberate act.
+              </p>
+            </ActionForm>
+          </div>
+        </details>
       </Section>
     </>
   )

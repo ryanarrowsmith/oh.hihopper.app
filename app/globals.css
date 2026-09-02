@@ -308,8 +308,9 @@ a.bub{text-decoration:none}
 @media (hover:none){ .bubl{opacity:1} }
 
 .main{
-  background-color:var(--paper); background-image:radial-gradient(var(--dot) 1px, transparent 1px);
-  background-size:var(--dot-gap) var(--dot-gap); background-position:-1px -1px;
+  /* Flat paper. The dotted grid is the ground the container sits ON -- putting
+     it inside as well made the canvas compete with its own frame. */
+  background:var(--paper);
   padding:clamp(18px,2.6vw,30px) clamp(16px,2.6vw,30px) 34px; min-width:0;
 }
 
@@ -771,3 +772,58 @@ select.field{appearance:none}
 @media (max-width:640px){
   .mailpop{right:auto; left:0; transform:translateX(calc(-100% + 40px)); width:300px}
 }
+
+/* ============ FORMS ============ */
+.formgrid{display:flex; flex-direction:column; gap:12px}
+.formgrid label{
+  display:block; font-size:11px; font-weight:800; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3); margin-bottom:5px;
+}
+.formrow{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px}
+.formgrid__go{display:flex; gap:9px; margin-top:2px}
+.note{padding:10px 12px; font-size:13.5px; border-radius:var(--r)}
+.note--ok{background:var(--sunken); border:1px solid var(--good); color:var(--good)}
+.note--err{background:var(--warmbg); border:1px solid var(--bad); color:var(--bad)}
+.checkline{display:flex; align-items:center; gap:9px; font-size:14px; color:var(--ink-2)}
+
+/* A disclosure, so the form is one tap away and never in the way. No script:
+   the browser already knows how to open and close a thing. */
+.add{margin-top:14px}
+.add > summary{
+  list-style:none; cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+  font-size:13px; font-weight:700; padding:7px 13px; border-radius:var(--r);
+  border:1px solid var(--amber); background:var(--amber); color:#231F20;
+}
+.add > summary::-webkit-details-marker{display:none}
+.add > summary:hover{background:#E39B29; border-color:#E39B29}
+.add[open] > summary{background:transparent; color:var(--ink); border-color:var(--rule)}
+.add__body{
+  margin-top:12px; padding:16px; background:var(--surface);
+  border:1px solid var(--rule); border-radius:var(--r);
+}
+
+/* ============ BREADCRUMBS ============
+   Cut into the canvas rather than printed on it: the letters take a deeper
+   shade of the canvas, and a single hairline of paper sits directly beneath
+   them. That highlight is the whole trick -- it reads as the light catching
+   the lower edge of something carved, which is why the shadow flips to a dark
+   one in dark mode instead of being dropped. */
+.crumbs{
+  display:flex; align-items:center; flex-wrap:wrap; gap:2px 0;
+  margin-bottom:clamp(14px,1.8vw,20px);
+  font-size:12.5px; font-weight:700; letter-spacing:.01em;
+  color:var(--canvas-3);
+  text-shadow:0 1px 0 rgba(255,255,255,.9);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .crumbs{text-shadow:0 -1px 0 rgba(0,0,0,.7)}
+}
+:root[data-theme="dark"] .crumbs{text-shadow:0 -1px 0 rgba(0,0,0,.7)}
+
+.crumbs a{text-decoration:none; color:inherit; padding:2px 0}
+.crumbs a:hover{color:var(--ink-2)}
+.crumbs__home{display:inline-flex; align-items:center}
+.crumbs__home svg{width:15px; height:15px; display:block}
+.crumbs__step{display:inline-flex; align-items:center}
+.crumbs__sep{margin:0 8px; color:var(--canvas-2); font-weight:600}
+.crumbs [aria-current="page"]{color:var(--ink-3)}

@@ -1,5 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server'
 import Section from '@/components/Section'
+import ActionForm from '@/components/ActionForm'
+import { saveModules } from '@/app/actions/admin'
 import { MODULES, CORE_MODULES } from '@/lib/access'
 
 export default async function Modules() {
@@ -31,6 +33,9 @@ export default async function Modules() {
 
       <Section title="Optional modules"
         blurb="Switched on per organization. Off never deletes — the selection waits.">
+        <ActionForm action={saveModules} label="Save modules" busy="Saving…" className="">
+        {(entities ?? []).map((e: any) => <input key={e.id} type="hidden" name="entity" value={e.id} />)}
+        {MODULES.map((m) => <input key={m.key} type="hidden" name="module" value={m.key} />)}
         <div className="tblwrap"><table className="matrix">
           <thead><tr>
             <th>Organization</th>
@@ -41,13 +46,15 @@ export default async function Modules() {
               <td style={{ paddingLeft: e.parent_id ? 30 : undefined }}><b>{e.name}</b></td>
               {MODULES.map((m) => (
                 <td key={m.key}>
-                  <input type="checkbox" readOnly defaultChecked={on(e.id, m.key)}
+                  <input type="checkbox" name="on" value={`${e.id}:${m.key}`}
+                         defaultChecked={on(e.id, m.key)}
                          aria-label={`${e.name}: ${m.label}`} />
                 </td>
               ))}
             </tr>
           ))}</tbody>
         </table></div>
+        </ActionForm>
       </Section>
     </>
   )

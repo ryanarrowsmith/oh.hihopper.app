@@ -1,5 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server'
 import Section from '@/components/Section'
+import ActionForm from '@/components/ActionForm'
+import { createEntity } from '@/app/actions/admin'
 
 export default async function Organizations() {
   const db = supabaseServer()
@@ -36,7 +38,7 @@ export default async function Organizations() {
       </div>
 
       <Section title="The portfolio" blurb={`${all.length} organizations, ${roots.length} at the top.`}
-        action={<a className="btn btn--amber" href="/admin/organizations/new">Add an organization</a>}>
+        action={null}>
         {all.length === 0
           ? <p className="empty">No organizations you can open. Either none exist yet, or none have been granted to you.</p>
           : <div className="tree">
@@ -47,6 +49,38 @@ export default async function Organizations() {
                 </div>
               ))}
             </div>}
+
+        <details className="add">
+          <summary>Add an organization</summary>
+          <div className="add__body">
+            <ActionForm action={createEntity} label="Add it" busy="Adding…">
+              <div className="formrow">
+                <div><label htmlFor="e-name">Name</label>
+                  <input className="field" id="e-name" name="name" required
+                         placeholder="Locked Up Self Storage" /></div>
+                <div><label htmlFor="e-legal">Legal name</label>
+                  <input className="field" id="e-legal" name="legal_name"
+                         placeholder="Optional" /></div>
+              </div>
+              <div className="formrow">
+                <div><label htmlFor="e-mark">Mark</label>
+                  <input className="field" id="e-mark" name="mark" maxLength={4}
+                         placeholder="LU" /></div>
+                <div><label htmlFor="e-parent">Sits under</label>
+                  <select className="field" id="e-parent" name="parent_id" defaultValue="">
+                    <option value="">Nothing — it&rsquo;s a top-level organization</option>
+                    {all.map((e: any) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                  </select></div>
+                <div><label htmlFor="e-status">Status</label>
+                  <select className="field" id="e-status" name="status" defaultValue="setup">
+                    <option value="setup">Setting up</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select></div>
+              </div>
+            </ActionForm>
+          </div>
+        </details>
       </Section>
     </>
   )

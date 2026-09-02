@@ -4,6 +4,7 @@ import { supabaseServer } from '@/lib/supabase/server'
 import Rail from '@/components/Rail'
 import TopBar from '@/components/TopBar'
 import Footer from '@/components/Footer'
+import Crumbs from '@/components/Crumbs'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await currentSession()
@@ -27,7 +28,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <TopBar initials={session.initials} entities={entities ?? []} />
       <div className="shell">
         <Rail modules={modules} />
-        <main className="main">{children}</main>
+        <main className="main">
+          <Crumbs entities={entities ?? []} />
+          {children}
+        </main>
       </div>
       <Footer />
     </div>
