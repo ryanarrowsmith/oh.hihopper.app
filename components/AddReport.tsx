@@ -2,7 +2,9 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Choice from '@/components/Choice'
-import Chart, { Legend, type Series } from '@/components/Chart'
+import Chart, {
+  Legend, CHART_KINDS, measureCap, isSplit, type Series, type ChartKind,
+} from '@/components/Chart'
 import { createReport } from '@/app/actions/reports'
 
 type Org = { id: string; name: string }
@@ -33,6 +35,11 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
   const [kind, setKind] = useState('google_sheet')
   const [url, setUrl] = useState('')
   const [tab, setTab] = useState('')
+  /** The tabs the sheet actually has. Null until asked; empty means asked and
+   *  the workbook would not say. */
+  const [tabs, setTabs] = useState<string[] | null>(null)
+  const [tabbing, setTabbing] = useState(false)
+  const [points, setPoints] = useState('')
 
   const [cols, setCols] = useState<Col[] | null>(null)
   const [sample, setSample] = useState<(string | number | null)[][]>([])
@@ -40,7 +47,7 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
   const [looking, setLooking] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
 
-  const [chartType, setChartType] = useState<'line' | 'bar' | 'pie'>('line')
+  const [chartType, setChartType] = useState<ChartKind>('line')
   const [dateCol, setDateCol] = useState('')
   const [measures, setMeasures] = useState<string[]>([])
 
@@ -69,16 +76,24 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
     if (!cols || !dateCol || measures.length === 0) return []
     const di = cols.findIndex((c) => c.label === dateCol)
     if (di < 0) return []
+    const cut = Number(points)
+    const keep = Number.isFinite(cut) && cut >= 2 ? Math.round(cut) : null
     return measures.map((m) => {
       const mi = cols.findIndex((c) => c.label === m)
       return {
         measure: m,
-        points: sample
-          .map((r) => ({ on: String(r[di] ?? ''), v: Number(r[mi]) }))
-          .filter((p) => /^\d{4}-\d{2}-\d{2}/.test(p.on) && Number.isFinite(p.v)),
+        points: (() => {
+          const all = sample
+            .map((r) => ({ on: String(r[di] ?? ''), v: Number(r[mi]) }))
+            .filter((p) => /^\d{4}-\d{2}-\d{2}/.test(p.on) && Number.isFinite(p.v))
+          // The preview obeys the window too. A preview that ignored it would
+          // be showing a chart the saved report is not going to draw, which is
+          // the one thing a preview must never do.
+          return keep ? all.slice(-keep) : all
+        })(),
       }
     }).filter((s) => s.points.length > 0)
-  }, [cols, dateCol, measures, sample])
+  }, [cols, dateCol, measures, sample, points])
   const myDepts = useMemo(() => depts.filter((d) => d.entity_id === org), [depts, org])
   const myCats = useMemo(() => cats.filter((c) => c.department_id === dept), [cats, dept])
 
@@ -115,6 +130,7 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
     f.set('name', name); f.set('entity_id', org); f.set('department_id', dept)
     f.set('category_id', cat); f.set('source_kind', kind); f.set('source_url', url)
     f.set('source_tab', tab); f.set('refresh', refresh); f.set('note', note)
+    f.set('chart_points', points)
     f.set('chart_type', chartType); f.set('date_column', dateCol); f.set('chart_x', dateCol)
     if (restricted) f.set('restricted', 'on')
     for (const m of measures) f.append('measure', m)
@@ -125,6 +141,28 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
   }
 
   const canLeave1 = snapshot || (url.trim().length > 0 && cols !== null)
+  /**
+   * Ask the sheet what is in it.
+   *
+   * The old form asked a PERSON to type the tab name, case-sensitive, and said
+   * so in its own hint -- which is a form asking somebody to be a database, and
+   * a wrong answer that only shows up after the save. The workbook already
+   * knows; this asks it.
+   */
+  async function findTabs() {
+    if (!url.trim()) return
+    setTabbing(true); setFailure(null)
+    try {
+      const r = await fetch('/api/report/tabs', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      }).then((x) => x.json())
+      if (r.ok) setTabs(r.tabs)
+      else { setTabs([]); setFailure(r.failure ?? 'Hopper could not read the tab list.') }
+    } catch { setTabs([]); setFailure('Hopper could not reach the reader.') }
+    finally { setTabbing(false) }
+  }
+
   const canLeave3 = snapshot || (dateCol !== '' && measures.length > 0)
   const canSave = name.trim() && org && dept && cat && note.trim()
 
@@ -186,18 +224,61 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
                     : 'Share → General access → Anyone with the link → Viewer. No key needed.'}
                 </p>
               </div>
-              {/* Two fields, two meanings. A sheet has tabs; a JSON body has a
-                  key holding the list. Same box, because it is the same
-                  question -- which part of what is there? */}
+              {/* A sheet has tabs and Hopper can ask it what they are, so
+                  this is a list you pick from. A link has no such list --
+                  nothing on the other end will enumerate itself -- so there it
+                  stays a box you type a key into, which is honest for a JSON
+                  body and dishonest for a workbook. */}
               <div>
                 <label htmlFor="ar-tab">{kind === 'link' ? 'Which list' : 'Tab'}</label>
-                <input className="field" id="ar-tab" value={tab} onChange={(e) => { setTab(e.target.value); setCols(null) }}
-                       placeholder={kind === 'link' ? 'Leave empty for a CSV' : 'The one the link points at'} />
-                <p className="hint">
-                  {kind === 'link'
-                    ? 'Only for JSON, and only when the rows sit under a name Hopper cannot guess. CSV ignores it.'
-                    : 'Tab names are case-sensitive. Leave it empty for the tab in the link.'}
-                </p>
+                {kind === 'link' ? (
+                  <>
+                    <input className="field" id="ar-tab" value={tab}
+                           onChange={(e) => { setTab(e.target.value); setCols(null) }}
+                           placeholder="Leave empty for a CSV" />
+                    <p className="hint">
+                      Only for JSON, and only when the rows sit under a name Hopper cannot guess.
+                      CSV ignores it.
+                    </p>
+                  </>
+                ) : tabs === null ? (
+                  <>
+                    <button className="btn" type="button" disabled={!url.trim() || tabbing}
+                            onClick={findTabs}>
+                      {tabbing ? 'Asking the sheet…' : 'Show me the tabs'}
+                    </button>
+                    <p className="hint">
+                      Hopper reads the tab list straight out of the workbook. No key, and nothing
+                      to spell correctly.
+                    </p>
+                  </>
+                ) : tabs.length === 0 ? (
+                  <>
+                    <input className="field" id="ar-tab" value={tab}
+                           onChange={(e) => { setTab(e.target.value); setCols(null) }}
+                           placeholder="The one the link points at" />
+                    <p className="hint">
+                      That workbook would not give up its tab list, so this one is by hand.
+                      Names are case-sensitive.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="tabs" role="group" aria-label="Which tab">
+                      {tabs.map((t) => (
+                        <button key={t} type="button" className="tabpick"
+                                aria-pressed={tab === t}
+                                onClick={() => { setTab(t); setCols(null) }}>
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="hint">
+                      {tabs.length} {tabs.length === 1 ? 'tab' : 'tabs'} in that workbook.
+                      One report reads one tab; add another report for another tab.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -264,7 +345,7 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
             <div style={{ padding: 14 }}>
               {preview.length
                 ? <><Chart type={chartType} series={preview} height={220} />
-                    <Legend series={preview} /></>
+                    {!isSplit(preview, chartType) && <Legend series={preview} />}</>
                 : <p className="empty" style={{ margin: 0 }}>
                     Nothing to draw yet — a chart needs something along the bottom
                     and something to measure.
@@ -272,15 +353,40 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
             </div>
           </div>
 
-          <div className="srcs">
-            {([['line', 'A line', 'What it has been doing over time.'],
-               ['bar', 'Bars', 'How periods compare with each other.'],
-               ['pie', 'A pie', 'How one total splits up. One measure only.']] as const).map(([k, t, s]) => (
-              <button key={k} className="src" type="button" aria-pressed={chartType === k}
-                      onClick={() => { setChartType(k); if (k === 'pie') setMeasures((m) => m.slice(0, 1)) }}>
-                <span className="src__t">{t}</span><span className="src__s">{s}</span>
-              </button>
-            ))}
+          {/* Grouped by the question each type answers rather than by shape.
+              Nobody arrives wanting "a stacked column"; they arrive wanting to
+              know what a total is made of. Choosing a type also trims the
+              measures to what that type can draw, so the form cannot hold an
+              answer the chart would refuse. */}
+          {CHART_KINDS.map((g) => (
+            <div key={g.group}>
+              <p className="srchead">{g.group}</p>
+              <div className="srcs srcs--kinds">
+                {g.kinds.map((c) => (
+                  <button key={c.k} className="src" type="button" aria-pressed={chartType === c.k}
+                          onClick={() => {
+                            setChartType(c.k)
+                            setMeasures((m) => m.slice(0, measureCap(c.k)))
+                          }}>
+                    <span className="src__t">{c.t}</span>
+                    <span className="src__s">{c.s}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          <div className="formrow" style={{ marginTop: 18 }}>
+            <div>
+              <label htmlFor="ar-pts">How many readings to draw</label>
+              <input className="field" id="ar-pts" type="number" min={2} max={500}
+                     value={points} onChange={(e) => setPoints(e.target.value)}
+                     placeholder="All of them" />
+              <p className="hint">
+                The most recent this many. Empty draws every reading the date range holds,
+                which is what a chart does until somebody says otherwise.
+              </p>
+            </div>
           </div>
 
           <div className="formrow" style={{ marginTop: 18 }}>
@@ -297,13 +403,18 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
               <div className="chips">
                 {(cols ?? []).filter((c) => c.type === 'number').map((c) => {
                   const on = measures.includes(c.label)
-                  const full = !on && measures.length >= (chartType === 'pie' ? 1 : 3)
+                  const cap = measureCap(chartType)
+                  const full = !on && measures.length >= cap
                   return (
                     <button key={c.key} type="button" className={`chip${on ? ' chip--on' : ''}`}
                       disabled={full}
                       title={full ? (chartType === 'pie'
                         ? 'A pie shows one measure.'
-                        : 'Three is the cap — only the first three colors separate at a glance.') : undefined}
+                        : chartType === 'scatter' ? 'A scatter is exactly two measures.'
+                        : chartType === 'combo' ? 'Columns and a line is two measures.'
+                        : chartType === 'col' || chartType === 'barh' ? 'This type draws one measure.'
+                        : cap === 6 ? 'Six is the cap for a stacked chart — its segments only ever touch their neighbours.'
+                        : 'Ten is the cap.') : undefined}
                       onClick={() => setMeasures(on
                         ? measures.filter((m) => m !== c.label)
                         : [...measures, c.label])}>{c.label}</button>

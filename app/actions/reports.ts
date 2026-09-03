@@ -111,6 +111,13 @@ export async function createReport(_p: Result | null, form: FormData): Promise<R
     chart_type: str(form, 'chart_type') || 'line',
     chart_x: nul(form, 'chart_x'),
     chart_measures: measures.length ? measures : null,
+    // How many of the most recent readings the chart draws. Empty means every
+    // reading the date range holds, which is what every report meant before
+    // this existed -- so an untouched form changes nothing.
+    chart_points: (() => {
+      const n = Number(str(form, 'chart_points'))
+      return Number.isFinite(n) && n >= 2 && n <= 500 ? Math.round(n) : null
+    })(),
     date_column: nul(form, 'date_column'),
     created_by: person, updated_by: person,
   }).select('id').single()
@@ -149,6 +156,13 @@ export async function updateReport(_p: Result | null, form: FormData): Promise<R
     // the edit form -- which has no chart_x field -- silently cleared it.
     chart_x: nul(form, 'chart_x') ?? nul(form, 'date_column'),
     chart_measures: measures.length ? measures : null,
+    // How many of the most recent readings the chart draws. Empty means every
+    // reading the date range holds, which is what every report meant before
+    // this existed -- so an untouched form changes nothing.
+    chart_points: (() => {
+      const n = Number(str(form, 'chart_points'))
+      return Number.isFinite(n) && n >= 2 && n <= 500 ? Math.round(n) : null
+    })(),
     date_column: nul(form, 'date_column'),
     updated_by: person, updated_at: new Date().toISOString(),
   }).eq('id', id)

@@ -165,6 +165,85 @@ function cell(c: any, type: Col['type']): string | number | null {
 
 const strip = (s: string) => s.replace(/<[^>]*>/g, '').trim().slice(0, 400)
 
+/**
+ * Every tab in a Google sheet, without a key.
+ *
+ * The form used to ask people to TYPE the tab name, case-sensitive, and said
+ * so in its own hint -- a form asking somebody to be a database. It could not
+ * do better because the visualization endpoint reads one NAMED tab and cannot
+ * list them; the Sheets API can list them and wants a key.
+ *
+ * The way through is the workbook itself. `export?format=xlsx` answers for any
+ * link-shared sheet with no credential -- the same open door gviz uses -- and
+ * an xlsx is a zip whose `xl/workbook.xml` names every sheet in order.
+ * Verified against a real link-shared workbook before this was written: four
+ * tabs, read anonymously.
+ *
+ * Names only. Hopper does not want the workbook and must not become a copy of
+ * one, so the single entry is inflated and everything else is dropped.
+ */
+async function googleTabs(url: string): Promise<string[]> {
+  const { id } = googleParts(url)
+  if (!id) throw new Fail('not_a_sheet', 'That is not a Google Sheets address.')
+
+  const res = await fetch(`https://docs.google.com/spreadsheets/d/${id}/export?format=xlsx`, {
+    redirect: 'follow', signal: AbortSignal.timeout(12_000),
+  })
+  // Google answers a sheet you may not read with its SIGN-IN PAGE rather than
+  // a 403, so the content type is what says whether we were let in.
+  const type = res.headers.get('content-type') ?? ''
+  if (!res.ok || /text\/html/i.test(type)) {
+    throw new Fail('not_shared',
+      'The sheet is not shared. In Google Sheets: Share → General access → Anyone with the link → Viewer.')
+  }
+
+  const buf = new Uint8Array(await res.arrayBuffer())
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength)
+
+  // The central directory at the TAIL, not the local headers. Google streams
+  // the zip, so every local header carries size 0 and defers to a data
+  // descriptor -- walking from the front stops after one entry, which is
+  // exactly how the first attempt at this quietly found nothing.
+  let eocd = -1
+  for (let i = buf.length - 22; i >= 0 && i > buf.length - 65558; i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break }
+  }
+  if (eocd < 0) throw new Fail('unreadable', 'Google answered with something that was not a workbook.')
+
+  const count = dv.getUint16(eocd + 10, true)
+  let p = dv.getUint32(eocd + 16, true)
+  let wb: { method: number; csize: number; lho: number } | null = null
+  for (let n = 0; n < count && !wb; n++) {
+    const nlen = dv.getUint16(p + 28, true)
+    const elen = dv.getUint16(p + 30, true)
+    const clen = dv.getUint16(p + 32, true)
+    const name = new TextDecoder().decode(buf.subarray(p + 46, p + 46 + nlen))
+    if (name === 'xl/workbook.xml') {
+      wb = { method: dv.getUint16(p + 10, true), csize: dv.getUint32(p + 20, true),
+             lho: dv.getUint32(p + 42, true) }
+    }
+    p += 46 + nlen + elen + clen
+  }
+  if (!wb) throw new Fail('unreadable', 'That workbook has no sheet list in it.')
+
+  const ln = dv.getUint16(wb.lho + 26, true), le = dv.getUint16(wb.lho + 28, true)
+  const at = wb.lho + 30 + ln + le
+  const data = buf.subarray(at, at + wb.csize)
+  const xml = wb.method === 0
+    ? new TextDecoder().decode(data)
+    : await new Response(
+        new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw')),
+      ).text()
+
+  const names = [...xml.matchAll(/<sheet\s[^>]*name="([^"]+)"/g)]
+    .map((m) => m[1]
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+      .replace(/&amp;/g, '&'))
+  if (names.length === 0) throw new Fail('unreadable', 'That workbook names no sheets.')
+  return names
+}
+
 // ------------------------------------------------------- anything at a URL
 
 /** A source that is not a spreadsheet is still a table, so it stops being
@@ -568,6 +647,28 @@ Deno.serve(async (req) => {
     const results = []
     for (const rep of batch) results.push(await look(admin, rep))
     return json({ looked: results.length, left: Math.max(0, (due ?? []).length - batch.length), results })
+  }
+
+  // ---- the form, asking what tabs there are
+  //
+  // Its own action rather than a flag on peek: peek answers "what is IN this
+  // tab" and this answers "what tabs exist" -- one is about a table, the other
+  // about the file it lives in. Folded together, a peek would sometimes pull a
+  // whole workbook to show you eight rows.
+  if (body.tabs) {
+    const auth = req.headers.get('Authorization')
+    if (!auth) return json({ error: 'Not signed in.' }, 401)
+    const who = createClient(URL_, ANON, {
+      global: { headers: { Authorization: auth } }, auth: { persistSession: false },
+    })
+    const { data: { user } } = await who.auth.getUser()
+    if (!user) return json({ error: 'Not signed in.' }, 401)
+
+    try {
+      return json({ ok: true, tabs: await googleTabs(body.tabs.url ?? '') })
+    } catch (err) {
+      return json({ ok: false, failure: err instanceof Fail ? err.message : String(err) })
+    }
   }
 
   // ---- the form, looking before it saves

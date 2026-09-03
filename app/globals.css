@@ -4370,3 +4370,34 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
 /* ── head office ───────────────────────────────────────────────────── */
 .hx .hxhead{display:inline-flex; width:17px; height:17px; flex:none; color:var(--ink-3)}
 .hx .hxhead svg{width:100%; height:100%}
+
+/* A line names itself at its own end, so the name is read where the eye
+   already is rather than matched to a key and looked back for. */
+.chart__end{font-family:var(--mono); font-size:9px; font-weight:700; stroke:none}
+
+/* Some reports are a number. Drawing one as a one-point line is a chart
+   apologising for having nothing to show. */
+.bignum{display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:7px; height:100%; min-height:120px}
+.bignum b{font-size:clamp(38px,6vw,64px); font-weight:800; letter-spacing:-.04em;
+  line-height:1; color:var(--ink); font-variant-numeric:tabular-nums}
+.bignum > span{display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--ink-3)}
+.bignum em{font-style:normal; font-family:var(--mono); font-size:11px; font-weight:700}
+.bignum em.up{color:var(--good)}
+.bignum em.down{color:var(--bad)}
+
+/* ── the tabs a workbook actually has ──────────────────────────────── */
+/* A list you pick from, because the workbook already knows the names and
+   asking a person to spell one correctly is a form asking somebody to be a
+   database. */
+.tabs{display:flex; flex-wrap:wrap; gap:6px}
+.tabpick{
+  padding:7px 12px; background:var(--surface); border:1px solid var(--rule);
+  border-radius:var(--r); font:700 12.5px/1.2 var(--sans); color:var(--ink-2);
+  cursor:pointer; transition:border-color .14s, background .14s, color .14s;
+}
+.tabpick:hover{border-color:var(--canvas-3); color:var(--ink)}
+.tabpick[aria-pressed="true"]{background:var(--amber); border-color:var(--amber); color:#231F20}
+
+/* Twelve types is four rows of three rather than one long shelf. */
+.srcs--kinds{grid-template-columns:repeat(auto-fill,minmax(212px,1fr))}

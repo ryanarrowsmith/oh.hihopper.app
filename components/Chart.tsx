@@ -21,6 +21,60 @@ export type Series = { measure: string; points: { on: string; v: number }[] }
 const SERIES_VAR = ['--s1', '--s2', '--s3'] as const
 const PIE_VAR = ['--s1', '--s2', '--s3', '--steel', '--amber', '--canvas-3'] as const
 
+/**
+ * Twelve types, named by the question they answer.
+ *
+ * Grouped this way because nobody arrives wanting "a stacked column" -- they
+ * arrive wanting to know what a total is made of. Exported so the builder and
+ * the renderer cannot disagree about what exists.
+ */
+export const CHART_KINDS = [
+  { group: 'Compare', kinds: [
+    { k: 'col',  t: 'Columns',           s: 'One measure, period by period.' },
+    { k: 'colg', t: 'Grouped columns',   s: 'Two or three measures side by side in each period.' },
+    { k: 'barh', t: 'Horizontal bars',   s: 'When the labels are long. The reason this exists.' },
+  ] },
+  { group: 'Over time', kinds: [
+    { k: 'line', t: 'Line',              s: 'The shape of a number, named at the end of its own line.' },
+    { k: 'area', t: 'Area',              s: 'A line that says which way is up.' },
+    { k: 'combo', t: 'Columns and a line', s: 'Two measures, two marks. Never two axes.' },
+  ] },
+  { group: 'Parts of a whole', kinds: [
+    { k: 'stack',     t: 'Stacked columns', s: 'What the total is made of.' },
+    { k: 'stack100',  t: '100% stacked',    s: 'The mix, when the total does not matter.' },
+    { k: 'areastack', t: 'Stacked area',    s: 'The mix, over time.' },
+    { k: 'pie',       t: 'Pie',             s: 'How one total splits. The latest reading only.' },
+  ] },
+  { group: 'Relationship', kinds: [
+    { k: 'scatter', t: 'Scatter', s: 'Does one move with the other. Exactly two measures.' },
+  ] },
+  { group: 'One number', kinds: [
+    { k: 'big', t: 'One number', s: 'No chart. The figure, and when it was read.' },
+  ] },
+] as const
+
+export type ChartKind =
+  'col'|'colg'|'barh'|'line'|'area'|'combo'|'stack'|'stack100'|'areastack'|'pie'|'scatter'|'big'|'bar'
+
+/** How many measures a type will actually draw. The builder reads this rather
+ *  than carrying its own copy of the rule. */
+export function measureCap(kind: string) {
+  if (kind === 'pie' || kind === 'big') return 1
+  if (kind === 'scatter') return 2
+  if (kind === 'combo') return 2
+  if (kind === 'col' || kind === 'barh') return 1
+  // Stacked marks touch only their neighbours in a fixed order, so they carry
+  // six; everything else past three is split into a plot each, where a heading
+  // rather than a colour says which is which.
+  if (kind === 'stack' || kind === 'stack100' || kind === 'areastack') return 6
+  return 10
+}
+
+/** Which marks stack, so the scale is the running total rather than the value. */
+const STACKED = new Set(['stack', 'stack100', 'areastack'])
+/** Which marks sit in a slot rather than on a point. */
+const SLOTTED = new Set(['col', 'colg', 'bar', 'stack', 'stack100', 'combo'])
+
 const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
 
 /**
@@ -55,9 +109,16 @@ const SPREAD_LIMIT = 25
  * caller has to know: a legend under split plots is a second label for
  * something each plot already labels itself.
  */
-export function isSplit(series: Series[]) {
+export function isSplit(series: Series[], type?: string) {
   const live = series.filter((s) => s.points.length > 0)
-  return live.length > 1 && spreadOf(live) > SPREAD_LIMIT
+  // A stacked or single-mark chart is never split: its whole point is that the
+  // measures share one picture.
+  if (type && (STACKED.has(type) || ['pie', 'big', 'scatter', 'barh', 'combo'].includes(type))) return false
+  // Past three, colour stops being able to say which line is which -- only the
+  // first three separate all-pairs -- so identity moves to a heading and each
+  // measure gets its own plot. That is also what happens when two measures are
+  // orders of magnitude apart, for a different reason with the same answer.
+  return live.length > 3 || (live.length > 1 && spreadOf(live) > SPREAD_LIMIT)
 }
 
 function spreadOf(series: Series[]) {
@@ -137,8 +198,13 @@ export default function Chart({
   const live = series.filter((s) => s.points.length > 0)
   if (live.length === 0) return null
   if (type === 'pie') return <Pie series={live} height={height} compact={compact} />
+  if (type === 'big') return <Big series={live} />
+  if (type === 'barh') return <BarH series={live} height={height} bare={bare} />
+  if (type === 'scatter') return <Scatter series={live} height={height} bare={bare} labels={labels} />
 
-  const kind = type === 'bar' ? 'bar' : 'line'
+  // 'bar' is what 'col' was called before the kit had twelve types, and every
+  // report that already says so still means this.
+  const kind = type === 'bar' ? 'col' : type
 
   /**
    * One plot, or one plot each.
@@ -154,7 +220,7 @@ export default function Chart({
    * vertical room, which is why a card never does this and shows the headline
    * measure alone instead.
    */
-  if (!bare && live.length > 1 && spreadOf(live) > SPREAD_LIMIT) {
+  if (!bare && isSplit(live, type)) {
     /**
      * The first measure is the headline -- it is the number on the card and at
      * the top of the page -- so it gets the room to show it. Three plots at
@@ -175,7 +241,7 @@ export default function Chart({
               {s.measure}
               <b>{nf.format(s.points[s.points.length - 1].v)}</b>
             </p>
-            <Axes type={kind} series={[s]} height={each} colourFrom={i}
+            <Axes type={kind === 'colg' ? 'col' : kind} series={[s]} height={each} colourFrom={i}
                   labels={labels && i === live.length - 1}
                   days={unionDays(live)} picked={picked} />
           </div>
@@ -207,7 +273,7 @@ function unionDays(series: Series[]) {
  * a component. Only the marks differ, which is the only thing that should.
  */
 function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked }: {
-  type: 'bar' | 'line'; series: Series[]; height: number; labels: boolean; bare?: boolean
+  type: string; series: Series[]; height: number; labels: boolean; bare?: boolean
   /** Which palette slot this plot starts at, so a series keeps its colour when
    *  it is pulled out onto a plot of its own. */
   colourFrom?: number
@@ -219,12 +285,23 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
   const h = height
   // Wide enough for a grouped five-figure number, which is what an unabbreviated
   // tick can now be.
-  const padL = bare ? 2 : 56, padR = bare ? 2 : 16
+  // A line that names itself at its own end needs somewhere to put the name.
+  // Without this the text is drawn past the viewBox and simply vanishes, which
+  // reads as the chart being broken rather than as a label not fitting.
+  const named = !bare && series.length > 1 && (type === 'line' || type === 'area')
+  const padL = bare ? 2 : 56, padR = bare ? 2 : (named ? 104 : 16)
   const padT = bare ? 4 : 16, padB = bare ? 4 : (labels ? 30 : 12)
 
   // Every series is drawn against ONE scale. Two y-axes on one plot is a chart
   // that can be made to say anything by choosing where each axis starts.
-  const all = series.flatMap((s) => s.points.map((p) => p.v))
+  // A stacked mark is measured by its running TOTAL, not by any one value:
+  // scaling to the largest single measure would run every column off the top.
+  const stacked = STACKED.has(type)
+  const totals = days.map((d) =>
+    series.reduce((n, s) => n + (s.points.find((p) => p.on === d)?.v ?? 0), 0))
+  const all = type === 'stack100' ? [0, 100]
+    : stacked ? totals
+    : series.flatMap((s) => s.points.map((p) => p.v))
   const rawLo = Math.min(...all), rawHi = Math.max(...all)
   // Bars are read as areas, so their baseline has to be zero or the picture
   // lies about the ratio between them. A line is read as a slope and may be
@@ -238,8 +315,12 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
    */
   const flat = rawHi === rawLo
   const pad = flat ? Math.abs(rawHi) * 0.5 || 1 : 0
-  const lo = type === 'bar' ? Math.min(0, rawLo) : rawLo - pad
-  const hi = rawHi + (type === 'bar' ? 0 : pad)
+  // Bars and columns are read as AREAS, so their baseline has to be zero or the
+  // picture lies about the ratio between them. A line is read as a slope and
+  // may be zoomed into the band the numbers actually occupy.
+  const fromZero = SLOTTED.has(type) || stacked
+  const lo = fromZero ? Math.min(0, rawLo) : rawLo - pad
+  const hi = rawHi + (fromZero ? 0 : pad)
   const span = hi - lo || 1
 
   const n = days.length
@@ -287,16 +368,79 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
         <line key={`g${d}`} className="chart__pick" x1={x(i)} x2={x(i)} y1={padT} y2={h - padB} />
       ) : null)}
 
-      {type === 'bar' ? series.map((s, si) => {
-        // Bars for several series sit side by side in the slot, never stacked:
-        // a stack answers "what is the total", and these are three separate
-        // measures that have no meaningful total.
-        const bw = Math.max(2, (slot * 0.62) / series.length)
+      {/* ── stacked marks ──────────────────────────────────────────────
+          Each measure starts where the one below it ended, so the height of
+          the pile is the total. 100% divides by that total instead, which is
+          the same picture with the total taken out of it -- right when the mix
+          is the question and the size is not. */}
+      {STACKED.has(type) ? (() => {
+        const run = new Map(days.map((d) => [d, 0]))
+        const bw = Math.max(2, slot * 0.6)
+        return series.map((s, si) => {
+          const seg = days.map((d) => {
+            const raw = s.points.find((p) => p.on === d)?.v ?? 0
+            const tot = series.reduce((n, o) => n + (o.points.find((p) => p.on === d)?.v ?? 0), 0)
+            const v = type === 'stack100' ? (tot ? (raw / tot) * 100 : 0) : raw
+            const y0 = run.get(d)!, y1 = y0 + v
+            run.set(d, y1)
+            return { d, y0, y1 }
+          })
+          const fill = `var(${SERIES_VAR[(si + colourFrom) % 3] ?? PIE_VAR[si % 6]})`
+          const col = `var(${PIE_VAR[(si + colourFrom) % 6]})`
+          if (type === 'areastack') {
+            const up = seg.map((g, k) => `${k ? 'L' : 'M'}${x(at.get(g.d)!).toFixed(1)} ${y(g.y1).toFixed(1)}`).join(' ')
+            const down = [...seg].reverse()
+              .map((g) => `L${x(at.get(g.d)!).toFixed(1)} ${y(g.y0).toFixed(1)}`).join(' ')
+            return <path key={s.measure} d={`${up} ${down} Z`} style={{ fill: col, opacity: 0.74 }} />
+          }
+          return (
+            <g key={s.measure} style={{ fill: col }}>
+              {seg.map((g) => (
+                <rect key={g.d} x={x(at.get(g.d)!) - bw / 2} width={bw}
+                      y={y(g.y1)} height={Math.max(1, y(g.y0) - y(g.y1))} />
+              ))}
+            </g>
+          )
+        })
+      })() : type === 'combo' ? (() => {
+        /* Two measures, two marks, ONE axis and no second one.
+           Where two scales line up is an arbitrary choice, and publishing both
+           manufactures a correlation that is not in the data. When the two are
+           far apart the honest answer is two charts, which is what the split
+           rule already gives -- so this draws them against the shared scale and
+           lets that be visible. */
+        const [b, l] = series
+        const bw = Math.max(2, slot * 0.5)
+        return <>
+          <g style={{ fill: `var(${SERIES_VAR[0]})` }}>
+            {b.points.map((p) => {
+              const i = at.get(p.on); if (i == null) return null
+              const top = y(p.v), base = y(Math.max(lo, 0))
+              return <rect key={p.on} x={x(i) - bw / 2} width={bw}
+                           y={Math.min(top, base)} height={Math.max(1, Math.abs(base - top))} />
+            })}
+          </g>
+          {l && (
+            <g style={{ stroke: `var(${SERIES_VAR[1]})` }}>
+              <path className="chart__ln" d={l.points
+                .map((p) => ({ ...p, i: at.get(p.on) }))
+                .filter((p): p is typeof p & { i: number } => p.i != null)
+                .map((p, k) => `${k ? 'L' : 'M'}${x(p.i).toFixed(1)} ${y(p.v).toFixed(1)}`).join(' ')} />
+            </g>
+          )}
+        </>
+      })() : SLOTTED.has(type) ? series.map((s, si) => {
+        // Side by side in the slot, never piled: a pile answers "what is the
+        // total", and grouped columns are measures that have no meaningful one.
+        const grouped = type === 'colg'
+        const bw = grouped
+          ? Math.max(2, (slot * 0.66) / series.length)
+          : Math.max(2, slot * 0.6)
         return (
           <g key={s.measure} style={{ fill: `var(${SERIES_VAR[(si + colourFrom) % 3]})` }}>
             {s.points.map((p) => {
               const i = at.get(p.on); if (i == null) return null
-              const cx = x(i) - (bw * series.length) / 2 + si * bw
+              const cx = grouped ? x(i) - (bw * series.length) / 2 + si * bw : x(i) - bw / 2
               const top = y(p.v), base = y(Math.max(lo, 0))
               return <rect key={p.on} x={cx} width={bw}
                            className={anyChosen && !chosen!.has(p.on) ? 'is-dim' : undefined}
@@ -305,6 +449,7 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
           </g>
         )
       }) : series.map((s, si) => {
+
         // Positioned by DAY, not by position within this series. A measure
         // missing a Tuesday used to shift its whole line a day to the left.
         const pts = s.points.map((p) => ({ ...p, i: at.get(p.on) }))
@@ -315,7 +460,7 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
         const last = pts[pts.length - 1]
         return (
           <g key={s.measure} style={{ stroke: `var(${SERIES_VAR[(si + colourFrom) % 3]})` }}>
-            {series.length === 1 && (
+            {(series.length === 1 || type === 'area') && (
               <path className="chart__ar"
                     style={{ color: `var(${SERIES_VAR[(si + colourFrom) % 3]})`,
                              fill: `url(#${gid}-a)`, stroke: 'none' }}
@@ -337,6 +482,15 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
                 one more reading. */}
             <circle className="chart__now" cx={x(last.i)} cy={y(last.v)} r="4.4"
                     style={{ stroke: `var(${SERIES_VAR[(si + colourFrom) % 3]})` }} />
+            {/* The line says its own name where the line ends, which is where
+                your eye already is. A legend makes you match a colour to a key
+                and look back -- three operations to answer "which one is that". */}
+            {!bare && series.length > 1 && (
+              <text className="chart__end" x={x(last.i) + 8} y={y(last.v) + 4}
+                    style={{ fill: `var(${SERIES_VAR[(si + colourFrom) % 3]})`, stroke: 'none' }}>
+                {s.measure}
+              </text>
+            )}
           </g>
         )
       })}
@@ -353,6 +507,127 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
       ))}
 
     </svg>
+    </div>
+  )
+}
+
+
+/**
+ * One number, and when it was read. No chart at all.
+ *
+ * A single figure drawn as a one-point line is a chart apologising for having
+ * nothing to show. Some reports are a number; this is what they look like.
+ */
+function Big({ series }: { series: Series[] }) {
+  const s = series[0]
+  const last = s.points[s.points.length - 1]
+  const prev = s.points[s.points.length - 2]
+  const move = prev ? last.v - prev.v : null
+  return (
+    <div className="bignum">
+      <b className="tnum">{nf.format(last.v)}</b>
+      <span>
+        {s.measure} · {day(last.on)}
+        {move !== null && move !== 0 && (
+          <em className={move > 0 ? 'up' : 'down'}>
+            {move > 0 ? '▲' : '▼'} {nf.format(Math.abs(move))}
+          </em>
+        )}
+      </span>
+    </div>
+  )
+}
+
+/**
+ * Bars along the axis instead of up it.
+ *
+ * This type exists for one reason -- long labels -- so the label is the point
+ * of it and gets real room. Reads newest-first down the page, because that is
+ * the order somebody scans a list.
+ */
+function BarH({ series, height, bare }: { series: Series[]; height: number; bare?: boolean }) {
+  const s = series[0]
+  const pts = s.points.slice(-12).reverse()
+  const max = Math.max(...pts.map((p) => Math.abs(p.v)), 1)
+  const rowH = Math.max(18, Math.min(34, height / Math.max(1, pts.length)))
+  const labelW = bare ? 0 : 74
+  const figW = bare ? 0 : 62
+  return (
+    <div className="chartbox" style={{ height: rowH * pts.length + 4 }}>
+      <svg className="chart" viewBox={`0 0 400 ${rowH * pts.length + 4}`} preserveAspectRatio="none"
+           role="img" aria-label={s.measure}>
+        {pts.map((p, i) => {
+          const w = (Math.abs(p.v) / max) * (400 - labelW - figW - 8)
+          const y = i * rowH + rowH * 0.18
+          return (
+            <g key={p.on}>
+              {!bare && (
+                <text className="chart__ax" x={labelW - 8} y={y + rowH * 0.42} textAnchor="end">
+                  {day(p.on)}
+                </text>
+              )}
+              <rect x={labelW} y={y} width={Math.max(1, w)} height={rowH * 0.62}
+                    style={{ fill: 'var(--s1)' }} />
+              {!bare && (
+                <text className="chart__ax" x={labelW + w + 6} y={y + rowH * 0.42}>
+                  {nf.format(p.v)}
+                </text>
+              )}
+            </g>
+          )
+        })}
+      </svg>
+    </div>
+  )
+}
+
+/**
+ * Does one measure move with the other.
+ *
+ * Two measures, and the axes are the measures rather than time -- which is the
+ * whole difference between this and every other type in the kit. A point is a
+ * DAY, so the same day's two readings are what get paired; pairing by position
+ * would quietly compare Monday's sales with Tuesday's count the moment one
+ * measure missed a day.
+ */
+function Scatter({ series, height, bare, labels }: {
+  series: Series[]; height: number; bare?: boolean; labels?: boolean
+}) {
+  const { ref, w } = useWidth()
+  const [ax, ay] = series
+  if (!ax || !ay) return null
+
+  const byDay = new Map(ay.points.map((p) => [p.on, p.v]))
+  const pairs = ax.points
+    .filter((p) => byDay.has(p.on))
+    .map((p) => ({ on: p.on, x: p.v, y: byDay.get(p.on)! }))
+  if (pairs.length === 0) return null
+
+  const padL = bare ? 4 : 56, padR = bare ? 4 : 16
+  const padT = bare ? 6 : 16, padB = bare ? 6 : (labels ? 28 : 12)
+  const xs = pairs.map((p) => p.x), ys = pairs.map((p) => p.y)
+  const xlo = Math.min(...xs), xhi = Math.max(...xs)
+  const ylo = Math.min(...ys), yhi = Math.max(...ys)
+  const sx = (v: number) => padL + ((v - xlo) / ((xhi - xlo) || 1)) * (w - padL - padR)
+  const sy = (v: number) => height - padB - ((v - ylo) / ((yhi - ylo) || 1)) * (height - padT - padB)
+
+  return (
+    <div className="chartbox" ref={ref} style={{ height }}>
+      <svg className="chart" viewBox={`0 0 ${w} ${height}`} role="img"
+           aria-label={`${ax.measure} against ${ay.measure}`}>
+        <line className="chart__base" x1={padL} x2={w - padR} y1={height - padB} y2={height - padB} />
+        <line className="chart__gr" x1={padL} x2={padL} y1={padT} y2={height - padB} />
+        {pairs.map((p) => (
+          <circle key={p.on} cx={sx(p.x)} cy={sy(p.y)} r={bare ? 3 : 5}
+                  style={{ fill: 'var(--s1)' }} opacity=".75">
+            <title>{`${day(p.on)} · ${nf.format(p.x)} / ${nf.format(p.y)}`}</title>
+          </circle>
+        ))}
+        {!bare && <>
+          <text className="chart__ax" x={w - padR} y={height - 6} textAnchor="end">{ax.measure}</text>
+          <text className="chart__ax" x={padL} y={padT - 4}>{ay.measure}</text>
+        </>}
+      </svg>
     </div>
   )
 }

@@ -28,7 +28,7 @@ export async function loadCards(): Promise<Card[]> {
       db.schema('hopper').from('reading')
         .select('report_id, observed_on, value, measure')
         .order('observed_on', { ascending: true }),
-      db.schema('hopper').from('report').select('id, chart_measures'),
+      db.schema('hopper').from('report').select('id, chart_measures, chart_points'),
       db.schema('hopper').from('my_favorites').select('object, object_id').eq('object', 'report'),
     ])
 
@@ -47,6 +47,7 @@ export async function loadCards(): Promise<Card[]> {
   }
 
   const measuresOf = new Map((specs ?? []).map((r: any) => [r.id, r.chart_measures as string[] | null]))
+  const pointsOf = new Map((specs ?? []).map((r: any) => [r.id, r.chart_points as number | null]))
   const hearted = new Set((hearts ?? []).map((h: any) => h.object_id))
 
   return (state ?? []).map((r: any) => ({
@@ -67,7 +68,8 @@ export async function loadCards(): Promise<Card[]> {
     lastFailure: r.last_failure,
     freshness: freshnessOf(r),
     lateBy: lateBy(r),
-    series: orderedSeries(series.get(r.report_id), measuresOf.get(r.report_id)),
+    series: orderedSeries(series.get(r.report_id), measuresOf.get(r.report_id),
+                          pointsOf.get(r.report_id) ?? null),
     dated: !!r.date_column,
     favorite: hearted.has(r.report_id),
   }))
@@ -88,10 +90,19 @@ export async function loadCards(): Promise<Card[]> {
 function orderedSeries(
   byMeasure: Map<string, { on: string; v: number }[]> | undefined,
   named: string[] | null | undefined,
+  /** How many of the most recent readings to draw. Null means all of them. */
+  points: number | null,
 ) {
   if (!byMeasure) return []
   const order = named?.length ? named : [...byMeasure.keys()]
   return order
     .filter((m) => byMeasure.has(m))
-    .map((m) => ({ measure: m, points: byMeasure.get(m)! }))
+    .map((m) => {
+      const all = byMeasure.get(m)!
+      // Sliced from the END, per measure, and AFTER the ordering -- the last
+      // ten readings of each measure, not the last ten rows of the table. A
+      // measure that missed a week would otherwise be drawn a week short
+      // against its neighbours.
+      return { measure: m, points: points ? all.slice(-points) : all }
+    })
 }
