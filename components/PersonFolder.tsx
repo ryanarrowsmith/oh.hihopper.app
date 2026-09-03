@@ -47,13 +47,18 @@ export default function PersonFolder(
       <div className="folder__tab"><h1>{d.full_name}</h1></div>
 
       <div className="folder__b">
+        <span className="folder__paper" aria-hidden="true" />
         <div className="stapled">
           {/* The staple is drawn over the corner of the print, half on it and
               half on the folder, which is the whole of the trick. */}
           <PhotoUpload personId={d.id} name={d.full_name} src={d.photo_url}
                        mine={!!d.is_me} />
-          <svg className="staple" viewBox="0 0 34 22" aria-hidden="true">
-            <path d="M6 15.5 6 6.5 28 6.5 28 15.5" />
+          {/* A corner staple, driven at 45 degrees the way a real one is, half
+              on the print and half in the folder. Two paths: the dark one is
+              the shadow it presses into the paper, the light one is the wire. */}
+          <svg className="staple" viewBox="0 0 44 18" aria-hidden="true">
+            <path className="staple__s" d="M4 15V6.5A2.5 2.5 0 0 1 6.5 4h31A2.5 2.5 0 0 1 40 6.5V15" />
+            <path className="staple__w" d="M4 14V5.5A2.5 2.5 0 0 1 6.5 3h31A2.5 2.5 0 0 1 40 5.5V14" />
           </svg>
         </div>
 

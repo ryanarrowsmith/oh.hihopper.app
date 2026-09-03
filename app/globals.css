@@ -3279,7 +3279,7 @@ a.crow:hover svg{stroke:var(--steel-ink)}
   }
 }
 
-.folder{margin:2px 0 26px; filter:drop-shadow(0 10px 22px rgba(35,31,32,.13))}
+.folder{margin:2px 0 22px; filter:drop-shadow(0 7px 16px rgba(35,31,32,.10))}
 /* The tab is a shape, not a box: the right edge leans the way a cut tab does,
    and it sits on the body with no seam because they are the same colour and
    there is nothing between them. */
@@ -3295,37 +3295,48 @@ a.crow:hover svg{stroke:var(--steel-ink)}
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 .folder__b{
-  background:var(--manilla); border-radius:0 var(--r) var(--r) var(--r);
-  padding:22px 24px; display:flex; gap:26px; align-items:flex-start; flex-wrap:wrap;
-  /* the inside of the fold, catching a little light along the top */
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.34), inset 0 -1px 0 var(--manilla-rule);
+  position:relative; border-radius:0 var(--r) 0 0;
+  padding:22px 24px 62px; display:flex; gap:26px; align-items:flex-start; flex-wrap:wrap;
+  /* The foot of the folder is not drawn, it is let go of.
+     A hard bottom edge makes it a card with a manilla fill; fading it out
+     makes it a folder lying on the desk with its contents above the fold and
+     the rest of it out of frame. The gradient is on the background rather
+     than a mask over the whole element, so the text and the buttons keep
+     their full contrast all the way down -- fading the content as well would
+     be a page that looks like it failed to load.
+     The extra 40px of bottom padding is the room the fade needs; nothing sits
+     in it. */
+  background:linear-gradient(180deg,
+    var(--manilla) 0%, var(--manilla) 52%,
+    color-mix(in srgb, var(--manilla) 55%, transparent) 78%,
+    transparent 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.34);
 }
 
 /* ---- stapled to the front ----
    A print, squared off and tipped a degree and a half. The tilt is the whole
    reason it reads as an object lying on the folder rather than a picture
    printed on it, so it survives at every width. */
-.stapled{position:relative; flex:none; padding:6px 8px 8px 6px}
-.stapled .phw, .stapled .ava{
-  transform:rotate(-1.6deg);
-}
+.stapled{position:relative; flex:none; padding:10px 10px 8px 10px}
+.stapled .phw{transform:rotate(-1.9deg)}
 .stapled .ava{
-  border-radius:3px; background:#fff; padding:7px;
-  box-shadow:0 2px 5px rgba(35,31,32,.26), 0 8px 18px -8px rgba(35,31,32,.4);
+  border-radius:2px; background:#fff; padding:6px;
+  box-shadow:0 2px 4px rgba(35,31,32,.3), 0 10px 20px -9px rgba(35,31,32,.5);
 }
 .stapled .ava--init{
   display:grid; place-items:center;                 /* initials still fill the print */
-  background:var(--steel); color:#FBF9F5; padding:0; border:7px solid #fff;
+  background:var(--steel); color:#FBF9F5; padding:0; border:6px solid #fff;
 }
-.stapled .phbtn{border-radius:3px}
-.stapled .phbtn__veil{border-radius:3px; inset:7px; transform:rotate(-1.6deg)}
+.stapled .phbtn{border-radius:2px}
+.stapled .phbtn__veil{border-radius:2px; inset:6px}
 .staple{
-  position:absolute; top:-2px; left:14px; width:30px; height:20px;
-  fill:none; stroke:#8C8F96; stroke-width:3.4; stroke-linecap:square;
-  transform:rotate(-1.6deg);
-  filter:drop-shadow(0 1px 1px rgba(35,31,32,.45));
+  position:absolute; top:1px; left:-1px; width:38px; height:16px; z-index:2;
+  fill:none; stroke-linecap:butt; overflow:visible;
+  transform:rotate(-45deg); transform-origin:50% 50%;
   pointer-events:none;                              /* the photo underneath is a button */
 }
+.staple__s{stroke:rgba(35,31,32,.42); stroke-width:4.6}
+.staple__w{stroke:#A9AEB6; stroke-width:4}
 
 /* ---- the card inside: ruled lines, the way a file's index card is ---- */
 .ffacts{flex:1 1 260px; min-width:220px; margin:0; display:flex; flex-direction:column}
@@ -3363,6 +3374,16 @@ a.crow:hover svg{stroke:var(--steel-ink)}
 }
 .rch:hover{background:var(--surface); border-color:var(--manilla-ink-2); transform:translateY(-1px)}
 .rch svg{width:17px; height:17px; flex:none}
+
+/* There are papers in it. A sliver of white above the folder's top edge, to
+   the right of where the tab ends -- the one detail that makes it a container
+   rather than a coloured rectangle. */
+.folder__paper{
+  position:absolute; z-index:-1; left:38%; right:16px; top:-7px; height:14px;
+  background:var(--surface); border-radius:3px 3px 0 0;
+  box-shadow:0 -1px 0 var(--rule) inset;
+}
+@media (max-width:700px){ .folder__paper{display:none} }
 
 @media (max-width:560px){
   .folder__b{gap:18px; padding:18px}
