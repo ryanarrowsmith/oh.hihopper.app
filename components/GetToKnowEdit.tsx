@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import { saveProfile } from '@/app/actions/profile'
+import { PALETTE } from '@/lib/palette'
 import Choice from '@/components/Choice'
 
 /**
@@ -39,17 +40,6 @@ export type Answers = {
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December']
-
-/* A palette rather than the operating system's colour wheel: the answer is
-   "forest green", a thing you can say out loud, not #2F6E4F. */
-const PALETTE: [string, string][] = [
-  ['Ink black', '#231F20'], ['Slate', '#55524D'], ['Paper white', '#FBF9F5'],
-  ['Steel blue', '#2D5D7B'], ['Sky', '#7FA8C4'], ['Navy', '#1B3A55'],
-  ['Forest green', '#2F6E4F'], ['Moss', '#6E8A5A'], ['Mint', '#9FCFB4'],
-  ['Marigold', '#F2A93B'], ['Butter', '#F5D98B'], ['Rust', '#B8552F'],
-  ['Brick red', '#A73C2C'], ['Rose', '#D98A97'], ['Plum', '#6B3F63'],
-  ['Lavender', '#A99BC7'], ['Chocolate', '#5A4132'], ['Sand', '#D8C7A8'],
-]
 
 export default function GetToKnowEdit({ personId, mine, answers, title }:
   { personId: string; mine: boolean; answers: Answers; title: string }) {

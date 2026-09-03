@@ -34,11 +34,11 @@ export type Hit = {
 
 const UA = 'Hopper/1.0 (oh.hihopper.app; support@hihopper.app)'
 
-async function grab(url: string, label: string): Promise<{ j: any } | { why: string }> {
+async function grab(url: string, label: string, ms = 8000): Promise<{ j: any } | { why: string }> {
   let res: Response
   try {
     res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' },
-                             cache: 'no-store', signal: AbortSignal.timeout(8000) })
+                             cache: 'no-store', signal: AbortSignal.timeout(ms) })
   } catch (e: any) {
     return { why: `${label} could not be reached (${e?.name ?? 'network error'}).` }
   }
@@ -55,7 +55,12 @@ const bigArt = (u?: string | null) =>
   u ? u.replace(/\/\d+x\d+bb\.(jpg|png)$/, '/600x600bb.$1') : null
 
 const itunes = (kind: 'song' | 'movie') => async (q: string) => {
+  // media AND entity, not entity alone. Searching for a film with entity=movie
+  // and the default media=all answered 200 with an empty list every time --
+  // no error, just nothing, which is the hardest kind of wrong to notice. The
+  // documented pairing is media plus the entity inside it.
   const url = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}`
+    + `&media=${kind === 'song' ? 'music' : 'movie'}`
     + `&entity=${kind === 'song' ? 'song' : 'movie'}&limit=8`
   const r = await grab(url, 'iTunes')
   if ('why' in r) return r
@@ -73,12 +78,45 @@ const itunes = (kind: 'song' | 'movie') => async (q: string) => {
   }
 }
 
+/**
+ * Books: Google first, Open Library behind it.
+ *
+ * Open Library's search took 8.5 seconds and then timed out -- typing a title
+ * and waiting that long is the field feeling broken even when it eventually
+ * answers. Google Books needs no key, answers in well under a second and
+ * carries a thumbnail. Open Library is still here because it is the better
+ * citizen and sometimes has what Google does not, so it gets its turn when
+ * Google comes back empty.
+ */
 async function book(q: string) {
-  const url = 'https://openlibrary.org/search.json'
+  const g = await grab('https://www.googleapis.com/books/v1/volumes'
+    + `?q=${encodeURIComponent(q)}&maxResults=8&printType=books&country=US`,
+    'Google Books', 6000)
+
+  if (!('why' in g) && Array.isArray(g.j?.items) && g.j.items.length) {
+    return {
+      hits: g.j.items.map((x: any): Hit => {
+        const v = x?.volumeInfo ?? {}
+        // The thumbnail comes back on http and with a curl; both are fixable
+        // here rather than in every place that shows a cover.
+        const img = (v.imageLinks?.thumbnail ?? v.imageLinks?.smallThumbnail ?? null)
+        return {
+          id: String(x.id ?? Math.random()),
+          title: v.title ?? 'Untitled',
+          sub: Array.isArray(v.authors) ? v.authors[0] : null,
+          img: img ? img.replace(/^http:/, 'https:').replace(/&edge=curl/, '') : null,
+          url: v.infoLink ?? v.previewLink ?? null,
+          year: v.publishedDate ? Number(String(v.publishedDate).slice(0, 4)) : null,
+        }
+      }),
+    }
+  }
+
+  const r = await grab('https://openlibrary.org/search.json'
     + `?q=${encodeURIComponent(q)}&limit=8`
-    + '&fields=title,author_name,cover_i,key,first_publish_year'
-  const r = await grab(url, 'Open Library')
-  if ('why' in r) return r
+    + '&fields=title,author_name,cover_i,key,first_publish_year',
+    'Open Library', 12000)
+  if ('why' in r) return 'why' in g ? { why: `${g.why} ${r.why}` } : r
   const rows = r.j?.docs
   if (!Array.isArray(rows)) return { why: 'Open Library answered, but without a docs list.' }
   return {
@@ -93,13 +131,28 @@ async function book(q: string) {
   }
 }
 
+/**
+ * Candy: the v2 search, with the old cgi one behind it.
+ *
+ * The legacy /cgi/search.pl endpoint answered 503 -- it is the one Open Food
+ * Facts asks people to stop hammering, and it sheds load first. v2 is the
+ * supported search and holds up; the old one is kept as a fallback because it
+ * still answers when v2 does not know a product.
+ */
 async function candy(q: string) {
-  const url = 'https://world.openfoodfacts.org/cgi/search.pl'
-    + `?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=8`
-    + '&fields=code,product_name,brands,image_front_url,image_front_small_url'
-  const r = await grab(url, 'Open Food Facts')
-  if ('why' in r) return r
-  const rows = r.j?.products
+  const fields = 'code,product_name,brands,image_front_url,image_front_small_url'
+  const v2 = await grab('https://world.openfoodfacts.org/api/v2/search'
+    + `?search_terms=${encodeURIComponent(q)}&page_size=8&fields=${fields}`,
+    'Open Food Facts', 9000)
+
+  let rows = !('why' in v2) && Array.isArray(v2.j?.products) ? v2.j.products : null
+  if (!rows || rows.length === 0) {
+    const r = await grab('https://world.openfoodfacts.org/cgi/search.pl'
+      + `?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=8`
+      + `&fields=${fields}`, 'Open Food Facts', 9000)
+    if ('why' in r) return 'why' in v2 ? { why: v2.why } : r
+    rows = r.j?.products
+  }
   if (!Array.isArray(rows)) return { why: 'Open Food Facts answered, but without a products list.' }
   return {
     hits: rows

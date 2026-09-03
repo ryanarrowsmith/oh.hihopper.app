@@ -1,4 +1,5 @@
 import Avatar from '@/components/Avatar'
+import { hexOf } from '@/lib/palette'
 
 /**
  * The looked-up favorites, drawing themselves.
@@ -70,9 +71,12 @@ export default function Favorites({ p, mapSrc }: { p: Profile; mapSrc: string | 
             value={p.birth_month ? MONTHS[p.birth_month - 1] : null}
             sub="The month, never the date." />
 
+      {/* The stored value is a NAME, so it has to be resolved to a colour before
+          anything can be painted with it. Setting `background: Forest green`
+          painted nothing at all. */}
       <Card label="Favorite color"
             media={<span className="swatch__c"
-                         style={{ background: p.favorite_color ?? 'transparent' }} />}
+                         style={{ background: hexOf(p.favorite_color) ?? 'transparent' }} />}
             value={p.favorite_color} />
 
       <Card label="Favorite restaurant" href={p.restaurant_url}
@@ -102,11 +106,14 @@ export default function Favorites({ p, mapSrc }: { p: Profile; mapSrc: string | 
               : <span className="book"><span>{p.book_title}</span></span>}
             value={p.book_title} sub={p.book_author} />
 
+      {/* Draw a wrapper only when there is nothing to show. A product photo
+          cropped into a fake sweet, with the pinched ends of the drawing
+          sticking out either side of it, was the worst of both. */}
       <Card label="Favorite candy" href={p.candy_url}
             media={
-              <span className="candy">
+              <span className={p.candy_img_url ? 'candypic' : 'candy'}>
                 {p.candy_img_url
-                  ? <img src={p.candy_img_url} alt="" />
+                  ? <img src={p.candy_img_url} alt="" loading="lazy" />
                   : <span>{p.candy}</span>}
               </span>}
             value={p.candy} />

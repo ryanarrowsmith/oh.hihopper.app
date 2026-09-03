@@ -3140,3 +3140,11 @@ a.crow:hover svg{stroke:var(--steel-ink)}
   .charts__one{background:#fff; box-shadow:none; border-color:#ddd; break-inside:avoid}
   .chart__ar{opacity:.5}
 }
+
+/* A real product photo, shown as one: contained on a neutral ground rather than
+   cropped to fill a drawn sweet wrapper. The drawn wrapper stays for the case
+   it was made for -- a candy nobody has a picture of. */
+.candypic{width:104px; height:66px; display:grid; place-items:center; overflow:hidden;
+  background:var(--sunken); border:1px solid var(--rule); border-radius:var(--r)}
+.candypic img{max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain;
+  display:block}
