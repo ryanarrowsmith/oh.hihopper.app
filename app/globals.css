@@ -2000,43 +2000,6 @@ a.gcard:hover{border-color:var(--canvas-3); box-shadow:var(--lift)}
 }
 @media (prefers-reduced-motion:reduce){ .bday .flame{animation:none} }
 
-/* The anchored version of this lived here and has been removed rather than
-   left to rot: it could not work in a grid, and dead CSS is how a class name
-   gets reused later by somebody who thinks it is free. The contact card that
-   replaced it is further down. */
-.mini{display:grid; grid-template-columns:repeat(auto-fill,minmax(88px,1fr)); gap:9px}
-.mini__c{display:block; border:1px solid var(--rule); border-radius:var(--r);
-  background:var(--surface); padding:8px; text-align:center}
-.mini__m{height:52px; display:grid; place-items:center; margin-bottom:6px}
-.mini__m .disc{width:48px; height:48px}
-.mini__m .disc__lab{width:21px; height:21px}
-.mini__m .disc__lab i{width:4px; height:4px}
-.mini__m .post__p, .mini__m .book{width:36px; height:52px; padding:4px}
-.mini__m .post__p span, .mini__m .book span{font-size:6px; line-height:1.2}
-.mini__m .candy{width:52px; height:33px; border-radius:3px}
-.mini__m .candy::before, .mini__m .candy::after{width:9px; height:17px}
-.mini__m .candy::before{left:-8px} .mini__m .candy::after{right:-8px}
-.mini__m .candy span{font-size:6px}
-.mini__m .swatch__c{width:44px; height:44px}
-.mini__m .bday{width:52px; height:52px}
-.mini__m .gmap{width:100%; height:52px}
-.mini__m .gmap svg{width:13px; height:17px}
-.mini__l{font-family:var(--mono); font-size:8px; letter-spacing:.1em; text-transform:uppercase;
-  color:var(--ink-3); display:block}
-.mini__v{font-size:11.5px; font-weight:700; color:var(--ink); display:block; margin-top:2px;
-  line-height:1.3}
-.mini__s{font-size:10.5px; color:var(--ink-3); display:block; margin-top:1px; line-height:1.3}
-
-/* They are worth looking at, so they answer when you look. A tile lifts and
-   warms under the pointer -- enough to say "this one", not enough to make a
-   grid of seven feel like a grid of seven buttons. */
-.mini__c{transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease}
-.mini__c:hover{
-  transform:translateY(-2px) scale(1.03);
-  border-color:var(--amber); box-shadow:var(--lift); z-index:1; position:relative;
-}
-.mini__c:hover .mini__l{color:var(--ink-2)}
-@media (prefers-reduced-motion:reduce){ .mini__c:hover{transform:none} }
 
 /* ============ AN EXPANDED PARENT, LEGIBLY ============
    The children used to be hairlines on one continuous sunken slab, so six
@@ -2126,85 +2089,12 @@ a.gcard:hover{border-color:var(--canvas-3); box-shadow:var(--lift)}
 }
 .lk__list button:hover{background:var(--sunken)}
 
-/* ============ A PERSON, AS A CONTACT CARD ============
-   This hung off the card that raised it, and it broke: a grid of cards gives
-   no z-order guarantee, and every card makes its own stacking context the
-   moment it lifts on hover, so the card after the one you clicked painted
-   straight over the panel. Raising z-index cannot fix that -- a child cannot
-   escape its parent's stacking context.
 
-   Centred on the screen instead, over a scrim. Nothing to be painted over by,
-   nothing to be clipped by, the same place every time whichever card you
-   clicked, and room enough to be an actual contact card rather than a panel
-   squeezed under a tile. */
-.scrim{
-  position:fixed; inset:0; z-index:90; display:grid; place-items:center; padding:20px;
-  background:rgba(35,31,32,.42); backdrop-filter:blur(2px);
-  animation:scrimin .16s ease-out;
-}
-@keyframes scrimin{from{opacity:0}to{opacity:1}}
-.ccard{
-  width:min(440px,100%); max-height:min(86vh,760px); overflow:hidden;
-  display:flex; flex-direction:column; text-align:left;
-  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
-  box-shadow:0 22px 60px rgba(35,31,32,.35);
-  animation:cardin .18s cubic-bezier(.2,.7,.3,1);
-}
-@keyframes cardin{from{opacity:0; transform:translateY(8px) scale(.985)}}
-.ccard:focus{outline:none}
-@media (prefers-reduced-motion:reduce){ .scrim, .ccard{animation:none} }
-
-/* The band across the top is the person: their picture behind, their name on
-   it. A contact card leads with who, not with a field label. */
-.ccard__top{position:relative; padding:18px; display:flex; align-items:flex-end; gap:14px;
-  min-height:132px; background:var(--steel); overflow:hidden}
-.ccard__bg{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
-  object-position:50% 26%; opacity:.34; filter:saturate(.85)}
-.ccard__top::after{content:""; position:absolute; inset:0;
-  background:linear-gradient(180deg, rgba(30,75,102,.15) 0%, rgba(30,75,102,.9) 100%)}
-.ccard__top > .ava{position:relative; z-index:1; border-radius:var(--r);
-  box-shadow:0 0 0 3px rgba(251,249,245,.9)}
-.ccard__who{position:relative; z-index:1; display:block; min-width:0; flex:1 1 auto;
-  padding-bottom:2px}
-.ccard__who b{display:block; font-size:19px; font-weight:800; letter-spacing:-.02em;
-  color:#FBF9F5; line-height:1.2}
-.ccard__who span{display:block; font-size:13px; color:rgba(251,249,245,.82); margin-top:3px}
-.ccard__x{position:absolute; top:10px; right:10px; z-index:2; width:30px; height:30px;
-  display:grid; place-items:center; border-radius:var(--r); cursor:pointer;
-  background:rgba(251,249,245,.16); border:0; color:#FBF9F5; font-size:19px; line-height:1}
-.ccard__x:hover{background:rgba(251,249,245,.3)}
-
-.ccard__b{padding:16px; overflow-y:auto; flex:1 1 auto}
-.ccard__s{font-family:var(--mono); font-size:9.5px; letter-spacing:.13em; text-transform:uppercase;
-  color:var(--ink-3); margin:0 0 9px}
-.ccard__gap{margin-top:18px}
-
-/* Contact details read as rows you can act on, not as a paragraph. */
-.crows{display:block}
-.crow{display:flex; align-items:center; gap:10px; padding:9px 0;
-  border-bottom:1px solid var(--rule-soft); font-size:13.5px; color:var(--ink-2);
-  text-decoration:none}
-/* :last-of-type counts by TAG, not by class -- a linked row is an <a> and an
-   unlinked one is a <span>, so the last span lost its rule while an <a> after
-   it kept one. Group them in a box and use :last-child, which counts
-   position. */
-.crows .crow:last-child{border-bottom:0}
-a.crow:hover{color:var(--steel-ink)}
-.crow svg{flex:none; width:15px; height:15px; stroke:var(--ink-3)}
-a.crow:hover svg{stroke:var(--steel-ink)}
-.crow b{font-weight:700; color:var(--ink); min-width:0; overflow:hidden;
-  text-overflow:ellipsis; white-space:nowrap}
-.crow__k{margin-left:auto; font-family:var(--mono); font-size:9.5px; letter-spacing:.11em;
-  text-transform:uppercase; color:var(--ink-3); flex:none}
-
-.ccard__go{display:flex; gap:8px; padding:13px 16px; border-top:1px solid var(--rule);
-  background:var(--sunken)}
-.ccard__go .btn{flex:1 1 auto; text-align:center}
-
-@media (max-width:520px){
-  .scrim{padding:0; place-items:end stretch}
-  .ccard{width:100%; max-height:92vh; border-radius:var(--r) var(--r) 0 0; border-bottom:0}
-}
+/* The contact card, its scrim and the mini grid inside it used to live here.
+   Ninety-odd lines of panel whose best row was a button called "Open their
+   page" -- so a card in the directory is that link now, and this is gone
+   rather than left to rot. Dead CSS is how a class name gets reused later by
+   somebody who thinks it is free. */
 
 /* ==================================================================
    REPORTING

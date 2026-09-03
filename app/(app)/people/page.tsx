@@ -9,26 +9,20 @@ export const dynamic = 'force-dynamic'
  * It reads hopper.directory rather than hopper.person, because everyone signed
  * in may see the top half of anybody in a business they can already open, and
  * row-level security cannot hide a column. The view never selects email or
- * phone; those live on the person's own page, behind the roster grant.
+ * phone; those live on the person's own page, behind the roster grant -- and
+ * a card here is a link straight to that page.
  */
 export default async function People() {
   const db = supabaseServer()
 
-  // Contact details are a second read on purpose. hopper.person is behind the
-  // roster grant, so for a reader without it this comes back empty and the
-  // card simply has no "Get in touch" section -- rather than the directory
-  // view carrying columns some readers must not see.
-  const [{ data: rows }, { data: contacts }] = await Promise.all([
-    db.schema('hopper').from('directory').select('*').eq('active', true).order('full_name'),
-    db.schema('hopper').from('person').select('id, email, phone'),
-  ])
-
-  const reach = new Map((contacts ?? []).map((c: any) => [c.id, c]))
-  const people = (rows ?? []).map((r: any) => ({
-    ...r,
-    email: reach.get(r.id)?.email ?? null,
-    phone: reach.get(r.id)?.phone ?? null,
-  })) as Person[]
+  // One read, and only the columns the cards draw. Email and phone used to be
+  // fetched here as well, for a contact card that no longer exists -- they are
+  // behind the roster grant and they belong on the person's own page, which is
+  // now where a card takes you.
+  const { data: rows } = await db.schema('hopper').from('directory')
+    .select('id, full_name, photo_url, role_name, department_name, location_name, entity_name, entity_id')
+    .eq('active', true).order('full_name')
+  const people = (rows ?? []) as Person[]
 
   // Grouped by organization, in the order the names sort, so the page reads
   // the same way twice running.
