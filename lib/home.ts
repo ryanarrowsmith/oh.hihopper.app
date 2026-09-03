@@ -17,7 +17,7 @@ import { CATALOG, type WidgetKey } from '@/lib/widgets'
  * account is opened -- which is the only defensible test for a default. A
  * default that arrives empty teaches somebody the product is empty.
  */
-const DEFAULT: WidgetKey[] = ['favs', 'dash', 'locs']
+const DEFAULT: WidgetKey[] = ['favs', 'reps', 'locs']
 
 export type Placed = { key: WidgetKey; on: boolean }
 

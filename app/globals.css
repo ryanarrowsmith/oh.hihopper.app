@@ -522,14 +522,34 @@ a.bub{text-decoration:none}
   from{opacity:0; transform:scale(.82) translateY(-6px)}
   to  {opacity:1; transform:scale(1) translateY(0)}
 }
-/* Below 560 it stops hanging off a 38px button -- there is nowhere for a
-   560px panel to go -- and pins to the viewport instead. Fixed rather than
-   absolute, because absolute would resolve against .dollyw, which is 40px
-   wide: left:0;right:0 there is a 40px popover. */
+/* On a phone she stays WHERE SHE WAS PRESSED.
+   This used to fling the card to the foot of the screen -- fixed, bottom:16px
+   -- on the reasoning that a 560px panel has nowhere to go on a 360px phone.
+   But the base rule already caps its own width to the viewport, so there was
+   nowhere it needed to go: hanging off her button, it lands at 4..334 of 360
+   with no sideways scroll. What the move actually cost was the relationship
+   between the button and the card, which is the whole thing a popover is for.
+   Pressing a face at the top of the screen and having a card appear at the
+   bottom reads as two unrelated events.
+
+   What the phone does need is a ceiling. Left uncapped under a button near the
+   top of a short screen, a long quote runs off the bottom -- so the card is
+   capped against the viewport and the quote scrolls inside it. dvh and not vh:
+   vh on a phone is the viewport with the browser's own chrome pretending not
+   to be there.
+
+   Both the card and the quote have to give up their own height or the cap has
+   nothing to squeeze: a flex child defaults to min-height:auto and refuses to
+   shrink below its content, which is exactly how a capped panel still
+   overflows. */
 @media (max-width:560px){
-  .dpop{position:fixed; top:auto; bottom:16px; left:16px; right:16px; width:auto;
-        transform-origin:50% 100%}
-  .dpop::before{display:none}
+  .dpop{
+    width:min(560px, calc(100vw - 28px));
+    max-height:calc(100dvh - 132px);
+    display:flex; flex-direction:column;
+  }
+  .dpop .dolly{min-height:0; flex:1 1 auto; overflow:hidden}
+  .dpop .dolly__say{max-height:none; flex:1 1 auto; min-height:0}
 }
 
 /* Inside the popover the card is the card: no second border, no second
@@ -3652,9 +3672,17 @@ a.idc__org:hover{background:var(--steel)}
 [data-tip]:hover::after, [data-tip]:hover::before,
 [data-tip]:focus-visible::after, [data-tip]:focus-visible::before{opacity:1}
 /* Inside a bar that clips or ends, the last control's tip would hang off the
-   right edge, so the ones at the end hang from their right instead. */
-[data-tip].barbtn--x::after{left:auto; right:0; transform:none}
-[data-tip].barbtn--x::before{left:auto; right:12px; margin-left:0}
+   right edge, so the ones at the end hang from their right instead.
+
+   A centred tip is half its own width wider than the control it belongs to,
+   which is invisible in the middle of a page and clipped at the edge of one.
+   Anything living hard right says so with .tip--r and hangs from that edge
+   instead -- and a section's own control always does, because it is pinned to
+   the right of the column by definition. */
+[data-tip].barbtn--x::after, [data-tip].tip--r::after,
+.hxsec__a [data-tip]::after{left:auto; right:0; transform:none}
+[data-tip].barbtn--x::before, [data-tip].tip--r::before,
+.hxsec__a [data-tip]::before{left:auto; right:12px; margin-left:0}
 @media (hover:none){ [data-tip]::after, [data-tip]::before{display:none} }
 
 /* ==========================================================================
@@ -4322,3 +4350,23 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
 /* The number on a card that carries one. */
 .hx .hxcard__f2{display:flex; align-items:center; gap:7px; margin-top:8px;
   font-size:11.5px; color:var(--ink-3)}
+
+/* ── a report on the home page ─────────────────────────────────────── */
+/* The number is the point of the card, so it gets the room. Tabular figures,
+   because a grid of numbers that jitters is a grid you cannot scan. */
+.hx .hxbig{display:block; margin-top:8px; font-size:29px; font-weight:800;
+  letter-spacing:-.03em; color:var(--ink); font-variant-numeric:tabular-nums; line-height:1}
+
+.hx .hxcard__none{display:block; margin-top:8px; font-size:14px; font-style:italic;
+  color:var(--ink-3)}
+
+.hx .hxcard--rep .hxcard__k{display:flex; align-items:center; gap:6px}
+
+/* Hearted says so with a mark on the line that was already there, rather than
+   a row of its own. */
+.hx .hxfav{display:inline-flex; width:12px; height:12px; color:var(--amber)}
+.hx .hxfav svg{width:100%; height:100%}
+
+/* ── head office ───────────────────────────────────────────────────── */
+.hx .hxhead{display:inline-flex; width:17px; height:17px; flex:none; color:var(--ink-3)}
+.hx .hxhead svg{width:100%; height:100%}

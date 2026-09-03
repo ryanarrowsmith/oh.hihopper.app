@@ -9,7 +9,7 @@ import HomeBoard from '@/components/HomeBoard'
 import HeroFacts from '@/components/HeroFacts'
 import NeedsLine, { type Needy, type Org } from '@/components/NeedsLine'
 import {
-  FavsWidget, DashWidget, LocsWidget, OrgsWidget, ContWidget, TeamWidget,
+  FavsWidget, RepsWidget, LocsWidget, OrgsWidget, ContWidget, TeamWidget,
 } from '@/components/HomeWidgets'
 
 export const dynamic = 'force-dynamic'
@@ -37,7 +37,7 @@ export default async function Home() {
 
   const [
     cards, { data: ents }, { data: locations }, { data: hearts },
-    { data: boards }, { data: onBoards }, { data: people }, { data: me },
+    { data: people }, { data: me },
   ] = await Promise.all([
     // Always: the sentence in the hero counts these, and Favorites and
     // Dashboards draw their charts from the same read rather than a second one.
@@ -48,14 +48,6 @@ export default async function Home() {
     want('favs') || want('cont')
       ? db.schema('hopper').from('my_favorites').select('object, object_id, created_at')
           .order('created_at', { ascending: false })
-      : Promise.resolve({ data: [] as any[] }),
-    want('dash')
-      ? db.schema('hopper').from('dashboard_named')
-          .select('id, name, card_count, is_mine, shared').order('updated_at', { ascending: false })
-      : Promise.resolve({ data: [] as any[] }),
-    want('dash')
-      ? db.schema('hopper').from('dashboard_card').select('dashboard_id, report_id, sort_order')
-          .order('sort_order')
       : Promise.resolve({ data: [] as any[] }),
     want('favs') || want('cont') || want('team')
       ? db.schema('hopper').from('directory')
@@ -154,16 +146,31 @@ export default async function Home() {
     locs: places.filter((l: any) => l.entity_id === e.id).length,
   }))
 
-  const dashes = (boards ?? []).map((b: any) => {
-    // A board's picture is its FIRST report's chart, not a blend of them all:
-    // two measures averaged into one line is a picture of something that never
-    // happened.
-    const first = (onBoards ?? []).find((c: any) => c.dashboard_id === b.id)
-    const c = first ? byReport.get(first.report_id) : undefined
-    return { id: b.id, title: b.name, cards: b.card_count ?? 0,
-      mine: !!b.is_mine, shared: !!b.shared,
-      chart: c ? { type: c.chartType, series: c.series.slice(0, 1) } : null }
-  })
+  /**
+   * The numbers, in the order somebody would read them: what you said matters,
+   * then what has gone wrong, then everything else.
+   */
+  const reports = cards
+    .map((c) => {
+      const att = attentionOf(c)
+      return {
+        id: c.id, name: c.name, category: c.category, value: c.value,
+        where: [c.entity, c.department].filter(Boolean).join(' · '),
+        favorite: c.favorite, att,
+        why: att === 'bad' ? 'Look failed'
+          : att === 'never' ? 'Never read'
+          : c.lateBy ? `${c.lateBy} day${c.lateBy === 1 ? '' : 's'} late` : 'Behind',
+        since: c.freshness === 'snapshot' ? 'Snapshot'
+          : att === 'never' ? null
+          : c.valueOn ? `Since ${new Date(`${c.valueOn}T00:00:00`)
+              .toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : null,
+        chart: { type: c.chartType, series: c.series.slice(0, 1) },
+      }
+    })
+    .sort((a, b) =>
+      Number(b.favorite) - Number(a.favorite)
+      || Number(!!b.att) - Number(!!a.att)
+      || a.name.localeCompare(b.name))
 
   /* ── the hero ───────────────────────────────────────────────────── */
 
@@ -200,7 +207,7 @@ export default async function Home() {
 
   const bodies: Partial<Record<WidgetKey, React.ReactNode>> = {
     favs: want('favs') ? <FavsWidget items={favs} /> : null,
-    dash: want('dash') ? <DashWidget boards={dashes} /> : null,
+    reps: want('reps') ? <RepsWidget reports={reports} /> : null,
     locs: want('locs') ? <LocsWidget places={spots} /> : null,
     orgs: want('orgs') ? <OrgsWidget orgs={orgCards} /> : null,
     cont: want('cont') ? <ContWidget people={contacts} /> : null,
@@ -208,7 +215,7 @@ export default async function Home() {
   }
 
   const counts: Partial<Record<WidgetKey, number>> = {
-    favs: favs.length, dash: dashes.length, locs: spots.length,
+    favs: favs.length, reps: reports.length, locs: spots.length,
     orgs: orgCards.length, cont: contacts.length, team: team.length,
   }
 

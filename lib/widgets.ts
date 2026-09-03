@@ -13,7 +13,7 @@
  * different thing from a widget that turns on and renders an empty box.
  */
 export type WidgetKey =
-  | 'favs' | 'dash' | 'locs' | 'orgs' | 'cont' | 'team'
+  | 'favs' | 'reps' | 'locs' | 'orgs' | 'cont' | 'team'
   | 'tix' | 'week' | 'proj' | 'docs' | 'recent' | 'since' | 'bill'
 
 export type Widget = {
@@ -27,8 +27,8 @@ export type Widget = {
 export const CATALOG: Widget[] = [
   { key: 'favs', name: 'Favorites', built: true,
     note: 'Whatever you have hearted — organizations, people, places, reports.' },
-  { key: 'dash', name: 'Dashboards', built: true,
-    note: 'The boards you keep, and how many numbers are on each.' },
+  { key: 'reps', name: 'Reports', built: true,
+    note: 'The numbers you watch, each with where it stands. Hearted ones first.' },
   { key: 'locs', name: 'Locations', built: true,
     note: 'Business addresses you keep coming back to, with the local time.' },
   { key: 'orgs', name: 'Your organizations', built: true,

@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import Link from 'next/link'
 import { saveHome } from '@/app/actions/home'
 import { CATALOG, type WidgetKey } from '@/lib/widgets'
 import type { Placed } from '@/lib/home'
@@ -67,13 +66,9 @@ export default function HomeBoard({ placed, bodies, counts, dolly, hero }: {
           itself on hover; none of them needs a word standing next to it all
           day. */}
       <div className="tools">
-        <div className="bubw">
-          <Link className="bub" href="/favorites" aria-label="Your favorites">
-            <svg viewBox="0 0 24 24"><path d="M12 20.2S4 15 4 9.6a4.4 4.4 0 0 1 8-2.5 4.4 4.4 0 0 1 8 2.5c0 5.4-8 10.6-8 10.6z" /></svg>
-          </Link>
-          <span className="bubl" aria-hidden="true">Favorites</span>
-        </div>
-
+        {/* No heart here. The top bar already carries one on every page, and
+            two ways to the same list a hundred pixels apart is one of them
+            being noticed and the other being wondered about. */}
         {dolly}
 
         <div className="bubw">

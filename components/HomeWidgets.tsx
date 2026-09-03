@@ -101,12 +101,14 @@ const I = (d: string) => (
 
 export const MARKS = {
   favs: I('<path d="M12 20.2S4 15 4 9.6a4.4 4.4 0 0 1 8-2.5 4.4 4.4 0 0 1 8 2.5c0 5.4-8 10.6-8 10.6z"/>'),
-  dash: I('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+  reps: I('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
   locs: I('<path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/>'),
   orgs: I('<rect x="3" y="8" width="7" height="13"/><rect x="14" y="3" width="7" height="18"/>'),
   cont: I('<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M17 11a3 3 0 1 0 0-6"/><path d="M17.5 20a6 6 0 0 0-2-4.5"/>'),
   team: I('<circle cx="9" cy="8" r="3.4"/><path d="M3 20c0-3.3 2.7-5.4 6-5.4s6 2.1 6 5.4"/><path d="M17 11h5M19.5 8.5v5"/>'),
 }
+
+const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
 
 const KINDMARK: Record<string, string> = {
   report: 'Report', entity: 'Organization', person: 'Person', location: 'Place',
@@ -138,23 +140,59 @@ export function FavsWidget({ items }: { items: any[] }) {
   )
 }
 
-/* ─────────────────────────────────────────────── dashboards */
-export function DashWidget({ boards }: { boards: any[] }) {
+/* ─────────────────────────────────────────────── reports */
+/**
+ * The numbers themselves, not the boards they live on.
+ *
+ * A dashboard card could only ever say how many reports were on it, which is a
+ * fact about the board rather than about the business -- so the home page said
+ * "2 reports" where it could have said 16,785. Boards are still a page; this is
+ * the glance.
+ *
+ * Hearted first, then whatever needs attention, then the rest. That order is
+ * "what you said matters, then what has gone wrong, then everything else",
+ * which is the order somebody would read them in anyway.
+ */
+export function RepsWidget({ reports }: { reports: any[] }) {
   return (
-    <Sec mark={MARKS.dash} title="Dashboards"
-         note="The boards you keep, and how many numbers are on each."
-         to="/dashboards" tip="All of your dashboards">
-      {boards.length === 0
-        ? <p className="empty">No boards yet. Dashboards is where you make one.</p>
+    <Sec mark={MARKS.reps} title="Reports"
+         note="The numbers you watch, each with where it stands."
+         to="/reporting" tip="All of your reports">
+      {reports.length === 0
+        ? <p className="empty">No reports yet. Reporting is where you add one.</p>
         : <div className="hxgrid">
-            {boards.slice(0, 6).map((b) => (
-              <Link className="hxcard" key={b.id} href={`/dashboards/${b.id}` as any}>
+            {reports.slice(0, 6).map((r) => (
+              <Link className={`hxcard hxcard--rep${r.att ? ` rcard--att rcard--${r.att}` : ''}`}
+                    key={r.id} href={`/reporting/${r.id}` as any}>
                 <span className="hxcard__k">
-                  {b.mine ? (b.shared ? 'Shared by you' : 'Yours') : 'Shared with you'}
+                  {r.category ?? 'Uncategorized'}
+                  {r.favorite && (
+                    <span className="hxfav" aria-label="In your favorites">
+                      <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.6">
+                        <path d="M12 20.2S4 15 4 9.6a4.4 4.4 0 0 1 8-2.5 4.4 4.4 0 0 1 8 2.5c0 5.4-8 10.6-8 10.6z" />
+                      </svg>
+                    </span>
+                  )}
                 </span>
-                <b className="hxcard__t">{b.title}</b>
-                <Art chart={b.chart} />
-                <span className="hxcard__s">{b.cards} {b.cards === 1 ? 'report' : 'reports'}</span>
+                <b className="hxcard__t">{r.name}</b>
+                {r.value == null
+                  ? <span className="hxcard__none">Not read yet</span>
+                  : <span className="hxbig tnum">{nf.format(r.value)}</span>}
+                <Art chart={r.chart} />
+                <span className="hxcard__s">{r.where}</span>
+                <span className="hxcard__f2">
+                  {r.att
+                    ? <><span className={`flag${r.att === 'bad' ? ' flag--bad' : r.att === 'never' ? ' flag--never' : ''}`}>
+                          {r.att !== 'never' && (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+                                 strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                          )}
+                          {r.why}
+                        </span>
+                        {r.since && <span className="rcard__why">{r.since}</span>}</>
+                    : <><span className="dot dot--good" />{r.since ?? 'Current'}</>}
+                </span>
               </Link>
             ))}
           </div>}
@@ -175,7 +213,18 @@ export function LocsWidget({ places }: { places: any[] }) {
               <article className="hxcard hxcard--map" key={l.id}>
                 <span className="hxcard__h">
                   <b className="hxcard__t">{l.name}</b>
-                  {l.head && <em className="pill">Head office</em>}
+                  {/* A mark, not the words. "Head office" spelled out is two
+                      words of chrome on every head office in the list, and the
+                      thing it labels is already the only one wearing it. The
+                      words stay for anything reading rather than looking. */}
+                  {l.head && (
+                    <span className="hxhead" role="img" aria-label="Head office" data-tip="Head office">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+                           strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 21h18" /><path d="M5 21V8l7-5 7 5v13" />
+                        <path d="M10 21v-6h4v6" /><path d="M9 11h1M14 11h1" /></svg>
+                    </span>
+                  )}
                 </span>
                 <DrawnMap address={l.address} />
                 <span className="hxrows">
@@ -184,6 +233,14 @@ export function LocsWidget({ places }: { places: any[] }) {
                   {l.tz && <span className="hxrow"><span>Local time</span><em><LocalTime tz={l.tz} /></em></span>}
                 </span>
                 <span className="hxcard__f">
+                  {/* Directions leaves Hopper; Open stays in it. Two different
+                      journeys, so they are two buttons rather than one that
+                      guesses. */}
+                  {l.entityId && (
+                    <Link className="btn" href={`/admin/organizations/${l.entityId}/locations/${l.id}` as any}>
+                      Open
+                    </Link>
+                  )}
                   <a className="btn" target="_blank" rel="noreferrer"
                      href={`https://maps.google.com/?q=${encodeURIComponent(String(l.address).replace(/\n/g, ', '))}`}>
                     Directions
