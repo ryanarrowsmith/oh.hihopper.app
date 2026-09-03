@@ -189,6 +189,14 @@ async function googleTabs(url: string): Promise<string[]> {
   const res = await fetch(`https://docs.google.com/spreadsheets/d/${id}/export?format=xlsx`, {
     redirect: 'follow', signal: AbortSignal.timeout(12_000),
   })
+  // Names only, so a workbook big enough to matter is not worth the download.
+  // The timeout alone is not a size limit -- a fast connection will happily
+  // pull sixty megabytes inside twelve seconds.
+  const declared = Number(res.headers.get('content-length') ?? 0)
+  if (declared > 24 * 1024 * 1024) {
+    throw new Fail('too_big',
+      'That workbook is too large for Hopper to list its tabs. Type the tab name instead.')
+  }
   // Google answers a sheet you may not read with its SIGN-IN PAGE rather than
   // a 403, so the content type is what says whether we were let in.
   const type = res.headers.get('content-type') ?? ''
@@ -235,13 +243,30 @@ async function googleTabs(url: string): Promise<string[]> {
         new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw')),
       ).text()
 
-  const names = [...xml.matchAll(/<sheet\s[^>]*name="([^"]+)"/g)]
-    .map((m) => m[1]
-      .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
-      .replace(/&amp;/g, '&'))
-  if (names.length === 0) throw new Fail('unreadable', 'That workbook names no sheets.')
-  return names
+  // Every sheet the workbook declares, with the state it declares it in.
+  // Attribute order is not guaranteed -- Google writes state first and Excel
+  // writes name first -- so the tag is matched whole and each attribute read
+  // out of it, rather than assuming a running order.
+  const all = [...xml.matchAll(/<sheet\s[^>]*?\/>/g)].map((m) => {
+    const tag = m[0]
+    const raw = tag.match(/\sname="([^"]*)"/)?.[1] ?? ''
+    return {
+      name: raw
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+        .replace(/&amp;/g, '&'),
+      state: tag.match(/\sstate="([^"]*)"/)?.[1] ?? 'visible',
+    }
+  }).filter((t) => t.name !== '')
+
+  if (all.length === 0) throw new Fail('unreadable', 'That workbook names no sheets.')
+
+  // A hidden tab is one somebody took out of their own picker; offering it back
+  // in Hopper's is Hopper overriding that decision on their behalf. If hiding
+  // leaves nothing at all the whole workbook is hidden, and an empty list is a
+  // worse answer than a full one -- so that case falls back to everything.
+  const shown = all.filter((t) => t.state === 'visible')
+  return (shown.length ? shown : all).map((t) => t.name)
 }
 
 // ------------------------------------------------------- anything at a URL
