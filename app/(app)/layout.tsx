@@ -32,7 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="app">
       <TopBar initials={session.initials} entities={entities ?? []}
               personId={session.personId} displayName={session.displayName}
-              accountName={session.accountName} />
+              accountName={session.accountName} email={session.email} />
       <div className="shell">
         <Rail modules={modules} />
         <main className="main">

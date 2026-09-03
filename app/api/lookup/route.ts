@@ -166,7 +166,11 @@ async function movie(q: string) {
     if (!title) continue
     const desc: string = e.descriptions?.en?.value ?? ''
     if (NOT_AT_WORK.test(title) || NOT_AT_WORK.test(desc)) continue
-    const year = Number(desc.match(/\b(1[89]\d{2}|20\d{2})\b/)?.[1]) || null
+    // Only a year Wikidata put at the front, which is how it writes films:
+    // "1986 film directed by Tony Scott". Any year in the sentence and "The
+    // Wizard of Oz 3D" -- "3D version of the 1939 film" -- claims 1939, which
+    // is a different picture. No year is better than the wrong one.
+    const year = Number(desc.match(/^(1[89]\d{2}|20\d{2})\b/)?.[1]) || null
     const key = `${norm(title)}|${year ?? ''}`
     if (seen.has(key)) continue
     seen.add(key)

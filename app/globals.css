@@ -220,7 +220,7 @@ p{margin:0}
 /* ---- you: the same panel again, hung off your own face ---- */
 .mepop{
   position:absolute; top:calc(100% + 9px); right:0; z-index:60;
-  min-width:216px; max-width:calc(100vw - 24px);
+  width:296px; max-width:calc(100vw - 24px);
   background:var(--topbar); border:1px solid rgba(251,249,245,.2);
   border-radius:var(--r); box-shadow:0 18px 44px -14px rgba(0,0,0,.6);
   display:flex; flex-direction:column; text-align:left; overflow:hidden;
@@ -234,8 +234,25 @@ p{margin:0}
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .mewho small{font-size:11.5px; color:rgba(251,249,245,.55);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.meic{width:15px; height:15px; flex:none; opacity:.72}
+.meic{width:16px; height:16px; flex:none; opacity:.7; margin-top:1px}
 .mepop form{display:contents}   /* the form must not sit between the popover and its row */
+.mrow{
+  display:flex; align-items:flex-start; gap:10px; width:100%; cursor:pointer;
+  background:transparent; border:0; border-bottom:1px solid rgba(251,249,245,.13);
+  border-left:3px solid transparent; padding:10px 14px;
+  text-align:left; text-decoration:none; color:rgba(251,249,245,.82);
+}
+.mrow:last-child{border-bottom:0}
+.mrow:hover{background:rgba(251,249,245,.11); color:#FBF9F5}
+.mrow span{display:flex; flex-direction:column; gap:2px; min-width:0}
+.mrow b{font-size:13.5px; font-weight:700; line-height:1.25}
+/* The second line is what the row is for. Without it "What you may do" and
+   "Profile" are two nouns and you have to open one to find out which. */
+.mrow em{font-style:normal; font-size:11.5px; line-height:1.4; color:rgba(251,249,245,.5)}
+.mrow:hover em{color:rgba(251,249,245,.62)}
+.mrow--out{border-top:1px solid rgba(251,249,245,.22); color:#F2A93B}
+.mrow--out b{font-weight:700}
+.mrow--out:hover{background:rgba(242,169,59,.14); color:#F2A93B}
 
 /* ============ BODY: rail + main ============ */
 .shell{display:grid; grid-template-columns:214px minmax(0,1fr)}
@@ -3224,3 +3241,131 @@ a.crow:hover svg{stroke:var(--steel-ink)}
 .phzoom{display:flex; align-items:center; gap:10px; margin-top:13px}
 .phzoom span{font-size:12px; font-weight:700; color:var(--ink-2); flex:none}
 .phzoom input{flex:1; accent-color:var(--amber)}
+
+/* What you hold: a list of sentences, not a grid of ticks. A checkbox you may
+   not change is a control that lies about being one. */
+.holds{list-style:none; display:flex; flex-direction:column}
+.holds li{padding:12px 0; border-bottom:1px solid var(--rule-soft); display:grid;
+  grid-template-columns:1fr auto; gap:3px 14px}
+.holds li:last-child{border-bottom:0; padding-bottom:0}
+.holds b{display:flex; align-items:center; gap:8px; font-size:14.5px; font-weight:700}
+.holds b svg{width:15px; height:15px; color:var(--ink-3); flex:none}
+.holds__v{font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--steel); white-space:nowrap; align-self:center}
+.holds small{grid-column:1/-1; font-size:12.5px; color:var(--ink-3); line-height:1.45}
+
+/* ==========================================================================
+   THE FILE
+   A person is the one record in Hopper that is about somebody rather than
+   about the business, so it is manilla and everything else stays paper.
+   The tab carries the name and is the page's h1 -- one name, on the object it
+   names, instead of two in two sizes.
+   ========================================================================== */
+:root{
+  --manilla:#E7D2A4;
+  --manilla-2:#DCC28C;      /* the fold, and the tab's own edge */
+  --manilla-ink:#3A3021;
+  --manilla-ink-2:#6B5B3E;
+  --manilla-rule:rgba(58,48,33,.16);
+}
+:root[data-theme="dark"]{
+  --manilla:#4A4131; --manilla-2:#584D3A; --manilla-ink:#F1E4C6;
+  --manilla-ink-2:rgba(241,228,198,.66); --manilla-rule:rgba(241,228,198,.16);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --manilla:#4A4131; --manilla-2:#584D3A; --manilla-ink:#F1E4C6;
+    --manilla-ink-2:rgba(241,228,198,.66); --manilla-rule:rgba(241,228,198,.16);
+  }
+}
+
+.folder{margin:2px 0 26px; filter:drop-shadow(0 10px 22px rgba(35,31,32,.13))}
+/* The tab is a shape, not a box: the right edge leans the way a cut tab does,
+   and it sits on the body with no seam because they are the same colour and
+   there is nothing between them. */
+.folder__tab{
+  display:inline-block; max-width:min(100%, 620px);
+  background:var(--manilla-2); border-radius:10px 10px 0 0;
+  padding:11px 40px 10px 20px;
+  clip-path:polygon(0 0, calc(100% - 22px) 0, 100% 100%, 0 100%);
+}
+.folder__tab h1{
+  margin:0; font-size:clamp(19px,2.4vw,25px); letter-spacing:-.02em; line-height:1.15;
+  color:var(--manilla-ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.folder__b{
+  background:var(--manilla); border-radius:0 var(--r) var(--r) var(--r);
+  padding:22px 24px; display:flex; gap:26px; align-items:flex-start; flex-wrap:wrap;
+  /* the inside of the fold, catching a little light along the top */
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.34), inset 0 -1px 0 var(--manilla-rule);
+}
+
+/* ---- stapled to the front ----
+   A print, squared off and tipped a degree and a half. The tilt is the whole
+   reason it reads as an object lying on the folder rather than a picture
+   printed on it, so it survives at every width. */
+.stapled{position:relative; flex:none; padding:6px 8px 8px 6px}
+.stapled .phw, .stapled .ava{
+  transform:rotate(-1.6deg);
+}
+.stapled .ava{
+  border-radius:3px; background:#fff; padding:7px;
+  box-shadow:0 2px 5px rgba(35,31,32,.26), 0 8px 18px -8px rgba(35,31,32,.4);
+}
+.stapled .ava--init{
+  display:grid; place-items:center;                 /* initials still fill the print */
+  background:var(--steel); color:#FBF9F5; padding:0; border:7px solid #fff;
+}
+.stapled .phbtn{border-radius:3px}
+.stapled .phbtn__veil{border-radius:3px; inset:7px; transform:rotate(-1.6deg)}
+.staple{
+  position:absolute; top:-2px; left:14px; width:30px; height:20px;
+  fill:none; stroke:#8C8F96; stroke-width:3.4; stroke-linecap:square;
+  transform:rotate(-1.6deg);
+  filter:drop-shadow(0 1px 1px rgba(35,31,32,.45));
+  pointer-events:none;                              /* the photo underneath is a button */
+}
+
+/* ---- the card inside: ruled lines, the way a file's index card is ---- */
+.ffacts{flex:1 1 260px; min-width:220px; margin:0; display:flex; flex-direction:column}
+.ffacts > div{
+  display:grid; grid-template-columns:104px minmax(0,1fr); align-items:baseline;
+  gap:14px; padding:9px 0; border-bottom:1px solid var(--manilla-rule);
+}
+.ffacts > div:first-child{padding-top:0}
+.ffacts dt{
+  font-family:var(--mono); font-size:10px; font-weight:800; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--manilla-ink-2);
+}
+.ffacts dd{
+  margin:0; font-size:15px; font-weight:700; color:var(--manilla-ink); min-width:0;
+  overflow:hidden; text-overflow:ellipsis;
+}
+.ffacts dd a{display:inline-flex; align-items:center; gap:7px; color:inherit;
+  text-decoration:none; border-bottom:1px solid var(--manilla-rule)}
+.ffacts dd a:hover{border-bottom-color:currentColor}
+.ffacts dd svg{width:14px; height:14px; flex:none; opacity:.6}
+.ffacts .muted{font-weight:600; color:var(--manilla-ink-2)}
+
+/* ---- the two things you came here to do ---- */
+.freach{display:flex !important; gap:9px; border-bottom:0 !important; padding-top:15px !important}
+.rch{
+  display:inline-flex; align-items:center; gap:8px; padding:8px 15px 8px 12px;
+  border-radius:999px; text-decoration:none; cursor:pointer;
+  background:rgba(255,255,255,.5); border:1px solid var(--manilla-rule);
+  color:var(--manilla-ink); font-size:13px; font-weight:700;
+  transition:background .15s, border-color .15s, transform .15s;
+}
+:root[data-theme="dark"] .rch{background:rgba(255,255,255,.07)}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .rch{background:rgba(255,255,255,.07)}
+}
+.rch:hover{background:var(--surface); border-color:var(--manilla-ink-2); transform:translateY(-1px)}
+.rch svg{width:17px; height:17px; flex:none}
+
+@media (max-width:560px){
+  .folder__b{gap:18px; padding:18px}
+  .ffacts > div{grid-template-columns:1fr; gap:2px}
+  .stapled{margin:0 auto}
+}

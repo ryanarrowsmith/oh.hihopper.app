@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 type Entity = { id: string; name: string; parent_id: string | null }
 
 export default function TopBar(
-  { initials, entities, personId, displayName, accountName }:
+  { initials, entities, personId, displayName, accountName, email }:
   { initials: string; entities: Entity[]
-    personId: string | null; displayName: string; accountName: string },
+    personId: string | null; displayName: string; accountName: string
+    email: string | null },
 ) {
   const [open, setOpen] = useState<'scope' | 'noti' | 'me' | null>(null)
   const [scope, setScope] = useState('All organizations')
@@ -103,30 +104,50 @@ export default function TopBar(
 
           {open === 'me' && (
             <div className="mepop" role="menu">
+              {/* Who you are signed in as, by email. It is the one fact that
+                  settles "am I in the right account" and it is the reason the
+                  menu opens with it rather than with a row you can click. */}
               <p className="mehead">
                 <span className="avatar avatar--lg" aria-hidden="true">{initials}</span>
-                <span className="mewho"><b>{displayName}</b><small>{accountName}</small></span>
+                <span className="mewho">
+                  <b>{displayName}</b>
+                  <small>{email ?? accountName}</small>
+                </span>
               </p>
+
               {personId && (
-                <a className="orow" role="menuitem" href={`/people/${personId}`}>
+                <a className="mrow" role="menuitem" href={`/people/${personId}`}>
                   <svg className="meic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                        strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="8" r="3.6" /><path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
                   </svg>
-                  Your profile
+                  <span><b>Profile</b><em>Your details, your photo, and what people see</em></span>
                 </a>
               )}
-              {/* Sign out is a POST, so it stays a form. It is the last row and
-                  the only one wearing the footer treatment, which is how every
-                  other popover in Hopper marks the row you meant to reach for. */}
+
+              {/* Second, not third. "Why can't I see that report" is a question
+                  people ask about themselves, and the screen that answers it
+                  about somebody else is one only an administrator can open --
+                  exactly the wrong shape. */}
+              <a className="mrow" role="menuitem" href="/people/me/access">
+                <svg className="meic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="4.5" y="10.5" width="15" height="9.5" rx="1.6" />
+                  <path d="M8.2 10.5V7.6a3.8 3.8 0 0 1 7.6 0v2.9" />
+                </svg>
+                <span><b>What you may do</b><em>Which organizations you can open, and what you hold</em></span>
+              </a>
+
+              {/* A button, not a link: signing out changes something, and a
+                  thing that changes something is not a place you can go. */}
               <form action="/auth/sign-out" method="post">
-                <button className="orow orow--foot" role="menuitem" type="submit">
+                <button className="mrow mrow--out" role="menuitem" type="submit">
                   <svg className="meic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                        strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M15 17v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v2" />
                     <path d="M19 12H9" /><path d="m16 8 4 4-4 4" />
                   </svg>
-                  Sign out
+                  <span><b>Sign out</b></span>
                 </button>
               </form>
             </div>

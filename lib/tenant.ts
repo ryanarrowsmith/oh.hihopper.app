@@ -7,6 +7,7 @@ export type Session = {
   accountName: string
   role: string
   personId: string | null
+  email: string | null
   displayName: string
   initials: string
   modules: string[]
@@ -43,6 +44,7 @@ export const currentSession = cache(async (): Promise<Session | null> => {
     accountName: mine.account_name,
     role: mine.role,
     personId: person?.id ?? null,
+    email: profile?.email ?? user.email ?? null,
     displayName: name,
     initials: initialsOf(name),
     modules: [],

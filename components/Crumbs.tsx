@@ -28,6 +28,8 @@ const NAMES: Record<string, string> = {
   meetings: 'Meetings',
   support: 'Support',
   profile: 'Profile',
+  me: 'You',
+  access: 'What you may do',
 }
 
 /**
@@ -42,6 +44,10 @@ const NAMES: Record<string, string> = {
  * and then, once the page existed, refused to link the one crumb that worked.
  */
 const INDEXED_UNDER_RECORD = new Set(['locations'])
+
+/** Words in a path that no page sits at. /people/me is one -- it exists only
+ *  so /people/me/access has somewhere to hang. */
+const NO_PAGE = new Set(['me'])
 
 export default function Crumbs(
   { entities, places = [] }: { entities: Entity[]; places?: Named[] },
@@ -89,7 +95,7 @@ export default function Crumbs(
       continue
     }
 
-    const container = afterId && !INDEXED_UNDER_RECORD.has(part)
+    const container = NO_PAGE.has(part) || (afterId && !INDEXED_UNDER_RECORD.has(part))
     crumbs.push({ href: container ? null : href, label: NAMES[part] ?? part.replace(/-/g, ' ') })
     afterId = false
   }
