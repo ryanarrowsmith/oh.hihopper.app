@@ -5599,3 +5599,285 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
   .addr__k b{display:inline; font-family:var(--mono); font-size:9.5px;
     font-weight:800; letter-spacing:.11em; text-transform:uppercase}
 }
+
+/* ====================================================== A MARK, NOT A BOX ==
+   Standing rule: prefer an icon with a floating label to a text box.
+
+   A status printed in a bordered box is read once and then re-read on every
+   visit forever, and six in a row is a wall of shouting capitals. A mark is
+   read in one glance and says its word on hover, on keyboard focus, and to a
+   screen reader.
+
+   The catch is that hover does not exist on a touchscreen, and Hopper already
+   switches its tooltips off there -- so an icon labelled only by a tooltip is
+   an unlabelled icon on every phone. Below 640px, and anywhere the pointer
+   cannot hover, the mark grows and prints its word. One class, both shapes. */
+.mark{width:28px; height:28px; flex:none; display:grid; place-items:center;
+  border:1px solid var(--rule); border-radius:var(--r);
+  background:var(--sunken); color:var(--ink-3)}
+.mark svg{width:15px; height:15px; display:block; fill:none; stroke:currentColor;
+  stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round}
+.mark b{display:none}
+.mark--good{color:#256F46; background:rgba(46,139,87,.10); border-color:rgba(46,139,87,.34)}
+.mark--warn{color:#8A5A0B; background:var(--warmbg); border-color:var(--warmrule)}
+.mark--bad{color:var(--bad); background:rgba(217,58,43,.09); border-color:rgba(217,58,43,.3)}
+.mark--steel{color:var(--steel-ink); background:var(--steelwash);
+  border-color:rgba(45,93,123,.35)}
+.mark--sm{width:23px; height:23px}
+.mark--sm svg{width:13px; height:13px}
+@media (max-width:640px){ .mark{width:auto; height:auto; display:inline-flex;
+  align-items:center; gap:6px; padding:4px 9px}
+  .mark b{display:inline; font-family:var(--mono); font-size:9.5px; font-weight:800;
+    letter-spacing:.11em; text-transform:uppercase} }
+@media (hover:none){ .mark{width:auto; height:auto; display:inline-flex;
+  align-items:center; gap:6px; padding:4px 9px}
+  .mark b{display:inline; font-family:var(--mono); font-size:9.5px; font-weight:800;
+    letter-spacing:.11em; text-transform:uppercase} }
+
+/* ================================================================ THE WIKI ==
+   A handbook is a thing people arrive at with a question, so the search box is
+   the middle of the page rather than a control in a corner. Everything under it
+   is for the times they do not have one. */
+.whero{text-align:center; padding:clamp(20px,3.6vw,42px) 0 clamp(16px,2.4vw,26px)}
+.whero h1{font-size:clamp(30px,4.4vw,44px); font-weight:800; letter-spacing:-.035em;
+  line-height:1.1}
+.whero p{font-size:14.5px; color:var(--ink-3); margin-top:9px; max-width:56ch;
+  margin-inline:auto; line-height:1.55}
+.wfind{position:relative; max-width:660px; margin:22px auto 0; text-align:left; z-index:12}
+.wfind input{width:100%; height:60px; font-size:16.5px; padding:0 62px 0 52px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  color:var(--ink); box-shadow:var(--shadow); font-family:inherit}
+.wfind input::placeholder{color:var(--ink-3)}
+.wfind input::-webkit-search-cancel-button{display:none}
+.wfind input:focus-visible{outline:none; box-shadow:var(--focus); border-color:var(--ink-3)}
+.wfind > svg{position:absolute; left:19px; top:30px; transform:translateY(-50%);
+  width:18px; height:18px; fill:none; stroke:var(--ink-3); stroke-width:2; pointer-events:none}
+.wfind kbd{position:absolute; right:16px; top:30px; transform:translateY(-50%);
+  font-family:var(--mono); font-size:10.5px; color:var(--ink-3); border:1px solid var(--rule);
+  border-radius:var(--r); padding:3px 7px; background:var(--sunken); pointer-events:none}
+.wfind__say{font-size:12.5px; color:var(--ink-3); margin-top:11px; text-align:center}
+
+/* Results, not a dropdown of titles. Somebody searching "deposit" wants the
+   sentence with the word in it and decides from that; a list of names makes
+   them open three documents to find out which one they meant. */
+.wres{position:absolute; left:0; right:0; top:calc(100% + 8px); z-index:20;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  box-shadow:var(--lift); overflow:hidden; text-align:left}
+.wres__h{display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:9px 14px; background:var(--sunken); border-bottom:1px solid var(--rule);
+  font-family:var(--mono); font-size:9.5px; font-weight:800; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3)}
+.wres__i{display:block; text-decoration:none; color:inherit; padding:11px 14px;
+  border-top:1px solid var(--rule-soft)}
+.wres__i:first-of-type{border-top:0}
+.wres__i:hover, .wres__i.is-on{background:var(--warmbg)}
+.wres__t{display:flex; align-items:baseline; gap:9px; flex-wrap:wrap}
+.wres__t b{font-size:14px; font-weight:800; letter-spacing:-.015em; color:var(--ink)}
+.wres__t span{font-family:var(--mono); font-size:10px; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--ink-3)}
+.wres__s{font-size:12.5px; line-height:1.5; color:var(--ink-2); margin-top:4px;
+  overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical}
+/* The hit itself, in the amber the rest of Hopper uses for "this is the bit". */
+.wres__s mark{background:var(--warmbg); color:var(--ink); font-weight:700;
+  padding:0 2px; border-radius:var(--r)}
+.wres__f{display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:9px 14px; border-top:1px solid var(--rule); background:var(--sunken);
+  font-size:12px; color:var(--ink-3)}
+.wres__none{padding:22px 14px; text-align:center; font-size:13px; color:var(--ink-3);
+  line-height:1.55}
+.wres__none b{display:block; color:var(--ink); font-size:14px; margin-bottom:5px}
+
+/* ---- categories ---- */
+.wcats{display:grid; grid-template-columns:repeat(auto-fill,minmax(214px,1fr));
+  gap:12px; margin-top:14px}
+.wcat{display:block; text-decoration:none; color:inherit; padding:14px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  transition:border-color .15s ease}
+.wcat:hover{border-color:var(--ink-3)}
+.wcat__t{display:flex; align-items:center; gap:9px; font-size:14px; font-weight:800;
+  letter-spacing:-.015em; color:var(--ink)}
+.wcat__t svg{width:16px; height:16px; flex:none; fill:none; stroke:currentColor;
+  stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; color:var(--steel)}
+.wcat:hover .wcat__t{color:var(--sea)}
+.wcat__b{display:block; font-size:12px; color:var(--ink-3); margin-top:5px;
+  line-height:1.45; min-height:2.9em}
+.wcat__n{display:block; font-family:var(--mono); font-size:10px; color:var(--ink-3);
+  margin-top:9px; letter-spacing:.06em}
+
+/* ---- a document, as a row ---- */
+.wlist{border:1px solid var(--rule); border-radius:var(--r); background:var(--surface);
+  overflow:hidden; margin-top:12px}
+.wrow{display:grid; grid-template-columns:minmax(0,1fr) 150px 128px; gap:14px;
+  align-items:center; padding:11px 14px; border-top:1px solid var(--rule-soft);
+  text-decoration:none; color:inherit}
+.wrow:first-child{border-top:0}
+.wrow:hover{background:var(--sunken)}
+.wrow__t{font-size:13.5px; font-weight:700; color:var(--steel-ink); min-width:0}
+.wrow__t small{display:block; font-size:11.5px; font-weight:500; color:var(--ink-3);
+  margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.wrow__w{font-size:12px; color:var(--ink-2); display:flex; align-items:center; gap:7px;
+  min-width:0}
+.wrow__d{font-family:var(--mono); font-size:11px; color:var(--ink-3); text-align:right;
+  white-space:nowrap}
+.wrow__d.is-stale{color:var(--warn); font-weight:700}
+.wrow__d.is-old{color:var(--bad); font-weight:700}
+
+/* ---- tags ---- */
+.wtags{display:flex; flex-wrap:wrap; gap:6px}
+.wtag{font-size:11px; font-weight:700; color:var(--ink-2); background:var(--canvas-2);
+  border:1px solid var(--rule-soft); border-radius:var(--r); padding:2px 8px;
+  text-decoration:none; white-space:nowrap}
+a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
+
+/* ---- one document ----
+   A sheet, not a panel. Nearly white rather than the stark white Hopper uses
+   for its lists, because this is read for two minutes rather than scanned for
+   two seconds -- and paper white on paper white would leave the page with no
+   edges at all, so the border and the lift are what separate it from the
+   ground. */
+.wpage{--page:#FDFCFA;
+  background:var(--page); border:1px solid var(--rule); border-radius:var(--r);
+  box-shadow:var(--shadow); padding:clamp(22px,3.4vw,44px) clamp(18px,3.6vw,52px);
+  margin-top:16px}
+.wpage h1{font-size:clamp(26px,3.4vw,34px); font-weight:800; letter-spacing:-.032em;
+  line-height:1.13; margin-bottom:9px}
+.wpage__sub{font-size:13px; color:var(--ink-3); margin-bottom:16px}
+/* Measure. Past about 70 characters the eye loses the start of the next line,
+   which is the single biggest thing you can do to a procedure to make it
+   unreadable. */
+.wdoc{max-width:68ch}
+.wmeta{display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:0 0 15px;
+  border-bottom:1px solid var(--rule); margin-bottom:22px; font-size:12.5px;
+  color:var(--ink-3)}
+.wmeta b{color:var(--ink-2); font-weight:700}
+.wmeta__who{display:flex; align-items:center; gap:7px}
+
+/* ---- the body, as it reads ---- */
+.wbody{font-size:15.5px; line-height:1.72; color:var(--ink)}
+.wbody > * + *{margin-top:17px}
+/* Space above a heading, not below it: a heading belongs to what follows it,
+   and the gap is what says where the last section stopped. */
+.wbody h2{font-size:20px; font-weight:800; letter-spacing:-.025em; margin-top:36px;
+  line-height:1.25}
+.wbody h2 + *{margin-top:11px}
+.wbody h3{font-size:16px; font-weight:800; letter-spacing:-.015em; margin-top:28px;
+  line-height:1.3}
+.wbody h3 + *{margin-top:9px}
+.wbody ul, .wbody ol{padding-left:24px}
+.wbody li{padding-left:3px}
+.wbody li + li{margin-top:8px}
+.wbody a{color:var(--steel-ink); text-decoration:underline;
+  text-decoration-color:var(--canvas-3); text-underline-offset:3px}
+.wbody a:hover{text-decoration-color:var(--steel-ink)}
+.wbody strong, .wbody b{font-weight:800}
+.wbody blockquote{border-left:3px solid var(--amber); padding:2px 0 2px 15px;
+  color:var(--ink-2)}
+.wbody code{font-family:var(--mono); font-size:.88em; background:var(--canvas-2);
+  padding:1px 5px; border-radius:var(--r)}
+.wbody pre{background:var(--canvas-2); border:1px solid var(--rule-soft);
+  border-radius:var(--r); padding:13px 15px; overflow-x:auto}
+.wbody pre code{background:none; padding:0}
+.wbody hr{border:0; border-top:1px solid var(--rule); margin:26px 0}
+/* TipTap's task list, wearing Hopper's checkbox. */
+.wbody ul[data-type="taskList"]{list-style:none; padding-left:0}
+.wbody ul[data-type="taskList"] li{display:flex; align-items:flex-start; gap:11px;
+  padding-left:0}
+.wbody ul[data-type="taskList"] li > label{flex:none; margin-top:3px; line-height:0}
+.wbody ul[data-type="taskList"] li > div{min-width:0}
+.wbody ul[data-type="taskList"] input[type="checkbox"]{width:16px; height:16px;
+  accent-color:var(--good); cursor:default}
+.wbody ul[data-type="taskList"] li[data-checked="true"] > div{color:var(--ink-3);
+  text-decoration:line-through}
+
+/* ---- related documents ---- */
+.wrel{margin-top:38px; padding-top:22px; border-top:1px solid var(--rule)}
+.wrel__h{display:flex; align-items:baseline; gap:11px; flex-wrap:wrap; margin-bottom:13px}
+.wrel__h h2{font-size:16px; font-weight:800; letter-spacing:-.02em}
+.wrel__h p{font-size:12px; color:var(--ink-3)}
+.wrels{display:grid; grid-template-columns:repeat(auto-fill,minmax(238px,1fr)); gap:12px}
+.wrelc{display:block; text-decoration:none; color:inherit; padding:13px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  transition:border-color .15s ease}
+.wrelc:hover{border-color:var(--ink-3)}
+.wrelc__t{font-size:13.5px; font-weight:800; letter-spacing:-.01em; color:var(--ink);
+  line-height:1.3}
+.wrelc:hover .wrelc__t{color:var(--sea)}
+.wrelc__s{display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  overflow:hidden; font-size:12px; color:var(--ink-3); line-height:1.45; margin-top:5px}
+/* Why this one is here, in words. "Related" with nothing behind it is a
+   carousel; a reason is a reason. */
+.wrelc__y{display:block; font-family:var(--mono); font-size:9.5px; font-weight:800;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--steel-ink); margin-top:10px}
+
+/* ---- the editor ---- */
+.wed{background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  padding:20px 22px 26px; margin-top:16px}
+.wed__title{width:100%; border:0; background:none; padding:0; font:inherit;
+  font-size:29px; font-weight:800; letter-spacing:-.03em; color:var(--ink);
+  line-height:1.15}
+.wed__title:focus-visible{outline:none}
+.wed__title::placeholder{color:var(--canvas-3)}
+.wed__bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  padding:14px 0; margin-bottom:4px; border-bottom:1px solid var(--rule-soft)}
+.wed__pick{width:196px}
+.wedwrap{position:relative}
+.wed__blocks .ProseMirror{outline:none; min-height:280px}
+.wed__blocks .ProseMirror p.is-editor-empty:first-child::before{
+  content:attr(data-placeholder); float:left; height:0; pointer-events:none;
+  color:var(--canvas-3)}
+
+/* The blocks, as buttons, for anybody who would rather press than remember. */
+.wbar{display:flex; align-items:center; gap:3px; flex-wrap:wrap; padding:10px 0 12px}
+.wbar__b{width:30px; height:30px; display:grid; place-items:center; padding:0;
+  border:1px solid transparent; border-radius:var(--r); background:none;
+  color:var(--ink-3); cursor:pointer; font-family:var(--mono); font-size:11px;
+  font-weight:800}
+.wbar__b:hover{background:var(--sunken); color:var(--ink)}
+.wbar__b.is-on{background:var(--warmbg); border-color:var(--warmrule); color:#8A5A0B}
+.wbar__b svg{width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.9;
+  stroke-linecap:round; stroke-linejoin:round}
+.wbar__x{width:1px; height:20px; background:var(--rule); margin:0 6px}
+
+/* the slash menu */
+.slash{position:absolute; left:0; top:0; z-index:20; width:266px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  box-shadow:var(--lift); padding:6px; max-height:320px; overflow-y:auto}
+.slash__h{font-family:var(--mono); font-size:9.5px; font-weight:800; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3); padding:7px 9px 6px}
+.slash__i{display:grid; grid-template-columns:30px minmax(0,1fr); gap:10px;
+  align-items:center; padding:7px 9px; border-radius:var(--r); cursor:pointer}
+.slash__i:hover, .slash__i.is-on{background:var(--warmbg)}
+.slash__k{width:30px; height:30px; display:grid; place-items:center; border-radius:var(--r);
+  background:var(--canvas-2); border:1px solid var(--rule-soft); color:var(--ink-2);
+  font-family:var(--mono); font-size:11px; font-weight:800}
+.slash__k svg{width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.9;
+  stroke-linecap:round; stroke-linejoin:round}
+.slash__n{font-size:13px; font-weight:700; color:var(--ink)}
+.slash__n small{display:block; font-size:11.5px; font-weight:500; color:var(--ink-3);
+  margin-top:1px}
+
+/* Tags are typed, not picked: the point of a tag is the word that was in
+   somebody's head, and a list of existing ones quietly asks for a near-miss. */
+.tagbox{display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:7px 9px;
+  min-height:40px; flex:1; min-width:220px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r)}
+.tagbox:focus-within{box-shadow:var(--focus); border-color:var(--ink-3)}
+.tagbox input{border:0; background:none; padding:2px; font:inherit; font-size:13px;
+  min-width:140px; flex:1; color:var(--ink)}
+.tagbox input:focus-visible{outline:none}
+.tagbox .wtag{display:inline-flex; align-items:center; gap:6px}
+.tagbox .wtag button{border:0; background:none; padding:0; cursor:pointer;
+  color:var(--ink-3); font-size:13px; line-height:1}
+
+@media (max-width:860px){
+  .whero{padding:14px 0 8px}
+  .wfind input{height:52px; font-size:15.5px; padding-left:46px}
+  .wfind > svg{left:16px; top:26px}
+  .wfind kbd{display:none}
+  .wrow{grid-template-columns:minmax(0,1fr); gap:6px}
+  .wrow__d{text-align:left}
+  .wed{padding:16px 14px 20px}
+  .wed__pick{width:100%}
+  .wmeta{gap:9px}
+  .wpage{padding:20px 16px 26px}
+}

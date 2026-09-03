@@ -31,7 +31,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
  */
 export type AuditKind =
   | 'entity' | 'department' | 'location' | 'person' | 'module' | 'access' | 'report'
-  | 'calendar' | 'project' | 'system'
+  | 'calendar' | 'project' | 'wiki' | 'system'
 
 /** What the platform calls the thing, where its word differs from Hopper's. */
 const SUBJECT: Record<AuditKind, string | null> = {
@@ -47,6 +47,7 @@ const SUBJECT: Record<AuditKind, string | null> = {
   // beside the report sources, not in the activity stream.
   calendar: 'calendar',
   project: 'project',
+  wiki: 'document',
   system: null,
 }
 

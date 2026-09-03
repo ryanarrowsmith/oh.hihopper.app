@@ -28,6 +28,12 @@ export const FLAT_OBJECTS: FlatObject[] = [
   { key: 'roster', label: 'See the roster',
     blurb: 'The people list, narrowed to the businesses they can already see.',
     verbs: ['view', 'edit', 'export'] },
+  /* Reading the handbook comes with the module everybody has. Writing it is
+     this -- because looking something up and rewriting it for the whole
+     company are different jobs, and only one of them should be automatic. */
+  { key: 'wiki', label: 'Wiki',
+    blurb: 'Write and edit documents. Everybody can already read them.',
+    verbs: ['view', 'edit'] },
   { key: 'audit_log', label: 'All activity',
     blurb: 'Activity across the whole account, not only your own line of report.',
     verbs: ['view', 'export'] },
