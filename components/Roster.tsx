@@ -5,6 +5,7 @@ import Choice from '@/components/Choice'
 import { Pencil } from '@/components/Icons'
 import { importPeople, movePeople, setPeopleActive, type Landed } from '@/app/actions/roster'
 import { createPerson, setPersonActive, updatePerson } from '@/app/actions/admin'
+import { invitePerson } from '@/app/actions/invite'
 
 export type Row = {
   id: string; name: string; email: string | null; role: string | null; phone: string | null
@@ -39,14 +40,51 @@ const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2)
  * them one". A screen that reports work nobody did is worse than a screen that
  * reports nothing.
  */
-function Sign({ p }: { p: Row }) {
+function Sign({ p, mayEdit }: { p: Row; mayEdit: boolean }) {
   if (p.canSignIn) return <span className="sign sign--in">{I(TICK, '2.4')}Signs in</span>
   if (p.invited) {
+    // There is something to do here and the person looking at it may do it, so
+    // the cell is the control rather than a label about the control.
+    if (mayEdit && p.active) return <Invite p={p} />
     return <span className="sign sign--wait" data-tip="Has an email address — nobody has been invited yet">
       {I(MAIL, '2')}No login yet</span>
   }
   return <span className="sign sign--no" data-tip="No email address on file to invite">
     {I(MINUS, '2.4')}Roster only</span>
+}
+
+/**
+ * Send somebody a login.
+ *
+ * It answers in the cell it was pressed in, because the row is what the eye is
+ * on -- and the answer is the whole point: an invitation that says nothing is
+ * how somebody ends up sending four. The full sentence is on the tip, so a
+ * 128px column can still carry a reason.
+ */
+function Invite({ p }: { p: Row }) {
+  const [state, run] = useFormState(invitePerson, null)
+  if (state) {
+    return (
+      <span className={`sign ${state.ok ? 'sign--in' : 'sign--bad'}`} data-tip={state.message}>
+        {I(state.ok ? TICK : MINUS, '2.4')}{state.ok ? 'Invited' : 'Would not send'}
+      </span>
+    )
+  }
+  return (
+    <form action={run} style={{ display: 'contents' }}>
+      <input type="hidden" name="id" value={p.id} />
+      <InviteGo />
+    </form>
+  )
+}
+function InviteGo() {
+  const { pending } = useFormStatus()
+  return (
+    <button className="btn btn--sm btn--amber" type="submit" disabled={pending}
+            data-tip="Emails them a link to set a password and open Hopper">
+      {pending ? 'Sending…' : 'Invite'}
+    </button>
+  )
 }
 
 type Filter = 'all' | 'signin' | 'never' | 'off'
@@ -256,7 +294,7 @@ export default function Roster({ people, orgs, depts, mayEdit }: {
               <span className="rrw__c">
                 {[p.entity, p.department].filter(Boolean).join(' · ') || '—'}
               </span>
-              <span><Sign p={p} /></span>
+              <span><Sign p={p} mayEdit={mayEdit} /></span>
               {/* Nothing a person may not do is drawn. Without the right to
                   edit there is no pencil here, not a dead one. */}
               <span className="rrw__a">

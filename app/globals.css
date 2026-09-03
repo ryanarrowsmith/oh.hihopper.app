@@ -6188,6 +6188,12 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
 .sign--in{color:#256F46}
 .sign--wait{color:#8A5A0B}
 .sign--no{color:var(--ink-3)}
+.sign--bad{color:var(--bad)}
+
+/* Inviting is a thing to do, so the cell that reports it carries the button
+   rather than a label about the button. It has to fit the roster's own 128px
+   column, which is why it is not the standard .btn height. */
+.invbtn{padding:5px 12px; font-size:12px; height:auto; min-height:0; width:auto; margin:0}
 
 /* the bar above the roster. .rosbar, not .rbar2 -- that one is the reporting
    bar and already means something else. */
