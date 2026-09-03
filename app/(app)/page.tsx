@@ -36,7 +36,7 @@ export default async function Home() {
       {/* canvas buttons: bubbled, canvas-toned, named on hover */}
       <div className="tools">
         <div className="bubw">
-          <a className="bub" href="#" aria-label="Your favorites">
+          <a className="bub" href="/favorites" aria-label="Your favorites">
             <svg viewBox="0 0 24 24"><path d="M12 20.2S4 15 4 9.6a4.4 4.4 0 0 1 8-2.5 4.4 4.4 0 0 1 8 2.5c0 5.4-8 10.6-8 10.6z" /></svg>
           </a>
           <span className="bubl" aria-hidden="true">Favorites</span>

@@ -71,6 +71,14 @@ export default function TopBar(
             since neither the bar nor the container is positioned it was
             measuring from the page -- which is why it landed beside the bell
             rather than under it. */}
+        {/* The heart sits with the bell because both are yours rather than the
+            page's: one is what wants you, the other is what you wanted. */}
+        <a className="ibtn" href="/favorites" aria-label="Your favorites" title="Favorites">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 20.2S4 15 4 9.6a4.4 4.4 0 0 1 8-2.5 4.4 4.4 0 0 1 8 2.5c0 5.4-8 10.6-8 10.6z" />
+          </svg>
+        </a>
+
         <span className="bellw">
           <button className="ibtn is-lit" type="button" aria-label="Notifications"
                   aria-expanded={open === 'noti'} aria-haspopup="dialog"
