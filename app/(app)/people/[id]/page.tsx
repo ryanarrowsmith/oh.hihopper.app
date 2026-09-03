@@ -21,9 +21,21 @@ export default async function PersonPage({ params }: { params: { id: string } })
 
   const [{ data: d }, { data: contact }] = await Promise.all([
     db.schema('hopper').from('directory').select('*').eq('id', params.id).maybeSingle(),
-    db.schema('hopper').from('person').select('email, phone, manager_id').eq('id', params.id).maybeSingle(),
+    db.schema('hopper').from('person').select('email, phone, manager_id, profile_id').eq('id', params.id).maybeSingle(),
   ])
   if (!d) notFound()
+
+  // Where somebody can sign in, the platform owns their address as well as
+  // their name -- hopper.person.email is the address of record only for roster
+  // entries with no login. The directory has already resolved the name; this
+  // is the same rule for the one contact detail it deliberately does not
+  // carry. Read through the caller's own session, which beebee allows for
+  // anybody sharing an account with them.
+  const { data: prof } = contact?.profile_id
+    ? await db.schema('beebee').from('profiles')
+        .select('email').eq('id', contact.profile_id).maybeSingle()
+    : { data: null }
+  const email = prof?.email ?? contact?.email ?? null
 
   // Through the directory, not joined into it: RLS then answers, so somebody
   // whose manager this viewer may not see gets no row rather than a name they
@@ -47,7 +59,7 @@ export default async function PersonPage({ params }: { params: { id: string } })
           link twice on the same screen, six inches apart. */}
       <CrumbTail>{d.full_name}</CrumbTail>
 
-      <PersonBadge d={d as any} email={contact?.email ?? null}
+      <PersonBadge d={d as any} email={email}
                    phone={contact?.phone ?? null} manager={manager as any} />
 
       <div className="gtkm">

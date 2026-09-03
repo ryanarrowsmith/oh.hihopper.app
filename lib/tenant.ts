@@ -36,7 +36,11 @@ export const currentSession = cache(async (): Promise<Session | null> => {
   const { data: profile } = await db.schema('beebee')
     .from('profiles').select('full_name, email').eq('id', user.id).maybeSingle()
 
-  const name = person?.full_name || profile?.full_name || profile?.email || 'You'
+  // The profile first, not the person row. Where somebody can sign in the
+  // platform owns their name, and this is somebody signed in -- so the person
+  // row is the fallback for the case that cannot happen here and the belt for
+  // a profile with no name on it yet.
+  const name = profile?.full_name || person?.full_name || profile?.email || 'You'
 
   return {
     userId: user.id,

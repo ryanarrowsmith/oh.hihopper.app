@@ -6,10 +6,26 @@ import Choice from '@/components/Choice'
 
 export default async function Users() {
   const db = supabaseServer()
-  const { data: people } = await db.schema('hopper')
+  const { data: rows } = await db.schema('hopper')
     .from('person').select('id, full_name, email, role_title, active, entity_id, profile_id')
     .order('full_name')
   const { data: entities } = await db.schema('hopper').from('entity').select('id, name')
+
+  // Where somebody can sign in, the platform owns their name and address. This
+  // is the one screen that shows both kinds of person side by side, so it is
+  // the one place the difference has to be visible rather than merely obeyed:
+  // a row with a login shows the profile's answer, and says so.
+  const withLogin = (rows ?? []).map((p: any) => p.profile_id).filter(Boolean)
+  const { data: profiles } = withLogin.length
+    ? await db.schema('beebee').from('profiles').select('id, full_name, email').in('id', withLogin)
+    : { data: [] }
+  const byProfile = new Map((profiles ?? []).map((x: any) => [x.id, x]))
+  const people = (rows ?? []).map((p: any) => {
+    const pr = p.profile_id ? byProfile.get(p.profile_id) : null
+    return { ...p,
+      full_name: (pr?.full_name?.trim() || p.full_name),
+      email: pr?.email ?? p.email }
+  })
   const nameOf = (id: string | null) => (entities ?? []).find((e: any) => e.id === id)?.name ?? '—'
 
   return (
@@ -23,18 +39,20 @@ export default async function Users() {
         </span></p>
       </div></div>
 
-      <Section title="Everyone" blurb={`${people?.length ?? 0} on the roster, with and without a login.`}
+      <Section title="Everyone" blurb={`${people.length} on the roster, with and without a login. A name shown against a login is the profile's, not Hopper's.`}
         action={null}>
-        {(people?.length ?? 0) === 0 ? <p className="empty">Nobody you can see.</p> : (
+        {people.length === 0 ? <p className="empty">Nobody you can see.</p> : (
           <div className="tblwrap"><table className="tbl">
             <thead><tr><th>Name</th><th>Role</th><th>Organization</th><th>Sign-in</th><th>Status</th></tr></thead>
-            <tbody>{people!.map((p: any) => (
+            <tbody>{people.map((p: any) => (
               <tr key={p.id}>
                 <td><b>{p.full_name}</b><br /><span className="muted" style={{ fontSize: 12.5 }}>{p.email ?? '—'}</span></td>
                 <td>{p.role_title ?? '—'}</td>
                 <td>{nameOf(p.entity_id)}</td>
                 <td>{p.profile_id
-                  ? <span className="pill pill--good">Has a login</span>
+                  ? <span className="pill pill--good" title="Their name and email come from their Oh hi profile">
+                      Has a login
+                    </span>
                   : <span className="pill">Not invited</span>}</td>
                 <td>{p.active ? 'Active' : <span className="pill">Deactivated</span>}</td>
               </tr>
@@ -64,6 +82,8 @@ export default async function Users() {
               <p className="fine">
                 Adding somebody puts them on the roster. It does not give them a login —
                 the platform owns identity, and an invitation is a separate, deliberate act.
+                These two fields are the name and address of record until then; the day
+                they get a login, their profile takes both over.
               </p>
             </ActionForm>
           </div>
