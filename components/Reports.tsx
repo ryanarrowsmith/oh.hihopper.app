@@ -9,6 +9,7 @@ import { PRESETS } from '@/components/useRange'
 import DateField from '@/components/DateField'
 import { useRange, inWindow } from '@/components/useRange'
 import { useScope } from '@/components/useScope'
+import { attentionOf } from '@/lib/freshness'
 
 export type Card = {
   id: string; name: string; entity: string; department: string; category: string | null
@@ -37,27 +38,6 @@ const Tick = () => (
     <path d="m4 12 5 5L20 7" />
   </svg>
 )
-
-/**
- * Whether a report wants a person, and which kind of wanting.
- *
- * The dot at the foot of a card has always known this; it just said it at a
- * volume you had to already be looking to hear. A page of forty cards is read
- * by not reading it, so the answer has to survive being glanced past -- which
- * is what the stripe down the left edge is for, and this is what decides its
- * colour.
- *
- * A snapshot is never behind: Hopper did not go back to look, said so, and a
- * flag would be inventing a duty nobody signed up for.
- */
-export type Attention = 'late' | 'bad' | 'never' | null
-
-export function attentionOf(c: Card): Attention {
-  if (c.freshness === 'failed') return 'bad'
-  if (c.freshness === 'behind') return 'late'
-  if (c.freshness === 'new') return 'never'
-  return null
-}
 
 /** The stopwatch that means "this should have moved by now". */
 const Late = () => (

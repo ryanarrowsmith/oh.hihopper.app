@@ -1,6 +1,7 @@
 import 'server-only'
 import { supabaseServer } from '@/lib/supabase/server'
 import type { Card } from '@/components/Reports'
+import { freshnessOf, lateBy } from '@/lib/freshness'
 
 /**
  * Every report this reader may see, as cards.
@@ -94,59 +95,3 @@ function orderedSeries(
     .filter((m) => byMeasure.has(m))
     .map((m) => ({ measure: m, points: byMeasure.get(m)! }))
 }
-
-/**
- * Current, behind, or failed.
- *
- * When Hopper last LOOKED and when the data last MOVED are different questions,
- * and only the second one matters: a sheet nobody has touched in three weeks
- * still answers every request instantly, so calling that "fresh" fails quietly,
- * which is the worst way to fail. A report may go without moving for about as
- * long as its schedule implies; past that it is behind, whatever the last look
- * said.
- */
-function freshnessOf(r: any): 'new' | 'good' | 'behind' | 'failed' | 'snapshot' {
-  if (r.snapshot_at) return 'snapshot'
-  if (!r.last_look) return 'new'
-  if (r.last_look_ok === false) return 'failed'
-  if (!r.value_on) return 'good'
-
-  const still = Date.now() - dayStart(r.value_on)
-  return still > allowedFor(r.refresh) ? 'behind' : 'good'
-}
-
-/**
- * A report may go without moving for about as long as its schedule implies.
- * Nine days for a weekly one and not seven, because a sheet updated every
- * Monday is not late on Sunday night -- an allowance with no slack in it flags
- * every healthy report once a week, and a flag that cries wolf is worse than
- * no flag.
- */
-function allowedFor(refresh: string | null) {
-  const day = 86_400_000
-  return refresh === 'weekly' ? 9 * day : refresh === 'daily' ? 2 * day : day
-}
-
-/**
- * How many days past its allowance, for the card to say so in a number.
- *
- * "Behind" is a yes or no; how far behind is what decides whether you deal with
- * it now or on Friday, and the card has room to say which. Counted from the
- * allowance and not from the last reading, so the figure means "overdue by",
- * which is the thing a person acts on.
- */
-function lateBy(r: any): number | null {
-  if (r.snapshot_at || !r.value_on) return null
-  const over = Date.now() - dayStart(r.value_on) - allowedFor(r.refresh)
-  // Floored, not rounded. A warning that rounds up is a warning that overstates
-  // its case, and this one is asking somebody to go and do something.
-  return over > 0 ? Math.max(1, Math.floor(over / 86_400_000)) : null
-}
-
-/**
- * A date the sheet supplied is a DAY, not an instant, and `new Date('2026-08-08')`
- * is UTC midnight -- the same trap the card's own date formatter documents.
- * Anchoring both at the start of the day is what keeps "still since Aug 8" and
- * "24 days late" talking about one Aug 8.
- */
-const dayStart = (iso: string) => new Date(`${iso}T00:00:00`).getTime()

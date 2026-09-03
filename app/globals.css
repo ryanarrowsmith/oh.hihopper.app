@@ -30,6 +30,12 @@
   --warmbg:#FDF6E9; --warmrule:#EBD9B4;
   --good:#2E8B57; --warn:#F2A93B; --bad:#D93A2B;
   --s1:#016593; --s2:#788632; --s3:#C17299;
+  --canvas-ink:#8C8375;
+  /* The drawn map. Roads read as roads only because the ground is DARKER than
+     they are -- a white road on a near-white block is a gap, not a street. */
+  --mapland:#DFD7C7; --mapblock:#EAE3D5; --maproad:#FFFFFF;
+  --maproad-e:#C6BCA7; --mappark:#CBDCB8; --mapwater:#AFCEDD;
+  --mapink:#8A8175; --mappin:#C0492B;
   --focus:0 0 0 3px rgba(45,93,123,.35);
   --shadow:0 1px 2px rgba(35,31,32,.05), 0 8px 24px -12px rgba(35,31,32,.14);
   --lift:0 1px 3px rgba(35,31,32,.07), 0 26px 60px -28px rgba(35,31,32,.34);
@@ -54,6 +60,10 @@
     --warmbg:#2A2119; --warmrule:#4A3A24;
     --good:#4FB07B; --bad:#E9614F;
     --s1:#0493D3; --s2:#859700; --s3:#B24981;
+    --canvas-ink:#9A9186;
+    --mapland:#141312; --mapblock:#221F1C; --maproad:#454039;
+    --maproad-e:#0E0D0C; --mappark:#232E20; --mapwater:#1D3038;
+    --mapink:#7D7466; --mappin:#E0705A;
     --focus:0 0 0 3px rgba(127,179,209,.4);
     --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
     --lift:0 1px 3px rgba(0,0,0,.5), 0 26px 60px -28px rgba(0,0,0,.9);
@@ -74,6 +84,10 @@
   --warmbg:#2A2119; --warmrule:#4A3A24;
   --good:#4FB07B; --bad:#E9614F;
   --s1:#0493D3; --s2:#859700; --s3:#B24981;
+  --canvas-ink:#9A9186;
+  --mapland:#141312; --mapblock:#221F1C; --maproad:#454039;
+  --maproad-e:#0E0D0C; --mappark:#232E20; --mapwater:#1D3038;
+  --mapink:#7D7466; --mappin:#E0705A;
   --focus:0 0 0 3px rgba(127,179,209,.4);
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
   --lift:0 1px 3px rgba(0,0,0,.5), 0 26px 60px -28px rgba(0,0,0,.9);
@@ -4013,3 +4027,298 @@ h1 .helpb{font-size:12px}
    equal destinations and no answer to "where am I", which is the one thing the
    footer of a long page is well placed to say. */
 .jumppop a.is-here{color:var(--ink); font-weight:800; background:var(--sunken)}
+
+/* ============ HOME ============
+   Full-width sections, one after another, and no sidebar anywhere on the page.
+   A rail is a place to put what would not fit, and everything that had been on
+   this page's rail belonged either in a section or nowhere.
+
+   Scoped under .hx throughout. Not for tidiness -- globals already owns .card,
+   .row, .sec and half a dozen other names this screen wants, and a bare rule
+   here would reach across the whole product to repaint pages nobody asked
+   about. */
+
+/* ── the hero, the one fixed thing ─────────────────────────────────── */
+.hx .hxhero{padding:8px 0 26px}
+
+.hx .hxhero h1{font-size:clamp(1.8rem,3.8vw,2.7rem); font-weight:800;
+  letter-spacing:-.035em; line-height:1.25; text-wrap:balance; margin:0 0 12px}
+
+/* A highlighter span carries .3em of padding so the ink clears the letters,
+   and the comma after it inherits that gap and reads as "Ryan ." -- so the
+   punctuation is pulled back onto the word. It lands just inside the swipe's
+   overshoot, which is where a real one falls. */
+.hx .hxhero h1 .pn{margin-left:-.26em; letter-spacing:0}
+
+/* The photo and the name are one thing, so one swipe runs behind both -- which
+   means the ink has to be tall enough to clear a round photo and not just a
+   line of type. */
+.hx .hlwho{background-size:100% 1.3em; background-position:0 -.06em;
+  padding:.02em .3em .06em; white-space:nowrap}
+
+.hx .hxface{width:1.05em; height:1.05em; border-radius:50%; object-fit:cover;
+  vertical-align:-.19em; margin:0 .14em 0 0; border:2px solid var(--surface);
+  box-shadow:0 0 0 1px var(--rule)}
+
+/* Nobody highlights the weather. */
+.hx .hxwhen{font-size:clamp(14px,1.5vw,16px); color:var(--ink-2); margin:0; font-weight:500}
+
+/* ── the strip ─────────────────────────────────────────────────────── */
+.hx .tools{padding-bottom:12px}
+.hx .tools__s{align-self:center; font-size:11px; color:var(--ink-3); font-family:var(--mono)}
+.hx .bub.is-on{background:var(--amber); border-color:var(--amber); color:#231F20}
+
+/* ── the picker ────────────────────────────────────────────────────── */
+.hx .hxpick{display:grid; grid-template-columns:repeat(auto-fill,minmax(268px,1fr));
+  gap:10px; margin-bottom:26px}
+
+.hx .hxopt{display:grid; grid-template-columns:1fr 20px; gap:2px 8px; text-align:left;
+  padding:12px 13px; background:var(--surface); border:1px solid var(--rule);
+  border-radius:var(--r); cursor:pointer; font:inherit; color:inherit;
+  transition:border-color .15s, background .15s}
+
+.hx .hxopt:hover:not(:disabled){border-color:var(--canvas-3)}
+.hx .hxopt.is-on{border-color:var(--amber); background:var(--warmbg)}
+
+/* Not built is not the same as switched off, so it does not look like it: the
+   row is legible, greyed, and says which it is. A catalogue that hid what is
+   unbuilt answers "is there a tickets widget" with silence, and silence reads
+   as no rather than as not yet. */
+.hx .hxopt.is-soon{opacity:.62; cursor:default; background:var(--sunken)}
+.hx .hxopt:disabled{cursor:default}
+
+.hx .hxopt__t{display:flex; align-items:baseline; gap:7px; flex-wrap:wrap}
+.hx .hxopt__t b{font-size:13.5px; font-weight:800; color:var(--ink)}
+.hx .hxopt__t em{font-style:normal; font-family:var(--mono); font-size:9px;
+  letter-spacing:.11em; text-transform:uppercase; color:var(--ink-3)}
+.hx .hxopt__n{grid-column:1; font-size:11.5px; line-height:1.5; color:var(--ink-3)}
+.hx .hxopt__x{grid-row:1/3; grid-column:2; color:var(--amber); align-self:center}
+.hx .hxopt__x svg{width:18px; height:18px; fill:none; stroke:currentColor;
+  stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round}
+
+/* ── sorting ───────────────────────────────────────────────────────── */
+.hx .hxsort{list-style:none; margin:0 0 26px; padding:0; display:flex;
+  flex-direction:column; gap:6px}
+
+.hx .hxsort__i{display:flex; align-items:center; gap:10px; padding:11px 13px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  cursor:grab}
+.hx .hxsort__i:active{cursor:grabbing}
+.hx .hxsort__i b{font-size:13.5px; font-weight:800}
+.hx .hxsort__sp{flex:1 1 auto}
+.hx .hxsort__n{font-family:var(--mono); font-size:10px; color:var(--ink-3)}
+
+.hx .hxarr{width:28px; height:28px; display:grid; place-items:center; padding:0;
+  background:var(--sunken); border:1px solid var(--rule); border-radius:var(--r);
+  color:var(--ink-2); cursor:pointer}
+.hx .hxarr:hover:not(:disabled){background:var(--amber); border-color:var(--amber); color:#231F20}
+.hx .hxarr:disabled{opacity:.35; cursor:default}
+.hx .hxarr svg{width:15px; height:15px; fill:none; stroke:currentColor;
+  stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round}
+
+/* ── a section ─────────────────────────────────────────────────────── */
+.hx .hxsec{margin:0 0 34px}
+
+.hx .hxsec__h{display:flex; align-items:center; gap:10px; margin-bottom:4px}
+.hx .hxsec__h h2{font-size:17px; font-weight:800; letter-spacing:-.02em; margin:0}
+.hx .hxsec__sp{flex:1 1 auto}
+
+.hx .hxsec__m{width:22px; height:22px; flex:none; color:var(--ink-3)}
+.hx .hxsec__m svg{width:100%; height:100%}
+
+.hx .hxsec__n{font-size:12.5px; color:var(--ink-3); line-height:1.6;
+  max-width:78ch; margin:0 0 14px}
+
+/* ── a card ────────────────────────────────────────────────────────── */
+.hx .hxgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(232px,1fr)); gap:12px}
+.hx .hxgrid--wide{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+
+.hx .hxcard{display:flex; flex-direction:column; gap:6px; padding:14px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  box-shadow:var(--shadow); text-decoration:none; color:inherit;
+  transition:border-color .15s, box-shadow .15s, transform .15s}
+
+a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
+  box-shadow:var(--lift); transform:translateY(-1px)}
+
+.hx .hxcard__k{font-family:var(--mono); font-size:9px; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3)}
+.hx .hxcard__t{font-size:14px; font-weight:800; letter-spacing:-.015em; color:var(--ink);
+  text-decoration:none; line-height:1.3}
+.hx a.hxcard:hover .hxcard__t{color:var(--steel-ink)}
+.hx .hxcard__s{font-size:11.5px; color:var(--ink-3)}
+.hx .hxcard__h{display:flex; align-items:center; gap:9px}
+.hx .hxcard__f{display:flex; gap:7px; margin-top:auto; padding-top:10px}
+
+.hx .hxrows{display:flex; flex-direction:column}
+.hx .hxrow{display:flex; align-items:baseline; gap:10px; padding:6px 0;
+  border-bottom:1px solid var(--rule-soft); font-size:12px; color:var(--ink-3)}
+.hx .hxrow:last-child{border-bottom:0}
+.hx .hxrow em{font-style:normal; margin-left:auto; color:var(--ink-2); font-weight:700}
+
+/* ── a card carrying a map ─────────────────────────────────────────── */
+.hx .hxcard--map{padding:0; overflow:hidden}
+.hx .hxcard--map .hxcard__h{padding:13px 14px 10px}
+.hx .hxcard--map .hxrows{padding:4px 14px}
+.hx .hxcard--map .hxcard__f{padding:10px 14px 13px}
+
+.hx .map{position:relative; display:block; width:100%; aspect-ratio:16/9;
+  background:var(--mapland); border-top:1px solid var(--rule);
+  border-bottom:1px solid var(--rule); overflow:hidden}
+.hx .map svg{display:block; width:100%; height:100%}
+
+/* The chip is the part of this picture that is actually true, so it is the
+   part that is legible. */
+.hx .map .mapaddr{position:absolute; top:8px; left:8px; max-width:calc(100% - 20px);
+  padding:4px 8px; border-radius:var(--r); background:var(--surface);
+  border:1px solid var(--rule); font-family:var(--mono); font-size:10px;
+  line-height:1.4; color:var(--ink-2); box-shadow:var(--shadow); white-space:pre-line}
+
+/* ── a face on a card ──────────────────────────────────────────────── */
+/* The photo fills a 16:9 band edge to edge rather than a round crop, which
+   throws away the sides of a face -- most of what you recognise somebody by.
+   Initials take the same band, so the card is one shape either way. */
+.hx .hxcard--face{padding:0; overflow:hidden}
+.hx .hxcard--face .hxcard__t,
+.hx .hxcard--face .hxcard__s{padding:0 14px}
+.hx .hxcard--face .hxcard__t{padding-top:11px}
+.hx .hxcard--face .hxcard__f{padding:10px 14px 13px}
+
+.hx .hxport{display:block}
+.hx .hxport__f{display:block; width:100%; aspect-ratio:16/9; object-fit:cover;
+  object-position:50% 28%; border-bottom:1px solid var(--rule-soft)}
+.hx .hxport__m{display:flex; align-items:center; justify-content:center;
+  width:100%; aspect-ratio:16/9; background:var(--sunken);
+  border-bottom:1px solid var(--rule-soft)}
+
+/* A card that is the full width of a phone turns 16:9 into a poster; cap the
+   band instead, so a face stays a face. */
+@media (max-width:640px){
+  .hx .hxport__f, .hx .hxport__m{aspect-ratio:auto; height:148px}
+  .hx .hxgrid, .hx .hxgrid--wide{grid-template-columns:1fr}
+}
+
+
+/* ── the hero's fact line ──────────────────────────────────────────── */
+/* Darker tones of the canvas rather than ink: the time, the day and the
+   temperature are context, not content, and ink weight here would put them
+   level with the sentence under them. The rule stops where the header stops
+   -- it belongs to the greeting, not to the column. */
+.hx .hxfacts{display:flex; align-items:center; flex-wrap:wrap; width:fit-content;
+  max-width:100%; border-top:1px solid var(--canvas-2); padding-top:11px}
+
+.hx .hxfact{display:inline-flex; align-items:center; gap:7px; padding:0 15px;
+  font-size:13px; color:var(--canvas-ink); border-left:1px solid var(--canvas-2)}
+.hx .hxfact:first-child{padding-left:0; border-left:0}
+.hx .hxfact:last-child{padding-right:0}
+.hx .hxfact svg{width:15px; height:15px; flex:none; opacity:.85}
+.hx .hxfact b{font-weight:700; color:var(--canvas-ink)}
+
+/* ── the sentence ──────────────────────────────────────────────────── */
+.hx .hxneed{font-size:clamp(15px,1.7vw,19px); line-height:1.9; color:var(--ink-2);
+  margin:18px 0 0; max-width:64ch; font-weight:500}
+.hx .hxneed--ok{color:var(--ink-3)}
+
+.hx .numw{position:relative; display:inline-block}
+.hx .numbtn{font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer}
+.hx .numbtn .num{display:inline; font-weight:800; color:var(--ink)}
+
+/* text-decoration and not a border: a border sits under the highlighter's own
+   padding and reads as a gap, where this hugs the word and follows it if the
+   sentence ever wraps mid-phrase. */
+.hx .numbtn:hover .num,
+.hx .numbtn:focus-visible .num,
+.hx .numbtn[aria-expanded="true"] .num{
+  text-decoration:underline; text-decoration-thickness:2px; text-underline-offset:3px;
+  text-decoration-color:var(--ink)}
+.hx .numbtn:focus-visible{outline:none}
+
+/* ── the panel a count opens ───────────────────────────────────────── */
+.hx .npop{position:absolute; z-index:60; top:calc(100% + 12px); left:-6px; display:block;
+  width:min(430px,calc(100vw - 32px)); background:var(--surface); border:1px solid var(--rule);
+  border-radius:var(--r); box-shadow:var(--lift); font-size:14px; font-weight:400;
+  line-height:1.5; color:var(--ink); text-align:left; cursor:default}
+
+.hx .npop .arw{position:absolute; top:-7px; left:22px; width:12px; height:12px;
+  background:var(--surface); border-left:1px solid var(--rule); border-top:1px solid var(--rule);
+  transform:rotate(45deg)}
+
+.hx .npop .nph{display:flex; align-items:flex-start; gap:12px; padding:15px 16px 12px;
+  border-bottom:1px solid var(--rule-soft)}
+.hx .npop .nph > span:first-child{flex:1 1 auto}
+.hx .npop .nph b{display:block; font-size:15px; font-weight:800; letter-spacing:-.02em}
+.hx .npop .nph span span{display:block; font-size:12.5px; color:var(--ink-3);
+  margin-top:3px; line-height:1.5}
+
+.hx .npop .npx{width:28px; height:28px; flex:none; display:grid; place-items:center;
+  background:none; border:1px solid transparent; border-radius:var(--r);
+  color:var(--ink-3); cursor:pointer}
+.hx .npop .npx:hover{background:var(--sunken); color:var(--ink); border-color:var(--rule)}
+.hx .npop .npx svg{width:14px; height:14px}
+
+.hx .npop .npb{display:block; max-height:min(56vh,420px); overflow-y:auto; padding:6px 0 8px}
+
+.hx .npop .npg{display:flex; align-items:center; gap:9px; padding:11px 16px 5px}
+.hx .npop .npg .gn{font-size:11px; font-weight:800; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ink-3)}
+.hx .npop .npg .gc{font-family:var(--mono); font-size:10.5px; color:var(--ink-3); opacity:.75}
+.hx .npop .npg .gl{flex:1 1 auto; height:1px; background:var(--rule-soft)}
+
+.hx .npop .nprow{display:flex; align-items:flex-start; gap:11px; width:100%;
+  padding:9px 16px; text-decoration:none; color:inherit}
+.hx .npop .nprow:hover{background:var(--sunken)}
+.hx .npop .nprow .ic{width:26px; height:26px; flex:none; display:grid; place-items:center;
+  background:var(--sunken); border-radius:var(--r); margin-top:1px}
+.hx .npop .nprow:hover .ic{background:var(--surface)}
+.hx .npop .nprow .ic svg{width:14px; height:14px; color:var(--ink-3)}
+.hx .npop .nprow .tx{min-width:0; flex:1 1 auto}
+.hx .npop .nprow .tx b{display:block; font-size:13.5px; font-weight:700;
+  line-height:1.4; letter-spacing:-.01em}
+.hx .npop .nprow .tx span{display:block; font-size:12px; color:var(--ink-3); margin-top:1px}
+.hx .npop .nprow .due{font-size:11px; font-family:var(--mono); color:var(--ink-3);
+  white-space:nowrap; margin-top:3px}
+.hx .npop .nprow.late .due{color:#8A5A0B; font-weight:700}
+.hx .npop .npf{display:block; border-top:1px solid var(--rule-soft); padding:10px 16px;
+  font-size:12px; color:var(--ink-3); line-height:1.5}
+
+:root[data-theme="dark"] .hx .npop .nprow.late .due{color:var(--amber)}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .hx .npop .nprow.late .due{color:var(--amber)}}
+
+/* A panel anchored to a word is a desktop idea. On a phone the detail comes up
+   the full width, under the sentence, where a thumb already is. */
+@media (max-width:560px){
+  .hx .numw{position:static}
+  .hx .npop{left:0; right:0; width:auto; top:calc(100% + 10px)}
+  .hx .npop .arw{display:none}
+}
+
+/* ── a section's one way out ───────────────────────────────────────── */
+/* It arrives with the pointer -- but on focus too, or the rest of a list is
+   reachable only by somebody holding a mouse. */
+.hx .hxsec__a{opacity:0; transition:opacity .16s}
+.hx .hxsec__a:focus-within{opacity:1}
+@media (hover:hover){ .hx .hxsec:hover .hxsec__a{opacity:1} }
+@media (hover:none){ .hx .hxsec__a{opacity:.6} }
+
+/* ── the picture on a card ─────────────────────────────────────────── */
+.hx .hxart{display:block; margin:8px -14px 2px; overflow:hidden;
+  background:var(--sunken);
+  border-top:1px solid var(--rule-soft); border-bottom:1px solid var(--rule-soft)}
+.hx .hxart .map{aspect-ratio:auto; height:76px; border:0}
+.hx .hxart .mapaddr{display:none}
+.hx .hxart--chart{background:var(--surface)}
+.hx .hxart--chart .chartbox{height:76px}
+.hx .hxart--logo{display:flex; align-items:center; justify-content:center; height:76px}
+.hx .hxart--face{height:76px}
+.hx .hxart--face .hxport__f{height:76px; width:100%; object-fit:cover; object-position:50% 28%;
+  aspect-ratio:auto; border:0}
+.hx .hxart--face .hxport__m{height:76px; aspect-ratio:auto; border:0}
+
+/* A face card leads with the face, so its band goes to the top edge and the
+   name follows it. */
+.hx .hxcard--face .hxart{margin:-14px -14px 0}
+
+/* The number on a card that carries one. */
+.hx .hxcard__f2{display:flex; align-items:center; gap:7px; margin-top:8px;
+  font-size:11.5px; color:var(--ink-3)}
