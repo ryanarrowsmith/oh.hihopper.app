@@ -6224,6 +6224,44 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
    rather than a label about the button. It has to fit the roster's own 128px
    column, which is why it is not the standard .btn height. */
 .invbtn{padding:5px 12px; font-size:12px; height:auto; min-height:0; width:auto; margin:0}
+.invbtn.is-on{background:var(--steel); border-color:var(--steel); color:#FBF9F5}
+
+/* ============ INVITING SOMEBODY ============
+   Two offers in one drawer: send it, or be handed it to send yourself. */
+.invsay{margin:0 0 12px; font-size:13.5px; line-height:1.6; color:var(--ink-2); max-width:64ch}
+.invsay b{color:var(--ink)}
+
+/* The word between two offers, on the rule rather than above it -- so the
+   second reads as an alternative rather than a second instruction. */
+.invor{display:flex; align-items:center; gap:12px; margin:20px 0 16px;
+  font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-3)}
+.invor::before, .invor::after{content:''; flex:1; height:1px; background:var(--rule)}
+
+.invout{margin:14px 0 0; display:flex; flex-direction:column}
+.invout > div{display:grid; grid-template-columns:118px minmax(0,1fr); gap:14px;
+  align-items:center; padding:10px 0; border-bottom:1px solid var(--rule-soft)}
+.invout > div:last-child{border-bottom:0}
+.invout dt{font-family:var(--mono); font-size:10px; font-weight:800; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3)}
+.invout dd{margin:0; display:flex; gap:8px; flex-wrap:wrap}
+.invcopy{margin:0}
+
+/* The preview is shut by default. It is reassurance, not the deliverable --
+   the deliverable is on the clipboard. */
+.invsee{margin-top:16px}
+.invsee summary{font-size:12.5px; font-weight:700; color:var(--ink-3); cursor:pointer;
+  padding:6px 0}
+.invsee summary:hover{color:var(--ink)}
+.invsee__p{margin-top:10px; padding:18px; background:#FFFFFF;
+  border:1px solid var(--rule); border-radius:var(--r); overflow-x:auto}
+/* The message carries every one of its own styles inline, because it has to
+   survive a compose window. Nothing here may reach into it. */
+.invsee__p a{pointer-events:none}
+
+@media (max-width:640px){
+  .invout > div{grid-template-columns:1fr; gap:6px; align-items:start}
+}
 
 /* the bar above the roster. .rosbar, not .rbar2 -- that one is the reporting
    bar and already means something else. */

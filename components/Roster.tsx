@@ -5,7 +5,7 @@ import Choice from '@/components/Choice'
 import { Pencil } from '@/components/Icons'
 import { importPeople, movePeople, setPeopleActive, type Landed } from '@/app/actions/roster'
 import { createPerson, setPersonActive, updatePerson } from '@/app/actions/admin'
-import { invitePerson } from '@/app/actions/invite'
+import InvitePanel from '@/components/InvitePanel'
 
 export type Row = {
   id: string; name: string; email: string | null; role: string | null; phone: string | null
@@ -40,51 +40,29 @@ const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2)
  * them one". A screen that reports work nobody did is worse than a screen that
  * reports nothing.
  */
-function Sign({ p, mayEdit }: { p: Row; mayEdit: boolean }) {
+function Sign({ p, mayEdit, onInvite, open }: {
+  p: Row; mayEdit: boolean; onInvite: () => void; open: boolean
+}) {
   if (p.canSignIn) return <span className="sign sign--in">{I(TICK, '2.4')}Signs in</span>
   if (p.invited) {
     // There is something to do here and the person looking at it may do it, so
-    // the cell is the control rather than a label about the control.
-    if (mayEdit && p.active) return <Invite p={p} />
+    // the cell is the control rather than a label about the control. It opens
+    // the row rather than sending immediately: an irreversible thing fired
+    // straight from a table cell is a thing done by accident.
+    if (mayEdit && p.active) {
+      return (
+        <button className={`btn btn--amber invbtn${open ? ' is-on' : ''}`} type="button"
+                onClick={onInvite} aria-expanded={open}
+                data-tip="Email them a link to sign in, or write one out to send yourself">
+          Invite
+        </button>
+      )
+    }
     return <span className="sign sign--wait" data-tip="Has an email address — nobody has been invited yet">
       {I(MAIL, '2')}No login yet</span>
   }
   return <span className="sign sign--no" data-tip="No email address on file to invite">
     {I(MINUS, '2.4')}Roster only</span>
-}
-
-/**
- * Send somebody a login.
- *
- * It answers in the cell it was pressed in, because the row is what the eye is
- * on -- and the answer is the whole point: an invitation that says nothing is
- * how somebody ends up sending four. The full sentence is on the tip, so a
- * 128px column can still carry a reason.
- */
-function Invite({ p }: { p: Row }) {
-  const [state, run] = useFormState(invitePerson, null)
-  if (state) {
-    return (
-      <span className={`sign ${state.ok ? 'sign--in' : 'sign--bad'}`} data-tip={state.message}>
-        {I(state.ok ? TICK : MINUS, '2.4')}{state.ok ? 'Invited' : 'Would not send'}
-      </span>
-    )
-  }
-  return (
-    <form action={run} style={{ display: 'contents' }}>
-      <input type="hidden" name="id" value={p.id} />
-      <InviteGo />
-    </form>
-  )
-}
-function InviteGo() {
-  const { pending } = useFormStatus()
-  return (
-    <button className="btn btn--sm btn--amber" type="submit" disabled={pending}
-            data-tip="Emails them a link to set a password and open Hopper">
-      {pending ? 'Sending…' : 'Invite'}
-    </button>
-  )
 }
 
 type Filter = 'all' | 'signin' | 'never' | 'off'
@@ -105,7 +83,10 @@ export default function Roster({ people, orgs, depts, mayEdit }: {
   const [filter, setFilter] = useState<Filter>('all')
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState<'import' | 'add' | 'move' | null>(null)
-  const [editing, setEditing] = useState<string | null>(null)
+  // One drawer per row, two things it can hold: the quick edit, or the two
+  // ways of inviting somebody. Two drawers on one row would be two ways to
+  // push the rows below apart.
+  const [drawer, setDrawer] = useState<{ id: string; what: 'edit' | 'invite' } | null>(null)
   const [paste, setPaste] = useState('')
   const [landed, land] = useFormState(importPeople, null)
   const [flipped, flip] = useFormState(setPeopleActive, null)
@@ -273,7 +254,7 @@ export default function Roster({ people, orgs, depts, mayEdit }: {
             <span>Sign-in</span><span />
           </div>
           {shown.map((p) => (
-            <div className={`rrec${editing === p.id ? ' is-open' : ''}`} key={p.id}>
+            <div className={`rrec${drawer?.id === p.id ? ' is-open' : ''}`} key={p.id}>
             <div className={`rrw${p.active ? '' : ' rrw--off'}`}>
               <span>
                 {mayEdit && (
@@ -294,14 +275,21 @@ export default function Roster({ people, orgs, depts, mayEdit }: {
               <span className="rrw__c">
                 {[p.entity, p.department].filter(Boolean).join(' · ') || '—'}
               </span>
-              <span><Sign p={p} mayEdit={mayEdit} /></span>
+              <span><Sign p={p} mayEdit={mayEdit}
+                          open={drawer?.id === p.id && drawer.what === 'invite'}
+                          onInvite={() => setDrawer(
+                            drawer?.id === p.id && drawer.what === 'invite'
+                              ? null : { id: p.id, what: 'invite' })} /></span>
               {/* Nothing a person may not do is drawn. Without the right to
                   edit there is no pencil here, not a dead one. */}
               <span className="rrw__a">
                 {mayEdit
                   ? <button className="rpen" type="button" title={`Edit ${p.name}`}
-                            aria-label={`Edit ${p.name}`} aria-expanded={editing === p.id}
-                            onClick={() => setEditing(editing === p.id ? null : p.id)}>
+                            aria-label={`Edit ${p.name}`}
+                            aria-expanded={drawer?.id === p.id && drawer.what === 'edit'}
+                            onClick={() => setDrawer(
+                              drawer?.id === p.id && drawer.what === 'edit'
+                                ? null : { id: p.id, what: 'edit' })}>
                       <Pencil />
                     </button>
                   : <a className="btn" href={`/people/${p.id}`}>Open</a>}
@@ -309,8 +297,12 @@ export default function Roster({ people, orgs, depts, mayEdit }: {
             </div>
             <div className="rrec__drawer"><div className="rrec__clip">
               <div className="rrec__form">
-                {editing === p.id && (
-                  <QuickEdit p={p} orgs={orgs} depts={depts} onDone={() => setEditing(null)} />
+                {drawer?.id === p.id && drawer.what === 'edit' && (
+                  <QuickEdit p={p} orgs={orgs} depts={depts} onDone={() => setDrawer(null)} />
+                )}
+                {drawer?.id === p.id && drawer.what === 'invite' && (
+                  <InvitePanel id={p.id} name={p.name} email={p.email}
+                               onDone={() => setDrawer(null)} />
                 )}
               </div>
             </div></div>

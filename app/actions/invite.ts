@@ -5,6 +5,16 @@ import { supabaseServer } from '@/lib/supabase/server'
 import { currentSession } from '@/lib/tenant'
 import { logAudit } from '@/lib/audit'
 import type { Result } from '@/app/actions/admin'
+import { inviteHtml, inviteSubject, inviteText } from '@/lib/invite-mail'
+
+/** An invitation to pass on by hand, with the message already written. */
+export type Handout = Result & {
+  link?: string
+  subject?: string
+  text?: string
+  html?: string
+  to?: string
+}
 
 /**
  * Give somebody a login.
@@ -99,5 +109,93 @@ export async function invitePerson(_prev: Result | null, form: FormData): Promis
     message: said.invited
       ? `Sent. ${person.full_name} has an email at ${person.email} with a link to set a password.`
       : `${person.full_name} already had an Oh hi login — they can open Hopper now.`,
+  }
+}
+
+/**
+ * The same invitation, to send yourself.
+ *
+ * A corporate filter that bins anything carrying a sign-in link does not
+ * bounce it, and the person waiting never learns there was anything to wait
+ * for. So this sends nothing: it makes the login, files it exactly as the
+ * emailed invitation does, and hands back the link with the message already
+ * written -- one to paste into Outlook or Gmail, one for anywhere plain.
+ *
+ * The link is a credential. It goes to somebody who already administers the
+ * account and could add that member anyway, it is never written to the audit
+ * entry, and the screen showing it says what it is.
+ */
+export async function inviteLink(_prev: Handout | null, form: FormData): Promise<Handout> {
+  const session = await currentSession()
+  if (!session) return { ok: false, message: 'Not signed in.' }
+
+  const id = (form.get('id') ?? '').toString().trim()
+  if (!id) return { ok: false, message: 'Nobody to invite.' }
+
+  const db = supabaseServer()
+  const { data: person, error: readErr } = await db.schema('hopper').from('person')
+    .select('id, full_name, email, profile_id').eq('id', id).maybeSingle()
+  if (readErr) return { ok: false, message: readErr.message }
+  if (!person) return { ok: false, message: 'That person is not yours to invite.' }
+  if (!person.email) {
+    return {
+      ok: false,
+      message: `${person.full_name} has no email address on file — a sign-in link is made against one.`,
+    }
+  }
+
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL
+  const { data, error } = await db.functions.invoke('invite-member', {
+    body: {
+      account_id: session.accountId,
+      email: person.email,
+      name: person.full_name,
+      mode: 'link',
+      redirect_to: site ? `${site.replace(/\/$/, '')}/sign-in` : undefined,
+    },
+  })
+  if (error) {
+    let why = error.message
+    try {
+      const said = await (error as any)?.context?.json?.()
+      if (said?.error) why = said.error
+    } catch { /* the body was not JSON; the message stands */ }
+    return { ok: false, message: why }
+  }
+  const said = data as { ok?: boolean; user_id?: string; link?: string; invited?: boolean }
+  if (!said?.ok || !said.link || !said.user_id) {
+    return { ok: false, message: 'A link could not be made.' }
+  }
+
+  if (!person.profile_id) {
+    const { error: linkErr } = await db.schema('hopper').from('person')
+      .update({ profile_id: said.user_id }).eq('id', id).select('id')
+    if (linkErr) return { ok: false, message: linkErr.message }
+  }
+
+  // What happened, not what the link is. An audit entry is read by people who
+  // were not there, and a live sign-in link sitting in it forever is a key
+  // left under the mat.
+  await logAudit(db, {
+    account_id: session.accountId, kind: 'person', object: person.full_name, object_id: id,
+    summary: `Made a sign-in link for ${person.full_name} to send by hand`,
+  })
+
+  revalidatePath('/admin/people'); revalidatePath('/people')
+
+  const invite = {
+    name: person.full_name,
+    accountName: session.accountName,
+    inviterName: session.displayName,
+    link: said.link,
+  }
+  return {
+    ok: true,
+    message: 'Ready to send.',
+    to: person.email,
+    link: said.link,
+    subject: inviteSubject(invite),
+    text: inviteText(invite),
+    html: inviteHtml(invite),
   }
 }
