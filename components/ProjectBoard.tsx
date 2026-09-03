@@ -1,5 +1,5 @@
 'use client'
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import Choice from '@/components/Choice'
 import CrumbTail from '@/components/CrumbTail'
@@ -211,7 +211,12 @@ function Mile({ m, people, tasks, mayEdit, mePersonId, project }: {
 
 function MoveDate({ m, onDone }: { m: Milestone; onDone: () => void }) {
   const [state, action] = useFormState(moveMilestone, null)
-  if (state?.ok) { onDone(); }
+  // Same bug as the three adders: closing is a change to the milestone above,
+  // so it happens after the render that learned the save worked, not during it.
+  // Only the result is a dependency. onDone is a fresh closure on every render
+  // of the milestone above, so listing it would run this after every render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (state?.ok) onDone() }, [state])
   return (
     <form className="movebox" action={action}>
       <input type="hidden" name="id" value={m.id} />
@@ -311,7 +316,12 @@ function Row({ t, tasks, mayEdit, mePersonId }: {
 function AddMilestone({ project }: { project: string }) {
   const [open, setOpen] = useState(false)
   const [state, action] = useFormState(addMilestone, null)
-  if (state?.ok && open) setOpen(false)
+  // Closes because the save worked, never during a render. useFormState keeps
+  // the last result for good: setting state here meant that once ONE milestone
+  // had been added, every later click opened the popover and the very next
+  // render shut it again. Ryan: "Milestone button doesn't work after adding
+  // one."
+  useEffect(() => { if (state?.ok) setOpen(false) }, [state])
   return (
     <>
       <button className="btn btn--sm" type="button" onClick={() => setOpen(!open)}>
@@ -355,7 +365,12 @@ function AddTask({ project, milestones, people, tasks }: {
 }) {
   const [open, setOpen] = useState(false)
   const [state, action] = useFormState(addTask, null)
-  if (state?.ok && open) setOpen(false)
+  // Closes because the save worked, never during a render. useFormState keeps
+  // the last result for good: setting state here meant that once ONE milestone
+  // had been added, every later click opened the popover and the very next
+  // render shut it again. Ryan: "Milestone button doesn't work after adding
+  // one."
+  useEffect(() => { if (state?.ok) setOpen(false) }, [state])
   return (
     <span className="sec__a">
       <button className="btn btn--amber" type="button" aria-expanded={open}
@@ -410,7 +425,12 @@ function AddTask({ project, milestones, people, tasks }: {
 function AddNote({ project }: { project: string }) {
   const [open, setOpen] = useState(false)
   const [state, action] = useFormState(addNote, null)
-  if (state?.ok && open) setOpen(false)
+  // Closes because the save worked, never during a render. useFormState keeps
+  // the last result for good: setting state here meant that once ONE milestone
+  // had been added, every later click opened the popover and the very next
+  // render shut it again. Ryan: "Milestone button doesn't work after adding
+  // one."
+  useEffect(() => { if (state?.ok) setOpen(false) }, [state])
   return (
     <>
       <button className="btn btn--sm" type="button" onClick={() => setOpen(!open)}>
