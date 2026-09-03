@@ -3902,3 +3902,114 @@ h1 .helpb{font-size:12px}
     --shadow:none; --lift:none;
   }
 }
+
+/* ============ WHAT NEEDS ATTENTION ============
+   Freshness was always computed and always shown -- in a seven-pixel dot at the
+   foot of a card, which is a thing you can only read once you have decided to
+   read that card. A page of reports is read by NOT reading it: you sweep it and
+   stop where something catches. So the answer moved to the one part of a card
+   the sweep crosses whether or not it stops -- the left edge -- and the words
+   stayed where they were, for after it has stopped.
+
+   Three states earn it. Behind its schedule, a look that failed, and never read
+   at all. A snapshot never does: Hopper did not go back to look and said so,
+   and flagging it would invent a duty nobody signed up for. */
+
+/* The stripe is inset, so it costs no layout and can never shift a grid. */
+.rcard--att{box-shadow:var(--shadow), inset 3px 0 0 var(--flag)}
+.rcard--att:hover{box-shadow:var(--lift), inset 3px 0 0 var(--flag)}
+.rcard--late{--flag:var(--amber)}
+.rcard--bad{--flag:var(--bad)}
+.rcard--never{--flag:var(--canvas-3)}
+
+/* Chosen AND flagged is two facts about one card, and it has to be able to
+   carry both. Later than .rcard.is-picked on purpose -- equal specificity, so
+   source order is what decides, and the stripe would otherwise be dropped by
+   the tick. */
+.rcard--att.is-picked{
+  border-color:var(--steel);
+  box-shadow:0 0 0 1px var(--steel) inset, inset 3px 0 0 var(--flag), var(--shadow);
+}
+
+/* The stripe says SOMETHING; the pill says what, and how much. It stands in the
+   dot's place in the same row, so a flagged card and a calm one are the same
+   shape and a grid of them does not go ragged. */
+.flag{
+  display:inline-flex; align-items:center; gap:5px; flex:none;
+  font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:.12em;
+  text-transform:uppercase; padding:3px 7px; border-radius:var(--r);
+  border:1px solid var(--warmrule); background:var(--warmbg); color:#8A5A0B;
+}
+
+.flag svg{width:11px; height:11px; flex:none; fill:none; stroke:currentColor;
+  stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round}
+
+.flag--bad{color:var(--bad); border-color:var(--bad)}
+
+.flag--never{color:var(--ink-3); border-color:var(--rule); background:var(--sunken)}
+
+:root[data-theme="dark"] .flag{color:var(--amber)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .flag{color:var(--amber)}}
+
+/* The detail after the pill. It is the part you only want once the pill has
+   already got you, so it takes the quiet weight and gives up its room first. */
+.rcard__why{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+/* A list row has 186px for all of this, which is the pill and nothing else.
+   The pill IS the answer there; the sentence behind it is what opening the
+   report is for. */
+.rrow__f .rcard__why{display:none}
+
+.rrow--att{box-shadow:inset 3px 0 0 var(--flag)}
+.rrow--late{--flag:var(--amber)}
+.rrow--bad{--flag:var(--bad)}
+.rrow--never{--flag:var(--canvas-3)}
+
+/* Which department needs you, before you have read a single card under it. */
+.oboard__att{
+  font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:.12em;
+  text-transform:uppercase; padding:2px 7px; border-radius:var(--r);
+  border:1px solid var(--warmrule); background:var(--warmbg); color:#8A5A0B;
+  margin-left:2px;
+}
+
+:root[data-theme="dark"] .oboard__att{color:var(--amber)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .oboard__att{color:var(--amber)}}
+
+/* The switch on the bar. It is the only control up there that changes colour,
+   which is the point of it: a bar that looked the same whether or not six
+   reports had stopped moving is a bar that never told you.
+
+   When nothing is wrong it says so rather than disappearing. A control that
+   vanishes on good news is one you cannot read when it is absent -- there is no
+   way to tell "all current" from "nobody checked". */
+.rbtn--att.is-lit{color:#8A5A0B; border-color:var(--warmrule); background:var(--warmbg)}
+.rbtn--att.is-lit:hover{background:var(--warmbg); border-color:var(--amber); color:#8A5A0B}
+.rbtn--att.is-lit > svg:first-child{color:var(--amber)}
+
+.rbtn--att[aria-pressed="true"],
+.rbtn--att[aria-pressed="true"]:hover{
+  background:var(--amber); border-color:var(--amber); color:#231F20}
+.rbtn--att[aria-pressed="true"] > svg:first-child{color:#231F20}
+
+.rbtn--att.is-clear{color:var(--ink-3); cursor:default}
+.rbtn--att.is-clear > svg:first-child{color:var(--good)}
+
+:root[data-theme="dark"] .rbtn--att.is-lit{color:var(--amber)}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .rbtn--att.is-lit{color:var(--amber)}}
+
+/* A window with nothing in it holds the chart's room and says so. The card that
+   silently dropped its chart got shorter than the one beside it, and a card
+   that is shorter for a reason it does not give reads as broken. */
+.rcard__thin{
+  display:flex; align-items:center; justify-content:center; height:64px;
+  margin-top:10px; padding:0 10px; text-align:center;
+  font-size:11px; font-style:italic; color:var(--ink-3);
+  border:1px dashed var(--rule); border-radius:var(--r);
+}
+
+/* The page you are already on, in the jump list. Without it the menu is twelve
+   equal destinations and no answer to "where am I", which is the one thing the
+   footer of a long page is well placed to say. */
+.jumppop a.is-here{color:var(--ink); font-weight:800; background:var(--sunken)}

@@ -1,12 +1,31 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { FRAME, MODULE_NAV, TAIL } from '@/components/Rail'
 
-const PAGES = ['Home', 'Organizations', 'Calendar', 'Wiki', 'News', 'Activity Log',
-  'Reporting', 'Projects', 'Staffing', 'Meetings', 'Support', 'Admin']
-
-export default function Footer() {
+/**
+ * Jump to.
+ *
+ * Every entry used to be `href="#"`, under a hand-typed list of twelve page
+ * NAMES that nothing kept in step with the rail. Two answers to "what pages are
+ * there", and the one down here had no routes attached to it at all -- so the
+ * menu opened, listed the product, and went nowhere.
+ *
+ * It is built from the rail's own tables now. There is one list of pages, the
+ * modules this account actually runs decide what is in it, and a page cannot be
+ * added to the rail and quietly missing from here.
+ */
+export default function Footer({ modules }: { modules: string[] }) {
   const [open, setOpen] = useState(false)
   const wrap = useRef<HTMLDivElement>(null)
+  const path = usePathname()
+
+  // Children flattened in beside their parents: this is a jump list, not a
+  // second navigation tree, and Departments is a place you go rather than a
+  // thing you open Organizations to find.
+  const pages = [...FRAME, ...modules.map((m) => MODULE_NAV[m]).filter(Boolean), ...TAIL]
+    .flatMap((i) => [{ href: i.href, label: i.label }, ...(i.kids ?? [])])
   useEffect(() => {
     const away = (e: MouseEvent) => { if (!wrap.current?.contains(e.target as Node)) setOpen(false) }
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
@@ -48,7 +67,13 @@ export default function Footer() {
         </button>
         {open && (
           <div className="jumppop">
-            {PAGES.map((p) => <a key={p} href="#" onClick={() => setOpen(false)}>{p}</a>)}
+            {pages.map((p) => (
+              <Link key={p.href} href={p.href as any} onClick={() => setOpen(false)}
+                    className={p.href === path ? 'is-here' : undefined}
+                    aria-current={p.href === path ? 'page' : undefined}>
+                {p.label}
+              </Link>
+            ))}
           </div>
         )}
       </div>

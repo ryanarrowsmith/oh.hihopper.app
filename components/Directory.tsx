@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import Avatar from '@/components/Avatar'
 import { OrgMark, PlaceMark } from '@/components/Icons'
+import { useScope } from '@/components/useScope'
 
 /**
  * The directory. Cards, not a table: a roster is about employment and reads
@@ -38,7 +39,12 @@ type View = 'lg' | 'md' | 'row'
 export default function Directory({ groups }:
   { groups: { entity_id: string | null; name: string; people: Person[] }[] }) {
   const [view, setView] = useState<View>('lg')
-  const total = groups.reduce((n, g) => n + g.people.length, 0)
+  const { covers } = useScope()
+  // The organization chosen in the top bar decides which sections are here at
+  // all. The count follows it, because a header that still counted the people
+  // you have just filtered out is the header disagreeing with the page.
+  const shown = groups.filter((g) => covers(g.entity_id))
+  const total = shown.reduce((n, g) => n + g.people.length, 0)
 
   return (
     <>
@@ -53,7 +59,11 @@ export default function Directory({ groups }:
         </div>
       </div>
 
-      {groups.map((g) => (
+      {shown.length === 0 && (
+        <p className="empty">Nobody in the organization you have chosen.</p>
+      )}
+
+      {shown.map((g) => (
         <section className="sec" key={String(g.entity_id)}>
           <div className="sec__h">
             <div className="sec__t">

@@ -52,7 +52,7 @@ export const MODULE_NAV: Record<string, Item> = {
     icon: I('<path d="M3 6h18v11H8l-5 4z"/><path d="M8 10h8M8 13h5"/>') },
 }
 
-const TAIL: Item[] = [
+export const TAIL: Item[] = [
   { href: '/support', label: 'Support',
     icon: I('<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.6 2.6 0 1 1 3.3 2.5c-.6.2-.8.7-.8 1.3v.4"/><path d="M12 17.2v.1"/>') },
   { href: '/admin', label: 'Admin',

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { useScope } from '@/components/useScope'
 
 type Entity = { id: string; name: string; parent_id: string | null }
 
@@ -10,7 +11,10 @@ export default function TopBar(
     email: string | null },
 ) {
   const [open, setOpen] = useState<'scope' | 'noti' | 'me' | null>(null)
-  const [scope, setScope] = useState('All organizations')
+  // The choice lives outside this component now. It used to be local state
+  // holding a NAME, which is why the switcher moved and nothing happened: no
+  // page could see it, and a name is not something you can filter rows by.
+  const { scope, setScope, applies } = useScope()
   const wrap = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -25,31 +29,63 @@ export default function TopBar(
 
   const roots = entities.filter((e) => !e.parent_id)
   const kidsOf = (id: string) => entities.filter((e) => e.parent_id === id)
+  // A stored id whose organization has since gone, or was never this account's,
+  // reads as "all" rather than as a name the bar cannot produce.
+  const here = entities.find((e) => e.id === scope.id) ?? null
+
+  /** An organization and everything under it, however deep it goes. */
+  const withKids = (id: string) => {
+    const out: string[] = []
+    const walk = (n: string) => {
+      out.push(n)
+      for (const k of entities.filter((e) => e.parent_id === n)) walk(k.id)
+    }
+    walk(id)
+    return out
+  }
+  const choose = (id: string) => { setScope({ id, ids: withKids(id) }); setOpen(null) }
+
+  // The tree can change under a stored choice -- a new depot, a business moved
+  // beneath another. Re-resolving on mount is what stops yesterday's answer
+  // from quietly leaving today's subsidiary out of its own parent.
+  useEffect(() => {
+    if (!scope.id) return
+    if (!entities.some((e) => e.id === scope.id)) { setScope({ id: null, ids: [] }); return }
+    const now = withKids(scope.id)
+    if (now.length !== scope.ids.length || now.some((i) => !scope.ids.includes(i))) {
+      setScope({ id: scope.id, ids: now })
+    }
+  }, [scope.id, entities])
 
   return (
     <header className="tbar" ref={wrap}>
       <span className="mark mark--sm">hopper<span className="pd">.</span></span>
 
+      {/* On a page with no organization dimension the switcher is not rendered
+          at all. Leaving it visible and inert is the bug this replaced, only
+          quieter -- it would still teach you the page was scoped when nothing
+          about it was. */}
+      {applies && (
       <div className="scopew">
         <button className="scope" type="button" aria-expanded={open === 'scope'}
                 onClick={(e) => { e.stopPropagation(); setOpen(open === 'scope' ? null : 'scope') }}>
-          <span className="scope__t">{scope}</span>
+          <span className="scope__t">{here?.name ?? 'All organizations'}</span>
           <svg className="car" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
                strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
         </button>
         {open === 'scope' && (
           <div className="scopepop">
-            <button className={`orow${scope === 'All organizations' ? ' is-on' : ''}`} type="button"
-                    onClick={() => { setScope('All organizations'); setOpen(null) }}>
+            <button className={`orow${scope.id === null ? ' is-on' : ''}`} type="button"
+                    onClick={() => { setScope({ id: null, ids: [] }); setOpen(null) }}>
               All organizations
             </button>
             {roots.map((r) => (
               <div key={r.id}>
-                <button className={`orow${scope === r.name ? ' is-on' : ''}`} type="button"
-                        onClick={() => { setScope(r.name); setOpen(null) }}>{r.name}</button>
+                <button className={`orow${scope.id === r.id ? ' is-on' : ''}`} type="button"
+                        onClick={() => choose(r.id)}>{r.name}</button>
                 {kidsOf(r.id).map((k) => (
-                  <button key={k.id} className={`orow orow--kid${scope === k.name ? ' is-on' : ''}`}
-                          type="button" onClick={() => { setScope(k.name); setOpen(null) }}>
+                  <button key={k.id} className={`orow orow--kid${scope.id === k.id ? ' is-on' : ''}`}
+                          type="button" onClick={() => choose(k.id)}>
                     <svg className="olv" viewBox="0 0 14 14" fill="none" stroke="currentColor"
                          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M3 2v6h6" /><path d="M7.5 5.5 10 8l-2.5 2.5" />
@@ -62,6 +98,7 @@ export default function TopBar(
           </div>
         )}
       </div>
+      )}
 
       <span className="tbar__sp" />
       <div className="tbar__act">

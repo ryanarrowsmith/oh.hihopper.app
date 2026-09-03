@@ -229,8 +229,17 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
   // Bars are read as areas, so their baseline has to be zero or the picture
   // lies about the ratio between them. A line is read as a slope and may be
   // zoomed into the band the numbers actually occupy.
-  const lo = type === 'bar' ? Math.min(0, rawLo) : rawLo
-  const hi = rawHi
+  /**
+   * A flat series has no span, and a scale with no span puts every point on the
+   * floor -- so a single reading rendered pinned to the bottom of the box,
+   * which reads as "this number is zero" rather than "there is one of it".
+   * Giving a flat line a band around itself puts it in the middle, which is
+   * what one reading, or six identical ones, actually look like.
+   */
+  const flat = rawHi === rawLo
+  const pad = flat ? Math.abs(rawHi) * 0.5 || 1 : 0
+  const lo = type === 'bar' ? Math.min(0, rawLo) : rawLo - pad
+  const hi = rawHi + (type === 'bar' ? 0 : pad)
   const span = hi - lo || 1
 
   const n = days.length

@@ -8,13 +8,19 @@ import RawTable from '@/components/RawTable'
 import { PRESETS } from '@/components/useRange'
 import DateField from '@/components/DateField'
 import { useRange, inWindow } from '@/components/useRange'
+import { useScope } from '@/components/useScope'
 
 export type Card = {
   id: string; name: string; entity: string; department: string; category: string | null
+  /** The organization itself, so the scope switch can filter by identity rather
+   *  than by a name two organizations are allowed to share. */
+  entityId: string | null
   value: number | null; valueOn: string | null
   chartType: string; refresh: string; snapshotAt: string | null; restricted: boolean
   lastLook: string | null; lastLookOk: boolean | null; lastFailure: string | null
   freshness: 'new' | 'good' | 'behind' | 'failed' | 'snapshot'
+  /** Days past the allowance its schedule implies. Null when it is not behind. */
+  lateBy: number | null
   series: Series[]
   /** No date column means the readings cannot be put on a timeline at all, so
    *  this report is shown whole whatever the range says. */
@@ -32,6 +38,37 @@ const Tick = () => (
   </svg>
 )
 
+/**
+ * Whether a report wants a person, and which kind of wanting.
+ *
+ * The dot at the foot of a card has always known this; it just said it at a
+ * volume you had to already be looking to hear. A page of forty cards is read
+ * by not reading it, so the answer has to survive being glanced past -- which
+ * is what the stripe down the left edge is for, and this is what decides its
+ * colour.
+ *
+ * A snapshot is never behind: Hopper did not go back to look, said so, and a
+ * flag would be inventing a duty nobody signed up for.
+ */
+export type Attention = 'late' | 'bad' | 'never' | null
+
+export function attentionOf(c: Card): Attention {
+  if (c.freshness === 'failed') return 'bad'
+  if (c.freshness === 'behind') return 'late'
+  if (c.freshness === 'new') return 'never'
+  return null
+}
+
+/** The stopwatch that means "this should have moved by now". */
+const Late = () => (
+  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+)
+
+/** The one that means "Hopper tried and could not". */
+const Broke = () => (
+  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 8v5" /><path d="M12 17h.01" /></svg>
+)
+
 // ------------------------------------------------------------------ the list
 
 export default function Reports({ cards: raw }: { cards: Card[] }) {
@@ -39,10 +76,14 @@ export default function Reports({ cards: raw }: { cards: Card[] }) {
   const [open, setOpen] = useState<Card | null>(null)
   const [openOn, setOpenOn] = useState<'shape' | 'rows'>('shape')
   const [q, setQ] = useState('')
+  /** Showing only what needs attention. Its own switch and not a search term,
+   *  because it answers a different question and has to survive one. */
+  const [onlyAtt, setOnlyAtt] = useState(false)
   // Which cards are chosen for printing. A set of ids and not a flag per card,
   // because the answer has to survive the list re-sorting under it.
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const { range, setRange, window: win } = useRange()
+  const { covers } = useScope()
   /** Which control is open. One at a time, because two popovers over the same
    *  bar is two answers to "what am I doing". */
   const [pop, setPop] = useState<'when' | 'find' | null>(null)
@@ -68,7 +109,12 @@ export default function Reports({ cards: raw }: { cards: Card[] }) {
    * has. Showing August's figure under a July window would be a card lying
    * about which question it is answering.
    */
-  const cards = useMemo(() => raw.map((c) => {
+  // The organization chosen in the top bar narrows everything below it,
+  // including the counts -- a page filtered to one business that still counted
+  // the others would be answering a question nobody asked.
+  const mine = useMemo(() => raw.filter((c) => covers(c.entityId)), [raw, covers])
+
+  const cards = useMemo(() => mine.map((c) => {
     if (!c.dated) return c
     const series = c.series
       .map((s) => ({ ...s, points: s.points.filter((p) => inWindow(p.on, win)) }))
@@ -80,20 +126,34 @@ export default function Reports({ cards: raw }: { cards: Card[] }) {
       value: last ? last.v : null,
       valueOn: last ? last.on : null,
     }
-  }), [raw, win])
+  }), [mine, win])
 
   const counted = useMemo(() => {
-    const total = raw.reduce((n, c) => n + c.series.reduce((m, s) => m + s.points.length, 0), 0)
+    const total = mine.reduce((n, c) => n + c.series.reduce((m, s) => m + s.points.length, 0), 0)
     const kept = cards.reduce((n, c) => n + c.series.reduce((m, s) => m + s.points.length, 0), 0)
-    return { total, kept, undated: raw.filter((c) => !c.dated).length }
-  }, [raw, cards])
+    return { total, kept, undated: mine.filter((c) => !c.dated).length }
+  }, [mine, cards])
+
+  /**
+   * How many want a person, counted over EVERY card and not the shown ones.
+   * A count that fell as you typed a search would be answering "how many of
+   * these" when the question is "how much is wrong" -- and the control that
+   * carries it is the one you press to go and look.
+   */
+  const wanting = useMemo(() => mine.filter((c) => attentionOf(c) !== null).length, [mine])
+
+  // Nothing left to look at means nothing left to filter by, so the switch
+  // lets go of itself rather than leaving an empty page under a pressed button.
+  useEffect(() => { if (wanting === 0) setOnlyAtt(false) }, [wanting])
 
   const shown = useMemo(() => {
     const t = q.trim().toLowerCase()
-    if (!t) return cards
-    return cards.filter((c) => [c.name, c.entity, c.department, c.category ?? '']
+    let list = cards
+    if (onlyAtt) list = list.filter((c) => attentionOf(c) !== null)
+    if (!t) return list
+    return list.filter((c) => [c.name, c.entity, c.department, c.category ?? '']
       .some((s) => s.toLowerCase().includes(t)))
-  }, [cards, q])
+  }, [cards, q, onlyAtt])
 
   // Grouped by department, because that is how the person who owns the number
   // thinks about it -- not by organization, which is how the database does.
@@ -106,6 +166,8 @@ export default function Reports({ cards: raw }: { cards: Card[] }) {
     }
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]))
   }, [shown])
+
+  const attInGroup = (list: Card[]) => list.filter((c) => attentionOf(c) !== null).length
 
   return (
     <>
@@ -189,6 +251,31 @@ export default function Reports({ cards: raw }: { cards: Card[] }) {
           )}
         </span>
 
+        {/* Not a popover, because it has nothing to ask -- it is a switch with
+            its own answer written on it. It sits with the filters because that
+            is what it is, and it is the only control on the bar that changes
+            colour, which is the whole point: a bar that looks the same whether
+            or not six reports have stopped moving is a bar that never told you.
+
+            When nothing is wrong it says so in the calm tone rather than
+            disappearing. A control that vanishes when the news is good is one
+            you cannot trust when it is absent -- you have no way to tell "all
+            current" from "not checked". */}
+        {wanting > 0 ? (
+          <button className="rbtn rbtn--att is-lit" type="button"
+                  aria-pressed={onlyAtt}
+                  data-tip={onlyAtt ? 'Show all of them again' : 'Show only these'}
+                  onClick={() => setOnlyAtt((v) => !v)}>
+            <Late />
+            <b>{wanting} need{wanting === 1 ? 's' : ''} attention</b>
+          </button>
+        ) : (
+          <span className="rbtn rbtn--att is-clear">
+            <svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>
+            Everything is current
+          </span>
+        )}
+
         {/* What you are looking AT on the left, how you are looking at it on
             the right. Two different kinds of question, and the gap between them
             is what says so. */}
@@ -214,19 +301,33 @@ export default function Reports({ cards: raw }: { cards: Card[] }) {
         </div>
       </div>
 
-      {groups.length === 0 && <p className="empty">Nothing matches “{q}”.</p>}
+      {groups.length === 0 && (
+        <p className="empty">
+          {onlyAtt && q ? <>Nothing matching “{q}” needs attention.</>
+            : onlyAtt ? <>Nothing needs attention.</>
+            : <>Nothing matches “{q}”.</>}
+        </p>
+      )}
 
       {groups.map(([label, list]) => (
         <section key={label} className="oboard">
-          <h2 className="oboard__h">{label}<span>{list.length}</span></h2>
+          <h2 className="oboard__h">{label}<span>{list.length}</span>
+            {/* Which department needs you, without reading the cards under it. */}
+            {attInGroup(list) > 0 && !onlyAtt && (
+              <span className="oboard__att">{attInGroup(list)} need{attInGroup(list) === 1 ? 's' : ''} attention</span>
+            )}
+          </h2>
           {density === 'list'
-            ? <div className="rlist2">{list.map((c) => (
-                <button key={c.id} className="rrow" type="button" onClick={() => setOpen(c)}>
+            ? <div className="rlist2">{list.map((c) => {
+                const att = attentionOf(c)
+                return (
+                <button key={c.id} type="button" onClick={() => setOpen(c)}
+                        className={`rrow${att ? ` rrow--att rrow--${att}` : ''}`}>
                   <span className="rrow__c">{c.category ?? '—'}</span>
                   <span className="rrow__n">{c.name}</span>
                   <span className="rrow__v">{c.value == null ? '—' : nf.format(c.value)}</span>
                   <span className="rrow__f"><Fresh c={c} /></span>
-                </button>))}
+                </button>)})}
               </div>
             : <div className={`rgrid${density === 'md' ? ' rgrid--md' : ''}`}>
                 {list.map((c) => (
@@ -276,8 +377,9 @@ function ReportCard({ c, onOpen, onRows, selected, onSelect }: {
   c: Card; onOpen: () => void; onRows: () => void
   selected: boolean; onSelect: () => void
 }) {
+  const att = attentionOf(c)
   return (
-    <div className={`rcard${selected ? ' is-picked' : ''}`}>
+    <div className={`rcard${selected ? ' is-picked' : ''}${att ? ` rcard--att rcard--${att}` : ''}`}>
       <button className="rcard__hit" type="button" onClick={onOpen}
               aria-label={`Open ${c.name}`} />
 
@@ -311,11 +413,23 @@ function ReportCard({ c, onOpen, onRows, selected, onSelect }: {
         ? <span className="rcard__none">Not read yet</span>
         : <span className="rcard__v">{nf.format(c.value)}</span>}
       {/* The card carries its own registered chart type, but only the HEADLINE
-          measure -- the one the number above it belongs to. */}
-      {(c.series[0]?.points.length ?? 0) > 1 && (
+          measure -- the one the number above it belongs to.
+
+          One reading draws too, as a single ring on the middle of the plot.
+          The guard used to be "more than one", which is how a dashboard card
+          lost its chart the moment a narrow window left it a lone reading: the
+          chart vanished, the card changed height beside its neighbours, and it
+          read as broken rather than as narrow. One reading is a true thing to
+          draw, and an empty window holds its space and says so, so a card is
+          never silently shorter than the one next to it. */}
+      {(c.series[0]?.points.length ?? 0) > 0 ? (
         <span className="rcard__chart">
           <Chart type={c.chartType} series={c.series.slice(0, 1)}
                  height={64} labels={false} bare compact />
+        </span>
+      ) : (
+        <span className="rcard__thin">
+          {c.dated ? 'No readings in this window' : 'No readings yet'}
         </span>
       )}
       <span className="rcard__f"><Fresh c={c} /></span>
@@ -349,6 +463,18 @@ function CardHeartGo({ on }: { on: boolean }) {
   )
 }
 
+/**
+ * What the card says about itself at the foot.
+ *
+ * A report that is fine keeps the quiet dot it always had. One that is not gets
+ * a pill in its place -- same row, same height, so a flagged card and a calm
+ * one are still the same shape and a grid of them does not go ragged. The pill
+ * carries the kind and the number; the words after it carry the detail, which
+ * is the part you only want once the pill has already got your attention.
+ *
+ * "Behind" and "26 days behind" are not the same sentence. The first is a state
+ * and you file it; the second is a length and you act on it.
+ */
 function Fresh({ c }: { c: Card }) {
   if (c.freshness === 'snapshot') {
     return <span className="snap">
@@ -356,13 +482,28 @@ function Fresh({ c }: { c: Card }) {
       Snapshot {c.snapshotAt ? on(c.snapshotAt) : ''}
     </span>
   }
-  const tone = c.freshness === 'failed' ? 'bad' : c.freshness === 'behind' ? 'stale'
-    : c.freshness === 'new' ? '' : 'good'
-  const said = c.freshness === 'failed' ? 'Last look failed'
-    : c.freshness === 'behind' ? `Still since ${c.valueOn ? on(c.valueOn) : 'a while'}`
-    : c.freshness === 'new' ? 'Never read'
-    : `Read ${c.lastLook ? ago(c.lastLook) : ''}`
-  return <><span className={`dot${tone ? ` dot--${tone}` : ''}`} />{said}</>
+
+  if (c.freshness === 'failed') {
+    return <>
+      <span className="flag flag--bad"><Broke />Look failed</span>
+      {c.lastFailure && <span className="rcard__why">{c.lastFailure}</span>}
+    </>
+  }
+
+  if (c.freshness === 'behind') {
+    return <>
+      <span className="flag"><Late />
+        {c.lateBy ? `${c.lateBy} day${c.lateBy === 1 ? '' : 's'} late` : 'Behind'}
+      </span>
+      <span className="rcard__why">Still since {c.valueOn ? on(c.valueOn) : 'a while'}</span>
+    </>
+  }
+
+  if (c.freshness === 'new') {
+    return <span className="flag flag--never">Never read</span>
+  }
+
+  return <><span className="dot dot--good" />Read {c.lastLook ? ago(c.lastLook) : ''}</>
 }
 
 /**

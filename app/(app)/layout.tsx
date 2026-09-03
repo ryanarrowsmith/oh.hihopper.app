@@ -44,7 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </CrumbTailProvider>
         </main>
       </div>
-      <Footer />
+      <Footer modules={modules} />
     </div>
   )
 }
