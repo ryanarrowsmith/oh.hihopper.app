@@ -8,6 +8,7 @@ import Dolly from '@/components/Dolly'
 import HomeBoard from '@/components/HomeBoard'
 import HeroFacts from '@/components/HeroFacts'
 import NeedsLine, { type Needy, type Org } from '@/components/NeedsLine'
+import RecentLine, { type Visit } from '@/components/RecentLine'
 import {
   FavsWidget, RepsWidget, LocsWidget, OrgsWidget, ContWidget, TeamWidget,
 } from '@/components/HomeWidgets'
@@ -37,7 +38,7 @@ export default async function Home() {
 
   const [
     cards, { data: ents }, { data: locations }, { data: hearts },
-    { data: people }, { data: me },
+    { data: people }, { data: me }, { data: seen },
   ] = await Promise.all([
     // Always: the sentence in the hero counts these, and Favorites and
     // Dashboards draw their charts from the same read rather than a second one.
@@ -55,6 +56,10 @@ export default async function Home() {
       : Promise.resolve({ data: [] as any[] }),
     db.schema('hopper').from('person').select('photo_url, location_id')
       .eq('id', session.personId ?? '').maybeSingle(),
+    // Yours alone -- the policy is what scopes it, so there is no person_id
+    // here and no way to read anybody else's.
+    db.schema('hopper').from('recent').select('kind, object_id, label, sub, at')
+      .order('at', { ascending: false }).limit(10),
   ])
 
   const all = ents ?? []
@@ -172,6 +177,27 @@ export default async function Home() {
       || Number(!!b.att) - Number(!!a.att)
       || a.name.localeCompare(b.name))
 
+  /**
+   * Where somebody has been, as rows they can click.
+   *
+   * The href is built from the kind rather than stored, so a route that moves
+   * moves for history too -- a stored URL would send somebody to yesterday's
+   * address forever.
+   */
+  const HREF: Record<string, (id: string) => string> = {
+    report: (id) => `/reporting/${id}`,
+    dashboard: (id) => `/dashboards/${id}`,
+    entity: (id) => `/admin/organizations/${id}`,
+    person: (id) => `/people/${id}`,
+    location: (id) => `/admin/organizations/locations`,
+  }
+  const visits: Visit[] = (seen ?? [])
+    .filter((v: any) => HREF[v.kind])
+    .map((v: any) => ({
+      kind: v.kind, id: v.object_id, label: v.label, sub: v.sub, at: v.at,
+      href: HREF[v.kind](v.object_id),
+    }))
+
   /* ── the hero ───────────────────────────────────────────────────── */
 
   const hour = new Date().getHours()
@@ -202,6 +228,10 @@ export default async function Home() {
       <HeroFacts tz={anchor?.time_zone ?? null}
                  lat={anchor?.latitude ?? null} lon={anchor?.longitude ?? null} />
       <NeedsLine items={needy} orgs={orgs} />
+      {/* Under the status, above whatever the person arranged. It belongs to
+          the hero rather than to the sections, because it is not theirs to
+          move -- and it must not be the first thing that scrolls away. */}
+      <RecentLine visits={visits} />
     </div>
   )
 

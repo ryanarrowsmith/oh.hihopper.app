@@ -14,6 +14,7 @@ import {
   createLocation, addAdministrator, updateAdministrator, standDownAdministrator,
   toggleFavorite,
 } from '@/app/actions/admin'
+import Remember from '@/components/Remember'
 
 export default async function Entity({ params }: { params: { id: string } }) {
   const db = supabaseServer()
@@ -76,6 +77,7 @@ export default async function Entity({ params }: { params: { id: string } }) {
 
   return (
     <>
+      <Remember kind="entity" id={e.id} label={e.name} sub={e.mark ?? null} />
       <div className="hi">
         <div className="hi__t">
           <h1>{e.name}</h1>

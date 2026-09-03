@@ -3,6 +3,7 @@ import { currentSession } from '@/lib/tenant'
 import { supabaseServer } from '@/lib/supabase/server'
 import { loadCards } from '@/lib/cards'
 import DashboardPage from '@/components/DashboardPage'
+import Remember from '@/components/Remember'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,6 +41,9 @@ export default async function OneDashboard({ params }: { params: { id: string } 
     .filter(Boolean) as typeof cards
 
   return (
+    <>
+    <Remember kind="dashboard" id={(board as any).id} label={(board as any).name}
+              sub={`${chosen.length} ${chosen.length === 1 ? 'report' : 'reports'}`} />
     <DashboardPage
       board={board as any}
       chosen={chosen}
@@ -49,5 +53,6 @@ export default async function OneDashboard({ params }: { params: { id: string } 
       shares={(shares ?? []).map((s: any) => s.person_id)}
       people={(people ?? []).filter((p: any) => p.id !== session.personId) as any}
     />
+    </>
   )
 }

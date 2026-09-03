@@ -4,6 +4,7 @@ import PersonBadge from '@/components/PersonBadge'
 import Favorites, { type Profile } from '@/components/Favorites'
 import GetToKnowEdit, { type Answers } from '@/components/GetToKnowEdit'
 import CrumbTail from '@/components/CrumbTail'
+import Remember from '@/components/Remember'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,6 +56,8 @@ export default async function PersonPage({ params }: { params: { id: string } })
 
   return (
     <>
+      <Remember kind="person" id={d.id} label={d.full_name}
+                sub={[d.role_name, d.entity_name].filter(Boolean).join(' · ') || null} />
       {/* The trail now ends on this person, so "Back to People" was the same
           link twice on the same screen, six inches apart. */}
       <CrumbTail>{d.full_name}</CrumbTail>

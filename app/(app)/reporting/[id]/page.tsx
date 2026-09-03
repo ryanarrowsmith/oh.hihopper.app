@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import ReportPage from '@/components/ReportPage'
+import Remember from '@/components/Remember'
 
 export const dynamic = 'force-dynamic'
 
@@ -85,6 +86,12 @@ export default async function Page({ params }: { params: { id: string } }) {
     .slice(0, 6)
 
   return (
+    <>
+    {/* Written down here rather than in the page component: this is the only
+        place that knows the report was OPENED, as opposed to re-rendered. */}
+    <Remember kind="report" id={rep.id} label={rep.name}
+              sub={[entName.get(rep.entity_id), deptName.get(rep.department_id)]
+                    .filter(Boolean).join(' · ') || null} />
     <ReportPage
       report={{
         id: rep.id, name: rep.name,
@@ -115,5 +122,6 @@ export default async function Page({ params }: { params: { id: string } }) {
       mayEdit={(rights ?? []).some((r: any) => r.entity_id === rep.entity_id && r.may_edit)}
       columns={(shape?.columns as any[]) ?? []}
     />
+    </>
   )
 }
