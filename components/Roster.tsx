@@ -6,12 +6,17 @@ import { Pencil } from '@/components/Icons'
 import { importPeople, movePeople, setPeopleActive, type Landed } from '@/app/actions/roster'
 import { createPerson, setPersonActive, updatePerson } from '@/app/actions/admin'
 import InvitePanel from '@/components/InvitePanel'
+import SignInToggle from '@/components/SignInToggle'
 
 export type Row = {
   id: string; name: string; email: string | null; role: string | null; phone: string | null
   entity: string | null; entityId: string | null
   department: string | null; location: string | null
   manager: string | null; canSignIn: boolean; invited: boolean; active: boolean
+  /** They have an Oh hi account, whether or not it may open Hopper. */
+  hasAccount: boolean
+  /** It is the person reading the screen. */
+  isMe: boolean
 }
 type Named = { id: string; name: string }
 
@@ -40,10 +45,21 @@ const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2)
  * them one". A screen that reports work nobody did is worse than a screen that
  * reports nothing.
  */
-function Sign({ p, mayEdit, onInvite, open }: {
-  p: Row; mayEdit: boolean; onInvite: () => void; open: boolean
+function Sign({ p, mayEdit, mayManageAccess, onInvite, open }: {
+  p: Row; mayEdit: boolean; mayManageAccess: boolean
+  onInvite: () => void; open: boolean
 }) {
+  // Somebody with an account can be switched on and off. Only an admin of the
+  // account may do it, and only an admin can see the true answer -- so without
+  // that, this stays the label it always was.
+  if (p.hasAccount && mayManageAccess) {
+    return <SignInToggle id={p.id} name={p.name} on={p.canSignIn} mine={p.isMe} />
+  }
   if (p.canSignIn) return <span className="sign sign--in">{I(TICK, '2.4')}Signs in</span>
+  if (p.hasAccount) {
+    return <span className="sign sign--no" data-tip="They have an account but it cannot open Hopper">
+      {I(MINUS, '2.4')}Signed out</span>
+  }
   if (p.invited) {
     // There is something to do here and the person looking at it may do it, so
     // the cell is the control rather than a label about the control. It opens
@@ -76,8 +92,12 @@ type Filter = 'all' | 'signin' | 'never' | 'off'
  * are genuinely two different things -- so they are two columns here, not two
  * screens.
  */
-export default function Roster({ people, orgs, depts, mayEdit }: {
+export default function Roster({ people, orgs, depts, mayEdit, mayManageAccess }: {
   people: Row[]; orgs: Named[]; depts: (Named & { entityId: string })[]; mayEdit: boolean
+  /** Only an admin of the account may switch somebody's sign-in, and only an
+   *  admin can read the true answer -- so this gates the control AND the
+   *  label. */
+  mayManageAccess: boolean
 }) {
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
@@ -275,7 +295,7 @@ export default function Roster({ people, orgs, depts, mayEdit }: {
               <span className="rrw__c">
                 {[p.entity, p.department].filter(Boolean).join(' · ') || '—'}
               </span>
-              <span><Sign p={p} mayEdit={mayEdit}
+              <span><Sign p={p} mayEdit={mayEdit} mayManageAccess={mayManageAccess}
                           open={drawer?.id === p.id && drawer.what === 'invite'}
                           onInvite={() => setDrawer(
                             drawer?.id === p.id && drawer.what === 'invite'

@@ -234,6 +234,43 @@ export async function importPeople(_p: Landed | null, form: FormData): Promise<L
  * surprise that gets found out at 7am on a Monday. Their access is taken away
  * under Permissions, deliberately.
  */
+/**
+ * Take the login away from people a roster change just retired.
+ *
+ * NOT exported. Every export from a 'use server' file is an HTTP endpoint
+ * taking whatever the caller sends, and a list of person ids is exactly the
+ * argument you would not want to hand a stranger -- even though revoke_app
+ * would refuse them, an endpoint that exists only to be refused is an endpoint
+ * that did not need to exist.
+ *
+ * Deliberately quiet: somebody who never had a login, or whose access the
+ * caller may not touch, is skipped rather than failing the retirement they
+ * actually asked for. The count comes back so the screen can say what else
+ * happened.
+ */
+async function revokeSignInFor(
+  db: ReturnType<typeof supabaseServer>,
+  accountId: string,
+  meUserId: string,
+  personIds: string[],
+): Promise<number> {
+  if (personIds.length === 0) return 0
+  const { data: people } = await db.schema('hopper').from('person')
+    .select('id, profile_id').in('id', personIds)
+
+  let stopped = 0
+  for (const p of people ?? []) {
+    // Never yourself: revoke_app refuses it anyway, and a retirement should
+    // not fail because somebody retired their own row by accident.
+    if (!p.profile_id || p.profile_id === meUserId) continue
+    const { error } = await db.schema('beebee').rpc('revoke_app', {
+      target_account: accountId, target_app: 'hopper', target_user: p.profile_id,
+    })
+    if (!error) stopped++
+  }
+  return stopped
+}
+
 export async function setPeopleActive(_p: Landed | null, form: FormData): Promise<Landed> {
   const session = await currentSession()
   if (!session) return { ok: false, message: 'Not signed in.' }
@@ -249,9 +286,25 @@ export async function setPeopleActive(_p: Landed | null, form: FormData): Promis
   if (error) return { ok: false, message: error.message }
 
   const n = (hit ?? []).length
+
+  // Inactive means gone, and until now it did not: beebee.my_apps() reads
+  // app_access alone and knows nothing about hopper.person.active, so somebody
+  // retired here kept signing in and reading the business. Retiring takes the
+  // login with it.
+  //
+  // Bringing them back deliberately does NOT hand it back. Access is only ever
+  // granted on purpose -- the roster shows "No login yet" beside them and the
+  // switch is one click. Taking access away can be a side effect of something
+  // else; giving it never is.
+  const stopped = active
+    ? 0
+    : await revokeSignInFor(db, session.accountId, session.userId,
+                            (hit ?? []).map((p: any) => p.id))
+
   if (n) {
     await logAudit(db, { account_id: session.accountId, kind: 'person',
-      summary: `${active ? 'Brought back' : 'Made inactive'}: ${n} ${n === 1 ? 'person' : 'people'}`,
+      summary: `${active ? 'Brought back' : 'Made inactive'}: ${n} ${n === 1 ? 'person' : 'people'}`
+        + (stopped ? `, and stopped ${stopped} of them signing in` : ''),
       payload: { people: (hit ?? []).map((p: any) => p.full_name) } })
   }
 
@@ -261,7 +314,9 @@ export async function setPeopleActive(_p: Landed | null, form: FormData): Promis
     ok: true,
     message: n === 0
       ? 'Nothing changed — none of those were yours to change.'
-      : `${n} ${active ? 'brought back' : 'made inactive'}.`,
+      : `${n} ${active ? 'brought back' : 'made inactive'}.`
+        + (stopped ? ` ${stopped === 1 ? 'One of them can' : `${stopped} of them can`} no longer sign in.` : '')
+        + (active ? ' Signing in is not given back automatically — switch it on where you want it.' : ''),
     refused: missed > 0
       ? [{ line: 0, who: `${missed} ${missed === 1 ? 'person' : 'people'}`,
            why: 'Not yours to change.' }]

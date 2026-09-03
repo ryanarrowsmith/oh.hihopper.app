@@ -31,10 +31,29 @@ export default async function Page() {
       db.schema('hopper').from('department').select('id, name, entity_id').eq('active', true).order('name'),
       db.schema('hopper').from('location').select('id, name'),
       db.schema('hopper').from('entity_rights').select('may_edit'),
-      // The platform owns identity. A row here with a profile can sign in; a
-      // row with an email and no profile has been asked but has not arrived.
+      // The platform owns identity. A row here with a profile has an Oh hi
+      // account; whether that account may open HOPPER is a different question,
+      // asked below.
       db.schema('beebee').from('profiles').select('id'),
     ])
+
+  // Who may actually open Hopper, and who may change that.
+  //
+  // app_access is readable by an admin of the account and nobody else, so a
+  // roster-edit holder who is not one gets an empty read -- which must not be
+  // mistaken for "nobody can sign in". Membership is readable by any member,
+  // so that is what answers "am I an admin", and the access rows are only
+  // trusted when the answer is yes.
+  const [{ data: members }, { data: access }] = await Promise.all([
+    db.schema('beebee').from('account_members').select('user_id, role'),
+    db.schema('beebee').from('app_access')
+      .select('user_id, status').eq('app_id', 'hopper'),
+  ])
+  const iAmAdmin = (members ?? []).some((m: any) =>
+    m.user_id === session.userId && (m.role === 'owner' || m.role === 'admin'))
+  const opens = iAmAdmin
+    ? new Map((access ?? []).map((a: any) => [a.user_id, a.status]))
+    : null
 
   const name = (list: any[], id: string | null) =>
     (id && (list ?? []).find((x: any) => x.id === id)?.name) || null
@@ -49,7 +68,14 @@ export default async function Page() {
         department: name(depts ?? [], p.department_id),
         location: name(locs ?? [], p.location_id),
         manager: p.manager_id ? byId.get(p.manager_id) ?? null : null,
-        canSignIn: !!p.profile_id && signedUp.has(p.profile_id),
+        // What we actually know. With the access rows in hand this is the true
+        // answer; without them it is the best one available -- "they have an
+        // Oh hi account" -- and the switch that would change it is not drawn.
+        canSignIn: opens
+          ? opens.get(p.profile_id) === 'active'
+          : !!p.profile_id && signedUp.has(p.profile_id),
+        hasAccount: !!p.profile_id && signedUp.has(p.profile_id),
+        isMe: !!p.profile_id && p.profile_id === session.userId,
         // An address to invite, and no login against it. Worth its own state:
         // somebody who could be given a login and has not been is a job to do,
         // and it is invisible if it looks the same as "on the roster on
@@ -60,6 +86,7 @@ export default async function Page() {
       }))}
       orgs={(ents ?? []) as any}
       depts={(depts ?? []).map((d: any) => ({ id: d.id, name: d.name, entityId: d.entity_id }))}
-      mayEdit={(rights ?? []).some((r: any) => r.may_edit)} />
+      mayEdit={(rights ?? []).some((r: any) => r.may_edit)}
+      mayManageAccess={iAmAdmin} />
   )
 }
