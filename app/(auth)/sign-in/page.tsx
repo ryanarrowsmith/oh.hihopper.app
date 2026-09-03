@@ -1,11 +1,16 @@
 'use client'
 import { Suspense, useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabaseBrowser } from '@/lib/supabase/client'
 
 function SignInForm() {
   const router = useRouter()
-  const next = useSearchParams().get('next') || '/'
+  const params = useSearchParams()
+  const next = params.get('next') || '/'
+  // A link that has expired or already been used comes back here saying so,
+  // rather than dropping somebody on a sign-in page with no idea why.
+  const badLink = params.get('bad') === 'link'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -30,6 +35,11 @@ function SignInForm() {
         </div>
         <form className="signin__body" onSubmit={submit}>
           {error && <p className="err">{error}</p>}
+          {!error && badLink && (
+            <p className="err">
+              That link has expired or been used already. <Link href="/forgot">Ask for another</Link>.
+            </p>
+          )}
           <label htmlFor="email">Email</label>
           <input id="email" className="field" type="email" autoComplete="email" required
                  value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -40,6 +50,9 @@ function SignInForm() {
             {busy ? 'Signing in…' : 'Sign in'}
           </button>
           <p className="fine" style={{ marginTop: 14, textAlign: 'center' }}>
+            <Link href="/forgot">Forgotten your password?</Link>
+          </p>
+          <p className="fine" style={{ marginTop: 6, textAlign: 'center' }}>
             No account yet? <a href={process.env.NEXT_PUBLIC_SITE_URL || 'https://hihopper.app'}>hihopper.app</a>
           </p>
         </form>

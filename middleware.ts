@@ -1,7 +1,9 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC = ['/sign-in', '/auth', '/no-access']
+// /forgot and /reset are reachable signed out by definition: somebody who
+// could sign in would not be on either of them.
+const PUBLIC = ['/sign-in', '/forgot', '/reset', '/auth', '/no-access']
 
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: req })
