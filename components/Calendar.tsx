@@ -1,5 +1,8 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useFormState, useFormStatus } from 'react-dom'
+import { addEvent } from '@/app/actions/calendar'
+import Choice from '@/components/Choice'
 import Link from 'next/link'
 import type { Ev, Celebrant } from '@/lib/calendar'
 
@@ -27,8 +30,9 @@ const I = (d: string, w = '1.7') => (
 const H0 = 7, H1 = 20, PX = 34
 const SIDE_KEY = 'hopper.calside'
 
-export default function Calendar({ events, feeds, bdays, annis, address }: {
+export default function Calendar({ events, feeds, bdays, annis, address, orgs = [] }: {
   events: Ev[]; feeds: Feed[]; bdays: Celebrant[]; annis: Celebrant[]; address: string | null
+  orgs?: { id: string; name: string }[]
 }) {
   const [view, setView] = useState<View>('week')
   const [anchor, setAnchor] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d })
@@ -42,6 +46,33 @@ export default function Calendar({ events, feeds, bdays, annis, address }: {
   useEffect(() => {
     try { setSideMin(localStorage.getItem(SIDE_KEY) === 'min') } catch { /* fine */ }
   }, [])
+
+  // The popover hangs off the plus in the bar, but it cannot LIVE in the bar:
+  // .calmain clips, because a timed event is positioned absolutely and would
+  // otherwise spill out the bottom of the grid. So it is a sibling of the box,
+  // pushed down by however tall the bar actually is -- measured, because the
+  // bar wraps at narrow widths and a guessed number would float.
+  const [adding, setAdding] = useState(false)
+  const bar = useRef<HTMLDivElement>(null)
+  const pop = useRef<HTMLDivElement>(null)
+  const plus = useRef<HTMLButtonElement>(null)
+  const [barH, setBarH] = useState(51)
+
+  useEffect(() => {
+    if (!adding) return
+    setBarH(bar.current?.offsetHeight ?? 51)
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setAdding(false) }
+    const away = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (!pop.current?.contains(t) && !plus.current?.contains(t)) setAdding(false)
+    }
+    document.addEventListener('keydown', esc)
+    document.addEventListener('click', away)
+    return () => {
+      document.removeEventListener('keydown', esc)
+      document.removeEventListener('click', away)
+    }
+  }, [adding])
 
   const foldSide = () => setSideMin((m) => {
     try { localStorage.setItem(SIDE_KEY, m ? 'open' : 'min') } catch { /* not fatal */ }
@@ -128,8 +159,9 @@ export default function Calendar({ events, feeds, bdays, annis, address }: {
         <CalSide feeds={feeds} off={off} toggle={toggle} address={address}
                  min={sideMin} fold={foldSide} />
 
+        <div className="calmainw">
         <div className="calmain">
-          <div className="calbar">
+          <div className="calbar" ref={bar}>
             <button className="rbtn" type="button"
                     onClick={() => { const d = new Date(); d.setHours(0,0,0,0); setAnchor(d) }}>Today</button>
             <span className="calnav">
@@ -148,6 +180,11 @@ export default function Calendar({ events, feeds, bdays, annis, address }: {
                 </button>
               ))}
             </div>
+            <button className="calplus" type="button" ref={plus} aria-expanded={adding}
+                    data-tip="New event" aria-label="New event"
+                    onClick={(e) => { e.stopPropagation(); setAdding(!adding) }}>
+              {I('<path d="M12 5v14M5 12h14"/>', '2.2')}
+            </button>
           </div>
 
           {view === 'month' ? (
@@ -224,11 +261,130 @@ export default function Calendar({ events, feeds, bdays, annis, address }: {
             </div>
           )}
         </div>
+
+        {adding && (
+          <div className="addpop calpop" ref={pop} role="dialog" aria-label="New event"
+               style={{ top: barH + 12 }}>
+            <div className="addpop__h">
+              <b>New event</b>
+              <button className="addpop__x" type="button" aria-label="Close"
+                      onClick={() => setAdding(false)}>&times;</button>
+            </div>
+            <div className="addpop__body">
+              <NewEvent day={iso(anchor)} orgs={orgs} onDone={() => setAdding(false)} />
+            </div>
+          </div>
+        )}
+        </div>
       </div>
 
       <Celebrations bdays={bdays} annis={annis}
                     month={anchor.toLocaleDateString('en-US', { month: 'long' })} />
     </>
+  )
+}
+
+/**
+ * The event form.
+ *
+ * The day starts at whatever the calendar is looking at, because somebody who
+ * paged to March and pressed the plus meant March. All day is a toggle rather
+ * than a checkbox, and it does not hide the times so much as make them
+ * unnecessary -- turning it on empties them, so the form and the record agree
+ * about what was meant.
+ */
+function NewEvent({ day, orgs, onDone }: {
+  day: string; orgs: { id: string; name: string }[]; onDone: () => void
+}) {
+  const [state, action] = useFormState(addEvent, null)
+  const [allDay, setAllDay] = useState(false)
+  useEffect(() => { if (state?.ok) onDone() }, [state, onDone])
+
+  return (
+    <form action={action}>
+      <div className="formrow formrow--one">
+        <div>
+          <label htmlFor="ev-title">What is it</label>
+          <input className="field" id="ev-title" name="title" required maxLength={160}
+                 placeholder="Quarterly review" autoFocus autoComplete="off" />
+        </div>
+      </div>
+
+      <div className="formrow" style={{ marginTop: 12 }}>
+        <div>
+          <label htmlFor="ev-day">Day</label>
+          <input className="field" id="ev-day" name="day" type="date" required defaultValue={day} />
+        </div>
+        <div>
+          <label htmlFor="ev-allday">All day</label>
+          <div className="togline">
+            <span className="tog">
+              <input id="ev-allday" name="all_day" type="checkbox" checked={allDay}
+                     aria-label="All day" onChange={(e) => setAllDay(e.target.checked)} />
+              <span className="tog__track" /><span className="tog__knob" />
+            </span>
+            <span className="togstate">{allDay ? 'On' : 'Off'}</span>
+          </div>
+        </div>
+      </div>
+
+      {!allDay && (
+        <div className="formrow" style={{ marginTop: 12 }}>
+          <div>
+            <label htmlFor="ev-start">Starts</label>
+            <input className="field" id="ev-start" name="start_at" type="time" defaultValue="09:00" />
+          </div>
+          <div>
+            <label htmlFor="ev-end">Ends</label>
+            <input className="field" id="ev-end" name="end_at" type="time" defaultValue="10:00" />
+          </div>
+        </div>
+      )}
+
+      <div className="formrow formrow--one" style={{ marginTop: 12 }}>
+        <div>
+          <label htmlFor="ev-where">Where</label>
+          <input className="field" id="ev-where" name="location" maxLength={200}
+                 placeholder="Optional" autoComplete="off" />
+        </div>
+      </div>
+
+      {/* Only rendered when there is a choice to make. One organization is not
+          a question, and a dropdown with one thing in it is furniture. */}
+      {orgs.length > 1 && (
+        <div className="formrow formrow--one" style={{ marginTop: 12 }}>
+          <div>
+            <label htmlFor="ev-org">Who it is for</label>
+            <Choice id="ev-org" name="entity_id" placeholder="Everyone"
+                    options={[{ value: '', label: 'Everyone' },
+                      ...orgs.map((o) => ({ value: o.id, label: o.name }))]} />
+          </div>
+        </div>
+      )}
+
+      <div className="formrow formrow--one" style={{ marginTop: 12 }}>
+        <div>
+          <label htmlFor="ev-notes">Notes</label>
+          <textarea className="field" id="ev-notes" name="notes" rows={2} maxLength={2000}
+                    placeholder="Optional" />
+        </div>
+      </div>
+
+      <div className="rowacts">
+        <Add />
+        <button className="btn" type="button" onClick={onDone}>Cancel</button>
+      </div>
+      {state && !state.ok && <p className="swhy">{state.message}</p>}
+    </form>
+  )
+}
+
+function Add() {
+  const { pending } = useFormStatus()
+  return (
+    <button className="btn btn--amber" type="submit" disabled={pending}>
+      {pending ? 'Adding\u2026' : 'Add it'}
+    </button>
   )
 }
 
@@ -293,6 +449,7 @@ function CalSide({ feeds, off, toggle, address, min, fold }: {
 
       <div className="calside__body">
       <p className="calside__h">Showing</p>
+      {row('event', 'Events', '--ink-2')}
       {row('sched', 'Report schedule', '--s1')}
       {row('late', 'Behind', '--amber')}
       {row('birthday', 'Birthdays', '--amber')}

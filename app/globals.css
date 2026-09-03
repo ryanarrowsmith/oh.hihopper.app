@@ -4741,6 +4741,34 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
 .calarr svg{width:15px; height:15px}
 .calnow{font-size:14px; font-weight:800; letter-spacing:-.02em}
 
+/* ── adding one ──
+   The plus lives in the bar, where a plus belongs. The popover cannot: .calmain
+   clips, because a timed event is positioned absolutely and would otherwise
+   run out the bottom of the grid. So the box gets a wrapper that does not clip
+   and the popover hangs there, pushed down past the bar, with its beak still
+   pointing back at the plus that raised it. */
+.calmainw{position:relative; min-width:0}
+.calplus{
+  width:28px; height:28px; flex:none; display:grid; place-items:center; padding:0;
+  background:var(--amber); border:1px solid var(--amber); border-radius:var(--r);
+  color:#231F20; cursor:pointer;
+}
+.calplus:hover{background:var(--warn); border-color:var(--warn)}
+.calplus svg{width:16px; height:16px; fill:none; stroke:currentColor;
+  stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round}
+/* Hard right in a bar that ends: a centred tip would hang off the edge. */
+.calplus::after{left:auto; right:0; transform:none}
+.calplus::before{left:auto; right:11px; margin-left:0}
+
+.calpop{right:0}
+.calpop::before{right:13px}
+@media (max-width:640px){
+  /* The bar wraps at this width and the plus is no longer at a predictable
+     place along it, so the panel spans the box and the beak stands down. */
+  .calpop{right:0; left:0; width:auto}
+  .calpop::before{display:none}
+}
+
 /* ── day and week ── */
 .calgut{width:58px; flex:none; font-family:var(--mono); font-size:9.5px; color:var(--ink-3);
   display:flex; align-items:center; justify-content:flex-end; padding-right:8px}

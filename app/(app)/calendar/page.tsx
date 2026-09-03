@@ -24,7 +24,7 @@ export default async function Page() {
   const to = new Date(now.getFullYear(), now.getMonth() + 12, 0)
 
   const db = supabaseServer()
-  const [{ events, feeds }, { data: people }, { data: token }] = await Promise.all([
+  const [{ events, feeds }, { data: people }, { data: token }, { data: orgs }] = await Promise.all([
     loadCalendar(from, to),
     db.schema('hopper').from('directory')
       .select('id, full_name, entity_name, department_name, birth_month, birth_day, start_month, start_year')
@@ -32,6 +32,9 @@ export default async function Page() {
     // Made on first sight rather than at signup: an address nobody has asked
     // for is a secret sitting in a table for no reason.
     db.schema('hopper').rpc('calendar_address', { p_rotate: false }),
+    // RLS answers this, so the picker can never offer an organization the
+    // insert would then refuse.
+    db.schema('hopper').from('entity').select('id, name').order('sort_order'),
   ])
 
   const { bdays, annis } = celebrants(people ?? [], now.getMonth() + 1)
@@ -46,7 +49,7 @@ export default async function Page() {
       </div></div>
 
       <Calendar events={events} feeds={feeds as any} bdays={bdays} annis={annis}
-                address={(token as string) ?? null} />
+                address={(token as string) ?? null} orgs={(orgs ?? []) as any} />
     </>
   )
 }

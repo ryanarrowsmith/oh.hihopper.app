@@ -2,7 +2,7 @@ import 'server-only'
 import { supabaseServer } from '@/lib/supabase/server'
 import { allowedFor } from '@/lib/freshness'
 
-export type CalKind = 'sched' | 'late' | 'birthday' | 'anniversary' | 'feed'
+export type CalKind = 'sched' | 'late' | 'birthday' | 'anniversary' | 'feed' | 'event'
 
 export type Ev = {
   id: string; kind: CalKind; title: string; sub: string | null
@@ -18,9 +18,13 @@ export type Celebrant = { id: string; name: string; where: string | null; day: n
 const iso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
+/* Four palette colours are already as many as separate reliably for every kind
+   of colour vision, so the fifth kind does not get a fifth colour. It gets ink
+   -- which is also the honest signal: everything else on this calendar is
+   worked out, and an event is the one thing a person typed. */
 const COLOUR: Record<CalKind, string> = {
   sched: '--s1', late: '--amber', birthday: '--amber',
-  anniversary: '--s2', feed: '--s3',
+  anniversary: '--s2', feed: '--s3', event: '--ink-2',
 }
 
 /**
@@ -35,7 +39,8 @@ const COLOUR: Record<CalKind, string> = {
 export async function loadCalendar(from: Date, to: Date) {
   const db = supabaseServer()
 
-  const [{ data: reps }, { data: people }, { data: feeds }, { data: events }] = await Promise.all([
+  const [{ data: reps }, { data: people }, { data: feeds }, { data: events }, { data: mine }] =
+    await Promise.all([
     db.schema('hopper').from('report_state')
       .select('report_id, name, refresh, last_look, value_on, snapshot_at, last_look_ok, entity_id'),
     db.schema('hopper').from('directory')
@@ -46,6 +51,9 @@ export async function loadCalendar(from: Date, to: Date) {
       .select('id, feed_id, title, starts_at, ends_at, all_day, location, url')
       .gte('starts_at', from.toISOString()).lte('starts_at', to.toISOString())
       .order('starts_at'),
+    db.schema('hopper').from('event')
+      .select('id, title, day, start_min, end_min, location, notes')
+      .gte('day', iso(from)).lte('day', iso(to)).order('day'),
   ])
 
   const evs: Ev[] = []
@@ -130,6 +138,23 @@ export async function loadCalendar(from: Date, to: Date) {
       mins: e.all_day || !e.ends_at ? null
         : Math.max(15, Math.round((+new Date(e.ends_at) - +start) / 60000)),
       href: e.url ?? null, colour: feedColour.get(e.feed_id) ?? COLOUR.feed,
+    })
+  }
+
+  /* ── and the ones somebody typed ──
+        The day and the minutes are put back together as a LOCAL time string
+        with no zone on it, which is what `new Date` reads in the browser's own
+        reckoning. Nine o'clock is nine o'clock wherever you open it, which is
+        the whole reason the column is a date and not a moment. */
+  for (const e of mine ?? []) {
+    const hhmm = (m: number) =>
+      `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+    evs.push({
+      id: `ev-${e.id}`, kind: 'event', title: e.title, sub: e.location ?? null,
+      day: e.day,
+      at: e.start_min == null ? null : `${e.day}T${hhmm(e.start_min)}:00`,
+      mins: e.start_min == null || e.end_min == null ? null : e.end_min - e.start_min,
+      href: null, colour: COLOUR.event,
     })
   }
 
