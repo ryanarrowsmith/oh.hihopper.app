@@ -7,6 +7,7 @@ import { currentSession } from '@/lib/tenant'
 import { logAudit } from '@/lib/audit'
 import { addressOf, geocode, whyNoPin } from '@/lib/mapbox'
 import { addressesFrom, saveAddresses } from '@/lib/addresses'
+import { asFlags, type Level } from '@/lib/access'
 
 export type Result = { ok: boolean; message: string }
 
@@ -431,42 +432,55 @@ export async function setPersonActive(_prev: Result | null, form: FormData): Pro
  * are removed rather than left behind -- a screen that can only add is a screen
  * that quietly accumulates access nobody chose.
  */
+/**
+ * Set what somebody may do.
+ *
+ * The form posts one LEVEL per thing -- `l:<object>:<scope|->` = read | edit |
+ * admin | none -- rather than a scatter of independent ticks. Nobody edits what
+ * they cannot read, and three checkboxes let you save that contradiction.
+ *
+ * Grants are replaced wholesale for this person and nobody else, which is what
+ * makes "what somebody holds" readable in one place. The audit entry records
+ * the levels, not the booleans, because the levels are what a human decided.
+ */
 export async function savePermissions(_prev: Result | null, form: FormData): Promise<Result> {
   const { db, account } = await ctx()
   const person_id = str(form, 'person_id')
   if (!person_id) return { ok: false, message: 'No person selected.' }
 
-  const rows = new Map<string, any>()
+  const list: any[] = []
+  const said: { object: string; scope: string | null; level: Level }[] = []
+
   for (const key of form.keys()) {
-    // name="g:<object>:<scope|->:<verb>"
-    if (!key.startsWith('g:')) continue
-    const [, object, scopeRaw, verb] = key.split(':')
+    if (!key.startsWith('l:')) continue
+    const [, object, scopeRaw] = key.split(':')
+    const value = str(form, key)
+    if (value !== 'read' && value !== 'edit' && value !== 'admin') continue   // none
+    const level = value as Level
     const scope_id = scopeRaw === '-' ? null : scopeRaw
-    const k = `${object}|${scopeRaw}`
-    const row = rows.get(k) ?? {
-      account_id: account, person_id, object, scope_id,
-      may_view: false, may_edit: false, may_export: false,
-    }
-    if (verb === 'view') row.may_view = true
-    if (verb === 'edit') row.may_edit = true
-    if (verb === 'export') row.may_export = true
-    rows.set(k, row)
+    list.push({ account_id: account, person_id, object, scope_id,
+                ...asFlags(level),
+                // Export is its own axis and is not part of the scale; it is
+                // carried through untouched rather than silently cleared.
+                may_export: form.get(`x:${object}:${scopeRaw}`) === 'on' })
+    said.push({ object, scope: scope_id, level })
   }
 
   const del = await db.schema('hopper').from('access_grant').delete().eq('person_id', person_id)
   if (del.error) return { ok: false, message: refused(del.error.message, 'permission') }
 
-  const list = [...rows.values()]
   if (list.length) {
     const ins = await db.schema('hopper').from('access_grant').insert(list)
     if (ins.error) return { ok: false, message: refused(ins.error.message, 'permission') }
   }
 
+  const admins = said.filter((r) => r.level === 'admin').length
   await logAudit(db, { account_id: account, kind: 'access', object_id: person_id,
-    summary: `Set permissions — ${list.length} ${list.length === 1 ? 'grant' : 'grants'}`,
-    payload: { grants: list.map((r) => ({ object: r.object, scope: r.scope_id,
-      v: r.may_view, e: r.may_edit, x: r.may_export })) } })
+    summary: `Set permissions — ${list.length} ${list.length === 1 ? 'grant' : 'grants'}`
+      + (admins ? `, ${admins} at Admin` : ''),
+    payload: { grants: said } })
   revalidatePath('/admin/permissions')
+  revalidatePath('/people/me/access')
   return { ok: true, message: `Saved — ${list.length} ${list.length === 1 ? 'grant' : 'grants'}.` }
 }
 

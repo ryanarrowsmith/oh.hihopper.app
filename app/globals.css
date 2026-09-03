@@ -5881,3 +5881,183 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
   .wmeta{gap:9px}
   .wpage{padding:20px 16px 26px}
 }
+
+/* ================================================= PERMISSIONS, AS LEVELS ==
+   Read, Edit, Admin. One scale, three steps, each containing the one below. */
+
+/* ---- who we are looking at ---- */
+.pwho2{display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:14px 16px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  margin-top:16px}
+.pwho2 .ava--init{width:44px; height:44px; font-size:15px}
+.pwho2__n{display:block; font-size:17px; font-weight:800; letter-spacing:-.02em;
+  color:var(--ink)}
+.pwho2__r{display:block; font-size:12.5px; color:var(--ink-3); margin-top:2px}
+.pwho2__go{margin-left:auto; display:flex; gap:8px; align-items:center}
+
+/* Choosing whose access to look at. A row of names beats a table of Show
+   buttons: the names are the control. */
+.grantpick{display:flex; flex-wrap:wrap; gap:6px; margin-top:12px}
+.gpick{font-size:12.5px; font-weight:700; color:var(--ink-2); text-decoration:none;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  padding:5px 11px}
+.gpick:hover{border-color:var(--ink-3); color:var(--ink)}
+.gpick.is-on{background:var(--steel); border-color:var(--steel); color:#FBF9F5}
+
+/* ---- the level scale ----
+   Always all three visible, and everything up to the level held is filled,
+   because Admin IS Edit and Edit IS Read. Filling only the last step would say
+   they were alternatives; a dropdown would hide the containment entirely,
+   which is the one thing anybody needs to understand here. */
+.lvl{display:inline-flex; border:1px solid var(--rule); border-radius:var(--r);
+  overflow:hidden; background:var(--surface); flex:none}
+.lvl button{appearance:none; border:0; background:none; cursor:pointer; font:inherit;
+  font-size:11.5px; font-weight:800; letter-spacing:.02em; color:var(--ink-3);
+  padding:6px 13px; border-left:1px solid var(--rule-soft); display:flex;
+  align-items:center; gap:6px; white-space:nowrap}
+.lvl button:first-child{border-left:0}
+.lvl button:hover:not(:disabled){background:var(--sunken); color:var(--ink)}
+.lvl button:disabled{cursor:default}
+.lvl button svg{width:12px; height:12px; flex:none; fill:none; stroke:currentColor;
+  stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round}
+.lvl button.is-on{background:var(--steelwash); color:var(--steel-ink)}
+.lvl button.is-top{background:var(--steel); color:#FBF9F5}
+.lvl--admin button.is-top{background:var(--bad); color:#fff}
+.lvl--off button{color:var(--canvas-3)}
+/* Inherited: shown at its real strength, and not yours to lower here. */
+.lvl--from{opacity:.72}
+.lvlvia{font-size:11.5px; color:var(--ink-3); display:inline-flex; align-items:center;
+  gap:5px; white-space:nowrap}
+.lvlvia svg{width:12px; height:12px; flex:none; fill:none; stroke:currentColor;
+  stroke-width:2; color:var(--canvas-3)}
+.lvlvia b{color:var(--ink-2); font-weight:700}
+
+/* ---- a grant, as a row ---- */
+.grants{border:1px solid var(--rule); border-radius:var(--r); background:var(--surface);
+  overflow:hidden; margin-top:12px}
+.grow{display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:14px;
+  align-items:center; padding:10px 14px; border-top:1px solid var(--rule-soft)}
+.grow:first-child{border-top:0}
+.grow:hover{background:var(--sunken)}
+.grow--kid{padding-left:38px; background:var(--stripe)}
+.grow--kid:hover{background:var(--sunken)}
+.grow__n{font-size:13.5px; font-weight:700; color:var(--ink); min-width:0;
+  display:flex; align-items:center; gap:9px}
+.grow__n small{display:block; font-size:11.5px; font-weight:500; color:var(--ink-3);
+  margin-top:2px}
+.grow__n .plate{flex:none}
+.grow__x{display:flex; min-width:0}
+
+/* ---- a module, opened up per organization ----
+   Most of the time one level covers everywhere, so that is the row. Five
+   organizations times nine modules is forty-five rows of a screen that usually
+   has nine, so the exceptions live behind a caret -- and the row says how many
+   there are, because an exception nobody can see is how somebody ends up
+   wondering why one yard cannot run a report. */
+.gsub{background:var(--sunken); border-top:1px solid var(--rule-soft);
+  padding:4px 14px 12px 38px}
+.gsub__h{font-family:var(--mono); font-size:9.5px; font-weight:800; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3); padding:9px 0 7px}
+.gsub .grow{background:var(--surface); border:1px solid var(--rule-soft);
+  border-bottom:0; padding-left:12px}
+.gsub .grow:last-of-type{border-bottom:1px solid var(--rule-soft)}
+.gcount{font:inherit; color:var(--steel-ink); background:none; border:0; padding:0;
+  cursor:pointer; text-decoration:underline; text-decoration-color:var(--canvas-3);
+  text-underline-offset:3px; display:inline-flex; align-items:center; gap:5px;
+  font-size:12px; white-space:nowrap}
+.gcount:hover{text-decoration-color:var(--steel-ink)}
+.gcount svg{width:11px; height:11px; flex:none; fill:none; stroke:currentColor;
+  stroke-width:2.6; stroke-linecap:round; transition:transform .2s ease}
+.gcount--open svg{transform:rotate(90deg)}
+.gcount--none{color:var(--ink-3); text-decoration:none; cursor:default}
+
+/* The prompt that stops somebody granting one business what they meant to
+   grant five. It says plainly what just happened and offers the wider thing as
+   one press -- never doing it for them. */
+.scopesay{display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  background:var(--warmbg); border-top:1px solid var(--warmrule);
+  border-bottom:1px solid var(--warmrule);
+  padding:12px 14px; font-size:12.5px; color:var(--ink-2); line-height:1.5}
+.scopesay > svg{width:16px; height:16px; flex:none; fill:none; stroke:#8A5A0B;
+  stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
+.scopesay b{color:var(--ink); font-weight:800}
+.scopesay__go{margin-left:auto; display:flex; gap:8px; flex:none}
+.scopesay__go .btn{padding:5px 11px; font-size:12px; height:auto; min-height:0; width:auto}
+
+/* ---- what Admin actually means, said once ---- */
+.adminsay{display:grid; grid-template-columns:22px minmax(0,1fr); gap:12px;
+  background:var(--warmbg); border:1px solid var(--warmrule); border-radius:var(--r);
+  padding:14px 16px; margin-top:14px; font-size:13px; line-height:1.6;
+  color:var(--ink-2); max-width:82ch}
+.adminsay > svg{width:17px; height:17px; fill:none; stroke:#8A5A0B; stroke-width:2;
+  margin-top:2px}
+.adminsay b{color:var(--ink); font-weight:800}
+
+/* ---- the summary chips ---- */
+.plevels{display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end}
+.plev{font-family:var(--mono); font-size:9.5px; font-weight:800; letter-spacing:.09em;
+  text-transform:uppercase; padding:2px 7px; border-radius:var(--r);
+  border:1px solid var(--rule); color:var(--ink-3); background:var(--sunken);
+  white-space:nowrap}
+.plev--read{color:var(--steel-ink); background:var(--steelwash);
+  border-color:rgba(45,93,123,.3)}
+.plev--edit{color:#8A5A0B; background:var(--warmbg); border-color:var(--warmrule)}
+.plev--admin{color:var(--bad); background:rgba(217,58,43,.09);
+  border-color:rgba(217,58,43,.3)}
+
+/* ---- the read-only view a person gets of themselves ----
+   .mayr, not .mrow: .mrow is already the account-menu row in the top bar, and
+   its `.mrow span{display:flex; flex-direction:column}` quietly turned every
+   cell of this table into a column and every <b> into a block. The collision
+   check is cheap; the hunt afterwards is not. */
+.maytbl{border:1px solid var(--rule); border-radius:var(--r); background:var(--surface);
+  overflow:hidden; margin-top:12px}
+.mayr{display:grid; grid-template-columns:44px minmax(0,1.15fr) minmax(0,1.6fr) 178px;
+  gap:0 14px; align-items:center; border-top:1px solid var(--rule-soft)}
+.mayr > :not(.mayr__k){padding:12px 0}
+.mayr > :last-child{padding-right:15px}
+.mayr:first-child{border-top:0}
+.mayr__h{background:var(--sunken); border-top:0; border-bottom:1px solid var(--rule);
+  font-family:var(--mono); font-size:9.5px; font-weight:800; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3)}
+.mayr__h > *{padding:9px 0}
+.mayr__h > :first-child{padding-left:15px}
+/* The level is the head of the row, filled and full height, in the colour it
+   already means -- read before the name, the same shape the projects portfolio
+   uses. */
+.mayr__k{align-self:stretch; display:grid; place-items:center; color:var(--ink-3)}
+.mayr__k svg{width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2;
+  stroke-linecap:round; stroke-linejoin:round}
+.mayr__k b{display:none}
+.mayr__k--read{background:var(--steelwash); color:var(--steel-ink)}
+.mayr__k--edit{background:var(--warmbg); color:#8A5A0B}
+.mayr__k--admin{background:rgba(217,58,43,.12); color:var(--bad)}
+.mayr__n{font-size:13.5px; font-weight:800; letter-spacing:-.01em; color:var(--ink);
+  min-width:0}
+.mayr__n small{display:block; font-size:11.5px; font-weight:500; color:var(--ink-3);
+  margin-top:2px}
+.mayr__d{font-size:12.5px; color:var(--ink-2); line-height:1.5; min-width:0}
+.mayr__f{font-size:12px; color:var(--ink-3); min-width:0}
+.mayr__f b{color:var(--ink-2); font-weight:700}
+.mayr__f svg{width:12px; height:12px; display:inline-block; fill:none; stroke:currentColor;
+  stroke-width:2; color:var(--canvas-3); vertical-align:-2px; margin-right:5px}
+
+@media (max-width:860px){
+  /* Standing rule: a row of results becomes a card. The level cell keeps the
+     full height down the left edge and everything else stacks beside it. */
+  .mayr{grid-template-columns:44px minmax(0,1fr); gap:7px 12px}
+  .mayr__h{display:none}
+  .mayr > :not(.mayr__k){padding:0 14px 0 0}
+  .mayr > .mayr__k{grid-row:1 / span 3}
+  .mayr > :nth-child(2){padding-top:12px}
+  .mayr > :nth-child(3), .mayr > :nth-child(4){grid-column:2}
+  .mayr > :last-child{padding-bottom:12px}
+  .grow{grid-template-columns:minmax(0,1fr); gap:8px}
+  .grow--kid{padding-left:22px}
+  .lvl{width:100%}
+  .lvl button{flex:1; justify-content:center; padding:7px 6px}
+  .plevels{justify-content:flex-start}
+  .gsub{padding-left:14px}
+  .scopesay__go{margin-left:0; width:100%}
+  .scopesay__go .btn{flex:1}
+}

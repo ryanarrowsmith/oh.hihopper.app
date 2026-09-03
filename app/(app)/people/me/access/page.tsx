@@ -1,9 +1,8 @@
 import { redirect } from 'next/navigation'
 import { currentSession } from '@/lib/tenant'
 import { supabaseServer } from '@/lib/supabase/server'
-import Section from '@/components/Section'
-import { FLAT_OBJECTS, held, type Grant, type Verb } from '@/lib/access'
-import { OrgMark } from '@/components/Icons'
+import { LEVEL_MEANS, LEVEL_WORD, LEVELLED_MODULES, type Level } from '@/lib/access'
+import { LEVEL_MARK } from '@/components/LevelPick'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,101 +10,154 @@ export const dynamic = 'force-dynamic'
  * What you may do.
  *
  * "Why can't I see that report" is a question people ask about themselves, and
- * until this page there was nowhere in Hopper that answered it. Admin ->
- * Permissions answers it about somebody else and only an administrator can
- * open it, which is exactly the wrong shape: the person who needs the answer
- * is the person who cannot get to the screen.
+ * Admin -> Permissions answers it about somebody else and only opens for an
+ * administrator -- exactly the wrong shape, because the person who needs the
+ * answer is the person who cannot reach the screen.
  *
- * It renders the same rows as Permissions, from lib/access.ts, because two
- * hand-written copies of "what a permission is" is how two screens start
- * disagreeing about what somebody can do.
+ * Every row comes from hopper.my_levels() and hopper.my_module_levels(), which
+ * call the same predicates the policies call. This page therefore cannot claim
+ * access the database would refuse, which is the one property an access screen
+ * has to have.
  *
- * Two rules make it honest. It fetches the places WITHOUT a filter and lets
- * RLS answer -- so it cannot claim access the database would refuse, which is
- * the one property an access screen has to have. And it is read only: nothing
- * here is a control, because a control you may not use is a worse answer than
- * a sentence. Owners see everything whatever the grant table says, and it says
- * so rather than drawing a grid of rows that are all false.
+ * A table rather than cards: the question is "what do I have, and where does it
+ * come from?", and that is four facts per row read down a column.
  */
-const VERB: Record<Verb, string> = { view: 'View', edit: 'Edit', export: 'Export' }
+const I = (d: string) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+       strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} />
+)
+const VIA = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+       strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 4v9a4 4 0 0 0 4 4h10" /><path d="M15 13l4 4-4 4" />
+  </svg>
+)
+
+function Head() {
+  return (
+    <div className="mayr mayr__h">
+      <span /><span>What</span><span>What that lets you do</span><span>Where it comes from</span>
+    </div>
+  )
+}
+
+function Row({ level, name, sub, from }: {
+  level: Level; name: string; sub?: string | null; from?: string | null
+}) {
+  return (
+    <div className="mayr">
+      <span className={`mayr__k mayr__k--${level}`} data-tip={LEVEL_WORD[level]}
+            role="img" aria-label={LEVEL_WORD[level]}>
+        {I(LEVEL_MARK[level])}<b>{LEVEL_WORD[level]}</b>
+      </span>
+      <span className="mayr__n">{name}{sub && <small>{sub}</small>}</span>
+      <span className="mayr__d">{LEVEL_MEANS[level]}</span>
+      <span className="mayr__f">
+        {from ? <>{VIA}via <b>{from}</b></> : <b>Granted to you</b>}
+      </span>
+    </div>
+  )
+}
 
 export default async function MyAccess() {
   const session = await currentSession()
   if (!session) redirect('/no-access')
-
   const db = supabaseServer()
-  const owner = /owner|admin/i.test(session.role)
+  const acct = session.accountId
 
-  const [{ data: grants }, { data: entities }, { data: departments }] = await Promise.all([
-    db.schema('hopper').from('access_grant').select('*').eq('person_id', session.personId ?? ''),
-    // No filter. RLS is the answer -- what comes back IS what you may open.
-    db.schema('hopper').from('entity').select('id, name, parent_id').order('sort_order'),
-    db.schema('hopper').from('department').select('id, name, entity_id').order('name'),
+  const [{ data: levels }, { data: mods }] = await Promise.all([
+    db.schema('hopper').rpc('my_levels', { acct }),
+    db.schema('hopper').rpc('my_module_levels', { acct }),
   ])
-  const g = (grants ?? []) as Grant[]
 
-  const mine = FLAT_OBJECTS
-    .map((o) => ({ o, verbs: o.verbs.filter((v) => held(g, o.key, v)) }))
-    .filter((r) => r.verbs.length > 0)
+  const orgs = (levels ?? []).filter((r: any) => r.kind === 'entity')
+  const deps = (levels ?? []).filter((r: any) => r.kind === 'department')
+
+  // A module level is held per organization, but it is nearly always the same
+  // everywhere -- so it is collapsed into one row unless it genuinely differs.
+  const byModule = new Map<string, any[]>()
+  for (const r of mods ?? []) byModule.set(r.module, [...(byModule.get(r.module) ?? []), r])
+
+  const nothing = orgs.length === 0 && deps.length === 0 && (mods ?? []).length === 0
 
   return (
     <>
-      <div className="hi"><div className="hi__t">
-        <h1>What you may do</h1>
-        <p className="scopeline"><span>
-          Signed in as {session.displayName} on {session.accountName}
-          {owner ? ' — you own this account.' : '.'}
-        </span></p>
-      </div></div>
+      <div className="hi">
+        <div className="hi__t">
+          <h1>What you may do</h1>
+          <p className="scopeline"><span>
+            Everything Hopper will let you do, and where. If something you need is missing,
+            this is the page to send to whoever administers your organization.
+          </span></p>
+        </div>
+      </div>
 
-      <Section title="Across Hopper"
-               blurb="The permissions that are not about a particular business.">
-        {owner ? (
-          <p className="empty">
-            You own this account, so every one of these is yours whatever the
-            grant table says. An owner able to remove their own last permission
-            could lock the account&rsquo;s only administrator out of the screen
-            that gives it back.
-          </p>
-        ) : mine.length === 0 ? (
-          <p className="empty">
-            None yet. Everything you can reach, you can reach because of the
-            organizations below.
-          </p>
-        ) : (
-          <ul className="holds">
-            {mine.map(({ o, verbs }) => (
-              <li key={o.key}>
-                <b>{o.label}</b>
-                <span className="holds__v">{verbs.map((v) => VERB[v]).join(' · ')}</span>
-                <small>{o.blurb}</small>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
+      {nothing ? (
+        <p className="empty" style={{ marginTop: 18 }}>
+          Nothing has been granted to you yet. Whoever administers your organization can
+          change that from Admin → Permissions.
+        </p>
+      ) : (
+        <>
+          {orgs.length > 0 && (
+            <section className="sec" style={{ marginTop: 20 }}>
+              <div className="sec__h"><div className="sec__t">
+                <h2>Organizations</h2>
+                <p>{orgs.length === 1 ? 'One.' : `${orgs.length}.`} A level on a parent covers
+                  everything beneath it.</p>
+              </div></div>
+              <div className="maytbl">
+                <Head />
+                {orgs.map((r: any) => (
+                  <Row key={r.id} level={r.level} name={r.name} from={r.via_name} />
+                ))}
+              </div>
+            </section>
+          )}
 
-      <Section title="What you can open"
-               blurb="Every business and department this account holds that Hopper will let you load. Nothing is filtered by hand here — this is the database's own answer.">
-        {(entities ?? []).length === 0 ? (
-          <p className="empty">Nothing yet. Ask an administrator for a grant.</p>
-        ) : (
-          <ul className="holds">
-            {(entities ?? []).map((e: any) => {
-              const kids = (departments ?? []).filter((d: any) => d.entity_id === e.id)
-              return (
-                <li key={e.id}>
-                  <b><OrgMark />{e.name}</b>
-                  {e.parent_id && <span className="holds__v">Under its parent</span>}
-                  {kids.length > 0 && (
-                    <small>{kids.map((d: any) => d.name).join(' · ')}</small>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </Section>
+          {deps.length > 0 && (
+            <section className="sec">
+              <div className="sec__h"><div className="sec__t">
+                <h2>Departments</h2>
+                <p>Where you have more than the organization already gives you.</p>
+              </div></div>
+              <div className="maytbl">
+                <Head />
+                {deps.map((r: any) => (
+                  <Row key={r.id} level={r.level} name={r.name} sub={r.sub} from={r.via_name} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {byModule.size > 0 && (
+            <section className="sec">
+              <div className="sec__h"><div className="sec__t">
+                <h2>Modules</h2>
+                <p>What you may do with each part of Hopper, wherever you can already see
+                  the business.</p>
+              </div></div>
+              <div className="maytbl">
+                <Head />
+                {LEVELLED_MODULES.filter((m) => byModule.has(m.key)).map((m) => {
+                  const rows = byModule.get(m.key)!
+                  const same = new Set(rows.map((r: any) => r.level))
+                  // One row when it is the same everywhere; one row per business
+                  // when it is not, because "Edit" that is only true in one yard
+                  // is a sentence that gets somebody stuck.
+                  return same.size === 1
+                    ? <Row key={m.key} level={rows[0].level} name={m.label} sub={m.blurb} />
+                    : <>{rows.map((r: any) => (
+                        <Row key={`${m.key}-${r.entity_id}`} level={r.level}
+                             name={m.label} sub={r.entity_name}
+                             from={r.scoped ? null : 'your level everywhere'} />
+                      ))}</>
+                })}
+              </div>
+            </section>
+          )}
+        </>
+      )}
     </>
   )
 }

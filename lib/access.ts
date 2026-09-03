@@ -77,3 +77,60 @@ export function held(grants: Grant[], object: string, verb: Verb, scope: string 
   if (!g) return false
   return verb === 'view' ? g.may_view : verb === 'edit' ? g.may_edit : g.may_export
 }
+
+/* ==========================================================================
+   LEVELS
+   Read, Edit, Admin -- one scale, three steps, each containing the one below
+   it. Nobody edits what they cannot read, so three independent ticks was
+   always a lie about how permissions work.
+
+   Admin does not delete. Nothing in Hopper is destroyed: a location, a
+   department, a report or a project is made INACTIVE, keeps its history, and
+   can be turned back on where you left it. Admin is the power to take
+   something out of use, and to hand the same access to somebody else -- which
+   is why it is a level of its own rather than a tick beside Edit.
+   ========================================================================== */
+
+export type Level = 'read' | 'edit' | 'admin'
+export const LEVELS: Level[] = ['read', 'edit', 'admin']
+export const LEVEL_WORD: Record<Level, string> = {
+  read: 'Read', edit: 'Edit', admin: 'Admin',
+}
+export const LEVEL_MEANS: Record<Level, string> = {
+  read: 'Open it and look. Nothing you do here saves.',
+  edit: 'Change what is in it. You cannot take it out of use.',
+  admin: 'Change it, take things in it out of use, and grant the same to others.',
+}
+export const rank = (l: Level | null) =>
+  l === 'admin' ? 3 : l === 'edit' ? 2 : l === 'read' ? 1 : 0
+export const wordOf = (n: number): Level | null =>
+  n >= 3 ? 'admin' : n === 2 ? 'edit' : n === 1 ? 'read' : null
+
+/** The booleans a level is stored as. Cumulative, because the policies that
+ *  read them ask "may_view" and "may_edit" separately and always will. */
+export const asFlags = (l: Level | null) => ({
+  may_view: rank(l) >= 1, may_edit: rank(l) >= 2, may_admin: rank(l) >= 3,
+})
+export const asLevel = (g: { may_view?: boolean; may_edit?: boolean
+                             may_admin?: boolean } | null | undefined): Level | null =>
+  !g ? null : g.may_admin ? 'admin' : g.may_edit ? 'edit' : g.may_view ? 'read' : null
+
+/** The parts of Hopper a module level can be held on. */
+/** The highest step each flat permission actually has. A step that saves and
+ *  changes nothing is worse than a step that is not offered. */
+export const FLAT_MAX: Record<string, Level> = {
+  executive: 'read',
+  manage_organizations: 'edit',
+  roster: 'edit',
+  audit_log: 'read',
+  wiki: 'edit',
+  administrator: 'admin',
+}
+
+export const LEVELLED_MODULES = [
+  { key: 'reporting', label: 'Reporting', blurb: 'Sheets, charts and the dashboards built on them' },
+  { key: 'projects',  label: 'Projects',  blurb: 'Projects, milestones and tasks' },
+  { key: 'wiki',      label: 'Wiki',      blurb: 'The handbook. Everybody reads it; Edit writes it' },
+  { key: 'staffing',  label: 'Staffing',  blurb: 'Rotas and who is on' },
+  { key: 'meetings',  label: 'Meetings',  blurb: 'Agendas and what was decided' },
+] as const
