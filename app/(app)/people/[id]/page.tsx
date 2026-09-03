@@ -21,9 +21,17 @@ export default async function PersonPage({ params }: { params: { id: string } })
 
   const [{ data: d }, { data: contact }] = await Promise.all([
     db.schema('hopper').from('directory').select('*').eq('id', params.id).maybeSingle(),
-    db.schema('hopper').from('person').select('email, phone').eq('id', params.id).maybeSingle(),
+    db.schema('hopper').from('person').select('email, phone, manager_id').eq('id', params.id).maybeSingle(),
   ])
   if (!d) notFound()
+
+  // Through the directory, not joined into it: RLS then answers, so somebody
+  // whose manager this viewer may not see gets no row rather than a name they
+  // were never meant to have.
+  const { data: manager } = contact?.manager_id
+    ? await db.schema('hopper').from('directory')
+        .select('id, full_name').eq('id', contact.manager_id).maybeSingle()
+    : { data: null }
 
   // The pinned restaurant, drawn by the same proxy the location maps use, so
   // the token never reaches the browser.
@@ -40,7 +48,7 @@ export default async function PersonPage({ params }: { params: { id: string } })
       <CrumbTail>{d.full_name}</CrumbTail>
 
       <PersonBadge d={d as any} email={contact?.email ?? null}
-                   phone={contact?.phone ?? null} />
+                   phone={contact?.phone ?? null} manager={manager as any} />
 
       <div className="gtkm">
         {d.may_edit ? (

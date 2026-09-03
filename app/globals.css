@@ -3218,6 +3218,11 @@ a.crow:hover svg{stroke:var(--steel-ink)}
 /* Hung off the avatar, so it opens to the right of the face it is about. */
 .phpop{left:0; right:auto; width:min(320px, calc(100vw - 40px))}
 .phpop::before{left:44px; right:auto}
+/* On the badge the print is centred in a 262px card, so a popover pinned to
+   its left edge hangs off the page on a narrow window. Centre it on the photo
+   and let it grow both ways. */
+.idc__face .phpop{left:50%; transform:translateX(-50%)}
+.idc__face .phpop::before{left:50%; margin-left:-5px}
 .phhint{font-size:12.5px; color:var(--ink-2); line-height:1.5; margin-bottom:12px}
 .phpick{display:block; text-align:center; cursor:pointer}
 .phpick input{position:absolute; width:1px; height:1px; opacity:0; pointer-events:none}
@@ -3398,15 +3403,24 @@ a.crow:hover svg{stroke:var(--steel-ink)}
    that is what an employer's name does on a real pass: it is the thing
    issuing the card and everything below it is subordinate to it.
    ========================================================================== */
-.idw{display:flex; gap:30px; align-items:flex-start; flex-wrap:wrap; margin:8px 0 26px}
+/* The list sits against the middle of the card rather than starting at its
+   top edge. Top-aligned, four short rows beside a tall card left a hole under
+   them and the two halves read as unrelated; centred, they read as one row. */
+.idw{display:flex; gap:34px; align-items:center; flex-wrap:wrap; margin:8px 0 26px}
 
 .idc{
   position:relative; flex:none; width:262px; padding:0 0 0;
   background:var(--surface); border:1px solid var(--rule); border-radius:14px;
   box-shadow:0 1px 0 rgba(255,255,255,.7) inset, 0 14px 30px -14px rgba(35,31,32,.42),
              0 2px 6px -2px rgba(35,31,32,.18);
-  text-align:center; overflow:hidden;
+  text-align:center;
   padding-top:26px;                     /* the strip the slot is punched through */
+  /* No overflow:hidden. The card owns a popover -- the photo one -- and this
+     is the third time this session that a clip added for one reason has
+     swallowed a popover put there for another: Dolly's card, the scroll cap on
+     her quote, and now here. The rule that comes out of it: a box that clips
+     must not be a box that contains a popover. So the two children that would
+     otherwise poke past the corners round themselves instead. */
 }
 /* Punched, not drawn on: the slot takes the card's own background so it reads
    as a hole rather than a grey pill. */
@@ -3454,6 +3468,7 @@ a.idc__org:hover{background:var(--steel)}
 .idc__foot{
   margin-top:18px; padding:10px 14px 11px; background:var(--sunken);
   border-top:1px solid var(--rule); display:flex; flex-direction:column; gap:6px;
+  border-radius:0 0 13px 13px;          /* what overflow:hidden used to do for it */
 }
 /* Bars, not a real barcode: it stands for the issue strip, and printing a
    scannable code that scans to nothing would be a small lie. */
@@ -3471,12 +3486,14 @@ a.idc__org:hover{background:var(--steel)}
 
 /* Beside the card, on the canvas. A badge carrying working controls would be
    pretending to be furniture and a button at once. */
-.idfacts{flex:1 1 240px; min-width:220px; margin:6px 0 0; display:flex; flex-direction:column}
+.idfacts{flex:1 1 240px; min-width:220px; max-width:420px; margin:0; display:flex; flex-direction:column}
 .idfacts > div{
   display:grid; grid-template-columns:110px minmax(0,1fr); align-items:baseline;
   gap:14px; padding:11px 0; border-bottom:1px solid var(--rule-soft);
 }
 .idfacts > div:first-child{padding-top:0}
+.idfacts > div:last-child{border-bottom:0}
+.idfacts dd a{color:var(--steel-ink)}
 .idfacts dt{
   font-family:var(--mono); font-size:10px; font-weight:800; letter-spacing:.13em;
   text-transform:uppercase; color:var(--ink-3);

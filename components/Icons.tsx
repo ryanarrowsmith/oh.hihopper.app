@@ -66,6 +66,14 @@ export const OrgMark = () => (
 
 /** The location mark. The same pin that stands on the map, drawn in line
     rather than filled, because here it is labelling a word and not a place. */
+/** A person, for the one place a person is named inside somebody else's record. */
+export const PersonMark = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
+       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="8" r="3.4" /><path d="M5 20a7 7 0 0 1 14 0" />
+  </svg>
+)
+
 export const PlaceMark = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
        strokeLinecap="round" strokeLinejoin="round">

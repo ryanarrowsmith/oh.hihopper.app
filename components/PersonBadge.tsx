@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import PhotoUpload from '@/components/PhotoUpload'
-import { OrgMark, PlaceMark } from '@/components/Icons'
+import { OrgMark, PlaceMark, PersonMark } from '@/components/Icons'
 
 /**
  * A person's badge.
@@ -39,7 +39,9 @@ type Person = {
 }
 
 export default function PersonBadge(
-  { d, email, phone }: { d: Person; email: string | null; phone: string | null },
+  { d, email, phone, manager }:
+  { d: Person; email: string | null; phone: string | null
+    manager: { id: string; full_name: string } | null },
 ) {
   const tel = phone ? phone.replace(/[^\d+]/g, '') : null
 
@@ -93,32 +95,33 @@ export default function PersonBadge(
               : <span className="muted">None</span>}
           </dd>
         </div>
+        {/* The manager is fetched through the directory rather than joined into
+            it, so RLS answers: somebody whose manager this viewer may not see
+            gets no row at all, not a name they were not meant to have. */}
+        <div>
+          <dt>Manager</dt>
+          <dd>
+            {manager
+              ? <Link href={`/people/${manager.id}`}><PersonMark />{manager.full_name}</Link>
+              : <span className="muted">None</span>}
+          </dd>
+        </div>
 
-        {/* Nothing a person may not do is rendered: no address on file means no
-            button, rather than a greyed-out circle that says only that Hopper
-            knows something you do not. */}
-        {(email || tel) && (
-          <div className="idreach">
-            {email && (
-              <a className="rch" href={`mailto:${email}`} title={email}
-                 aria-label={`Email ${d.full_name}`}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                     strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="5" width="18" height="14" rx="1.6" /><path d="m3.5 7 8.5 6 8.5-6" />
-                </svg>
-                <span>Email</span>
-              </a>
-            )}
-            {tel && (
-              <a className="rch" href={`tel:${tel}`} title={phone ?? ''}
-                 aria-label={`Call ${d.full_name}`}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                     strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z" />
-                </svg>
-                <span>Call</span>
-              </a>
-            )}
+        {/* An address is not worth reading -- it is worth clicking, and a long
+            one wrecks a narrow column. So the label says what it is and the
+            link says what to do with it. A telephone number is different: it
+            is short, and it is the one contact detail people still copy down
+            or say out loud, so it shows itself. */}
+        {email && (
+          <div>
+            <dt>Email</dt>
+            <dd><a href={`mailto:${email}`} title={email}>Click here</a></dd>
+          </div>
+        )}
+        {tel && (
+          <div>
+            <dt>Phone</dt>
+            <dd><a href={`tel:${tel}`}>{phone}</a></dd>
           </div>
         )}
       </dl>
