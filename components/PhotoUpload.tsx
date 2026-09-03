@@ -28,8 +28,8 @@ const STAGE = 264
 const OUT = 1024
 
 export default function PhotoUpload(
-  { personId, name, src, mine }:
-  { personId: string; name: string; src: string | null; mine: boolean },
+  { personId, name, src, mine, size = 132 }:
+  { personId: string; name: string; src: string | null; mine: boolean; size?: number },
 ) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -153,14 +153,14 @@ export default function PhotoUpload(
     router.refresh()
   }
 
-  if (!mine) return <Avatar name={name} src={src} size={132} />
+  if (!mine) return <Avatar name={name} src={src} size={size} />
 
   return (
     <div className="phw">
       <button className="phbtn" type="button" ref={btn}
               aria-haspopup="dialog" aria-expanded={open}
               onClick={(e) => { e.stopPropagation(); open ? close() : setOpen(true) }}>
-        <Avatar name={name} src={src} size={132} />
+        <Avatar name={name} src={src} size={size} />
         <span className="phbtn__veil">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
                strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

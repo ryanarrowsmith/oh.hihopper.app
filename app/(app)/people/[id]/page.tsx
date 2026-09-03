@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
-import PersonFolder from '@/components/PersonFolder'
+import PersonBadge from '@/components/PersonBadge'
 import Favorites, { type Profile } from '@/components/Favorites'
 import GetToKnowEdit, { type Answers } from '@/components/GetToKnowEdit'
 import CrumbTail from '@/components/CrumbTail'
@@ -39,8 +39,8 @@ export default async function PersonPage({ params }: { params: { id: string } })
           link twice on the same screen, six inches apart. */}
       <CrumbTail>{d.full_name}</CrumbTail>
 
-      <PersonFolder d={d as any} email={contact?.email ?? null}
-                    phone={contact?.phone ?? null} />
+      <PersonBadge d={d as any} email={contact?.email ?? null}
+                   phone={contact?.phone ?? null} />
 
       <div className="gtkm">
         {d.may_edit ? (

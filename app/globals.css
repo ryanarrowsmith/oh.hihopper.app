@@ -3390,3 +3390,109 @@ a.crow:hover svg{stroke:var(--steel-ink)}
   .ffacts > div{grid-template-columns:1fr; gap:2px}
   .stapled{margin:0 auto}
 }
+
+/* ==========================================================================
+   THE BADGE
+   The name belongs to an object and there is one of that object on the page.
+   The organization is the card's header rather than a field on it, because
+   that is what an employer's name does on a real pass: it is the thing
+   issuing the card and everything below it is subordinate to it.
+   ========================================================================== */
+.idw{display:flex; gap:30px; align-items:flex-start; flex-wrap:wrap; margin:8px 0 26px}
+
+.idc{
+  position:relative; flex:none; width:262px; padding:0 0 0;
+  background:var(--surface); border:1px solid var(--rule); border-radius:14px;
+  box-shadow:0 1px 0 rgba(255,255,255,.7) inset, 0 14px 30px -14px rgba(35,31,32,.42),
+             0 2px 6px -2px rgba(35,31,32,.18);
+  text-align:center; overflow:hidden;
+  padding-top:26px;                     /* the strip the slot is punched through */
+}
+/* Punched, not drawn on: the slot takes the card's own background so it reads
+   as a hole rather than a grey pill. */
+.idc__slot{
+  position:absolute; top:11px; left:50%; transform:translateX(-50%);
+  width:54px; height:9px; border-radius:999px;
+  background:var(--canvas, var(--sunken));
+  box-shadow:inset 0 1px 2px rgba(35,31,32,.45);
+}
+.idc__clip{
+  position:absolute; top:-11px; left:50%; transform:translateX(-50%);
+  width:26px; height:20px; border-radius:5px 5px 2px 2px;
+  background:linear-gradient(180deg,#C8CCD3,#9AA0A9 60%,#B4B9C1);
+  box-shadow:0 1px 2px rgba(35,31,32,.4);
+}
+
+/* The header bar. The whole bar is the target, because "which business is this
+   person in" is a question people follow rather than merely read. */
+.idc__org{
+  display:flex; align-items:center; justify-content:center; gap:7px;
+  padding:9px 14px; background:var(--topbar); color:var(--topbar-ink);
+  text-decoration:none; font-family:var(--mono); font-size:10.5px; font-weight:800;
+  letter-spacing:.13em; text-transform:uppercase;
+  border-top:1px solid var(--rule); border-bottom:1px solid var(--rule);
+  transition:background .15s;
+}
+a.idc__org:hover{background:var(--steel)}
+.idc__org span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.idc__org svg{width:13px; height:13px; flex:none; opacity:.8}
+
+.idc__face{padding:20px 0 14px; display:flex; justify-content:center}
+.idc__face .ava{
+  border-radius:4px; box-shadow:0 2px 6px -1px rgba(35,31,32,.3);
+  border:1px solid var(--rule);
+}
+.idc__face .ava--init{border:0; box-shadow:none}
+.idc__face .phbtn, .idc__face .phbtn__veil{border-radius:4px}
+
+.idc__n{
+  margin:0 16px; font-size:19px; line-height:1.2; letter-spacing:-.015em;
+  overflow-wrap:break-word;
+}
+.idc__r{margin:5px 16px 0; font-size:12.5px; font-weight:700; color:var(--ink-2)}
+
+.idc__foot{
+  margin-top:18px; padding:10px 14px 11px; background:var(--sunken);
+  border-top:1px solid var(--rule); display:flex; flex-direction:column; gap:6px;
+}
+/* Bars, not a real barcode: it stands for the issue strip, and printing a
+   scannable code that scans to nothing would be a small lie. */
+.idc__bars{
+  height:26px;
+  background:repeating-linear-gradient(90deg,
+    var(--ink) 0 2px, transparent 2px 4px, var(--ink) 4px 5px, transparent 5px 9px,
+    var(--ink) 9px 12px, transparent 12px 13px, var(--ink) 13px 14px, transparent 14px 18px);
+  opacity:.7;
+}
+.idc__no{
+  font-family:var(--mono); font-size:9.5px; font-weight:800; letter-spacing:.16em;
+  color:var(--ink-3);
+}
+
+/* Beside the card, on the canvas. A badge carrying working controls would be
+   pretending to be furniture and a button at once. */
+.idfacts{flex:1 1 240px; min-width:220px; margin:6px 0 0; display:flex; flex-direction:column}
+.idfacts > div{
+  display:grid; grid-template-columns:110px minmax(0,1fr); align-items:baseline;
+  gap:14px; padding:11px 0; border-bottom:1px solid var(--rule-soft);
+}
+.idfacts > div:first-child{padding-top:0}
+.idfacts dt{
+  font-family:var(--mono); font-size:10px; font-weight:800; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+.idfacts dd{margin:0; font-size:15px; font-weight:700; min-width:0;
+  overflow:hidden; text-overflow:ellipsis}
+.idfacts dd a{display:inline-flex; align-items:center; gap:7px; color:inherit;
+  text-decoration:none; border-bottom:1px solid var(--rule)}
+.idfacts dd a:hover{border-bottom-color:currentColor}
+.idfacts dd svg{width:14px; height:14px; flex:none; opacity:.55}
+.idreach{display:flex !important; gap:9px; border-bottom:0 !important; padding-top:16px !important}
+.idreach .rch{background:var(--surface); border-color:var(--rule); color:var(--ink)}
+.idreach .rch:hover{background:var(--sunken); border-color:var(--ink-3)}
+
+@media (max-width:560px){
+  .idw{gap:20px}
+  .idc{width:100%; max-width:300px; margin:0 auto}
+  .idfacts > div{grid-template-columns:1fr; gap:2px}
+}
