@@ -50,7 +50,7 @@ function hrefFor(r: Row): string | null {
     case 'role':
     case 'module':       return r.entity_id ? `/admin/organizations/${r.entity_id}` : null
     case 'person':
-    case 'person_profile': return '/admin/users'
+    case 'person_profile': return '/admin/people'
     case 'grant':        return '/admin/permissions'
     default:             return null
   }

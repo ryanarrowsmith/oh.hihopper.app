@@ -18,7 +18,7 @@ export default async function NewReport() {
 
   const [{ data: ents }, { data: depts }, { data: cats }, { data: rights }] = await Promise.all([
     db.schema('hopper').from('entity').select('id, name').order('sort_order'),
-    db.schema('hopper').from('department').select('id, name, entity_id').order('name'),
+    db.schema('hopper').from('department').select('id, name, entity_id').eq('active', true).order('name'),
     db.schema('hopper').from('report_category').select('id, name, department_id').order('name'),
     db.schema('hopper').from('entity_rights').select('entity_id, may_edit'),
   ])

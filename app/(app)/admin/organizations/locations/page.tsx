@@ -2,6 +2,7 @@ import { supabaseServer } from '@/lib/supabase/server'
 import Choice from '@/components/Choice'
 import { EditableSection, RowForm, Toggle } from '@/components/RowEdit'
 import { HeadOffice, PinMark } from '@/components/Icons'
+import AddressFields from '@/components/AddressFields'
 import { createLocation } from '@/app/actions/admin'
 
 export default async function Page() {
@@ -44,28 +45,14 @@ export default async function Page() {
             <div className="formrow" style={{ marginTop: 12 }}>
               <div><label htmlFor="al-name">Name</label>
                 <input className="field" id="al-name" name="name" required placeholder="Tulsa Yard" /></div>
-              <div><label htmlFor="al-addr">Street</label>
-                <input className="field" id="al-addr" name="address_line1"
-                       autoComplete="address-line1" placeholder="4321 S Sheridan Rd" /></div>
-            </div>
-            <div className="formrow" style={{ marginTop: 12 }}>
-              <div><label htmlFor="al-addr2">Suite, unit, floor</label>
-                <input className="field" id="al-addr2" name="address_line2" /></div>
-              <div><label htmlFor="al-city">City</label>
-                <input className="field" id="al-city" name="city" placeholder="Tulsa" /></div>
-            </div>
-            <div className="formrow" style={{ marginTop: 12 }}>
-              <div><label htmlFor="al-region">State</label>
-                <input className="field" id="al-region" name="region" placeholder="OK" /></div>
-              <div><label htmlFor="al-zip">Postal code</label>
-                <input className="field" id="al-zip" name="postal_code" placeholder="74145" /></div>
-            </div>
-            <div className="formrow" style={{ marginTop: 12 }}>
-              <div><label htmlFor="al-country">Country</label>
-                <input className="field" id="al-country" name="country" defaultValue="United States" /></div>
               <div><label htmlFor="al-tz">Time zone</label>
                 <input className="field" id="al-tz" name="time_zone" defaultValue="America/Chicago" /></div>
             </div>
+            {/* The same component the per-organization screen uses. There were
+                two hand-rolled forms calling one action, and only one of them
+                knew a location can have more than one address. */}
+            <div className="sheet__cut" style={{ marginTop: 14 }}><span>Address</span></div>
+            <AddressFields />
             <div style={{ marginTop: 6 }}>
               <Toggle name="is_head_office" label="This is the head office" />
             </div>

@@ -10,7 +10,7 @@ import Choice from '@/components/Choice'
 import { HeadOffice } from '@/components/Icons'
 import { MODULES } from '@/lib/access'
 import {
-  updateEntity, createDepartment, updateDepartment, deleteDepartment,
+  updateEntity, createDepartment, updateDepartment, setDepartmentActive,
   createLocation, addAdministrator, updateAdministrator, standDownAdministrator,
   toggleFavorite,
 } from '@/app/actions/admin'
@@ -27,7 +27,8 @@ export default async function Entity({ params }: { params: { id: string } }) {
          { data: people }, { data: grants }, { data: rights }, { data: fav }] =
     await Promise.all([
       db.schema('hopper').from('department')
-        .select('id, name, leader_person_id').eq('entity_id', params.id).order('sort_order'),
+        .select('id, name, leader_person_id, active').eq('entity_id', params.id)
+        .order('active', { ascending: false }).order('sort_order'),
       db.schema('hopper').from('location').select('*').eq('entity_id', params.id).order('name'),
       db.schema('hopper').from('entity_module')
         .select('module_key, enabled').eq('entity_id', params.id),
@@ -188,7 +189,7 @@ export default async function Entity({ params }: { params: { id: string } }) {
                   <> {onRosterOnly} {onRosterOnly === 1 ? 'person is' : 'people are'} on
                   the roster without one.</>
                 )}{' '}
-                <a href="/admin/users">Users</a> is where that starts.
+                <a href="/admin/people">People</a> is where that starts.
               </p>
             </RowForm>
         ) : undefined}
@@ -341,9 +342,15 @@ export default async function Entity({ params }: { params: { id: string } }) {
                   <RowForm
                     action={updateDepartment}
                     danger={
-                      <RowDanger action={deleteDepartment} label="Remove department">
+                      /* Retire, not remove. Every person filed under this
+                         department would otherwise lose the answer to "which
+                         one were they in?" along with the row. */
+                      <RowDanger action={setDepartmentActive}
+                                 label={d.active === false ? 'Bring it back' : 'Retire it'}>
                         <input type="hidden" name="id" value={d.id} />
                         <input type="hidden" name="entity_id" value={e.id} />
+                        <input type="hidden" name="active"
+                               value={d.active === false ? 'true' : 'false'} />
                       </RowDanger>
                     }
                   >

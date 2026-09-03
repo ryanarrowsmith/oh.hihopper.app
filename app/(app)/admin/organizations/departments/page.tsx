@@ -1,15 +1,16 @@
 import { supabaseServer } from '@/lib/supabase/server'
 import Avatar from '@/components/Avatar'
-import { EditableSection, RowForm } from '@/components/RowEdit'
+import { EditableSection, RecordRow, RowDanger, RowForm } from '@/components/RowEdit'
 import Choice from '@/components/Choice'
-import { createDepartment } from '@/app/actions/admin'
+import { createDepartment, setDepartmentActive, updateDepartment } from '@/app/actions/admin'
 
 export default async function Page() {
   const db = supabaseServer()
   const [{ data: rows }, { data: entities }, { data: people }, { data: rights }] =
     await Promise.all([
       db.schema('hopper').from('department')
-        .select('id, name, entity_id, leader_person_id').order('name'),
+        .select('id, name, entity_id, leader_person_id, active')
+        .order('active', { ascending: false }).order('name'),
       db.schema('hopper').from('entity').select('id, name').order('sort_order'),
       db.schema('hopper').from('person')
         .select('id, full_name, role_title, photo_url').eq('active', true).order('full_name'),
@@ -39,7 +40,7 @@ export default async function Page() {
 
       <EditableSection
         title="Across the portfolio"
-        blurb={`${rows?.length ?? 0} in the organizations you can open. A department belongs to one organization and has no page of its own.`}
+        blurb={`${rows?.length ?? 0} in the organizations you can open. A department belongs to one organization. Retiring one keeps it and everybody filed under it.`}
         addLabel="Adding a department"
         addForm={mayAddTo.length ? (
             <RowForm action={createDepartment} label="Add it" busy="Adding…">
@@ -70,36 +71,82 @@ export default async function Page() {
             <div className="rhead"><span>Name</span><span>Organization</span><span>Leader</span></div>
             {rows!.map((d: any) => {
               const lead: any = d.leader_person_id ? byPerson.get(d.leader_person_id) : null
-              return (
-                <div className="rrec" key={d.id}>
-                  <div className="rrec__face">
-                    <span className="rcell rcell--lead">
-                      <span className="prow__name">{d.name}</span>
-                    </span>
-                    <span className="rcell">
-                      <span className="rcell__lab">Organization</span>
-                      <span className="rcell__val">
-                        <a href={`/admin/organizations/${d.entity_id}`}
-                           style={{ fontWeight: 700, color: 'var(--steel-ink)', textDecoration: 'none' }}>
-                          {byOrg.get(d.entity_id) ?? '—'}
-                        </a>
+              const mine = (rights ?? []).some((r: any) =>
+                r.entity_id === d.entity_id && r.may_edit)
+              const face = (
+                <>
+                  <span className="rcell rcell--lead">
+                    <span className="prow__name">{d.name}</span>
+                    {/* Retired, not gone. It keeps its name and everybody filed
+                        under it keeps their answer to "which department?". */}
+                    {d.active === false && (
+                      <span className="mark mark--sm" data-tip="Retired — no longer offered"
+                            role="img" aria-label="Retired">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             strokeWidth="2" strokeLinecap="round"><path d="M5 12h14" /></svg>
+                        <b>Retired</b>
                       </span>
+                    )}
+                  </span>
+                  <span className="rcell">
+                    <span className="rcell__lab">Organization</span>
+                    <span className="rcell__val">
+                      <a href={`/admin/organizations/${d.entity_id}`}
+                         style={{ fontWeight: 700, color: 'var(--steel-ink)', textDecoration: 'none' }}>
+                        {byOrg.get(d.entity_id) ?? '—'}
+                      </a>
                     </span>
-                    <span className="rcell">
-                      <span className="rcell__lab">Leader</span>
-                      {lead ? (
-                        <span className="rcell__val leadcell">
-                          <Avatar name={lead.full_name} src={lead.photo_url} size={30} />
-                          <span className="leadline">
-                            <span className="leadline__nm">{lead.full_name}</span>
-                          </span>
+                  </span>
+                  <span className="rcell">
+                    <span className="rcell__lab">Leader</span>
+                    {lead ? (
+                      <span className="rcell__val leadcell">
+                        <Avatar name={lead.full_name} src={lead.photo_url} size={30} />
+                        <span className="leadline">
+                          <span className="leadline__nm">{lead.full_name}</span>
                         </span>
-                      ) : (
-                        <span className="rcell__val muted" style={{ fontSize: 13 }}>No leader named</span>
-                      )}
-                    </span>
-                  </div>
-                </div>
+                      </span>
+                    ) : (
+                      <span className="rcell__val muted" style={{ fontSize: 13 }}>No leader named</span>
+                    )}
+                  </span>
+                </>
+              )
+
+              // Nothing a person may not do is rendered: without edit rights on
+              // this organization the row is a row, not a disabled control.
+              if (!mine) {
+                return <div className="rrec" key={d.id}><div className="rrec__face">{face}</div></div>
+              }
+              return (
+                <RecordRow key={d.id} face={face} editLabel={`Edit ${d.name}`}>
+                  <div className="rrec__lab">Editing this department</div>
+                  <RowForm action={updateDepartment}
+                           danger={
+                             <RowDanger action={setDepartmentActive}
+                                        label={d.active === false ? 'Bring it back' : 'Retire it'}>
+                               <input type="hidden" name="id" value={d.id} />
+                               <input type="hidden" name="entity_id" value={d.entity_id} />
+                               <input type="hidden" name="active"
+                                      value={d.active === false ? 'true' : 'false'} />
+                             </RowDanger>
+                           }>
+                    <input type="hidden" name="id" value={d.id} />
+                    <input type="hidden" name="entity_id" value={d.entity_id} />
+                    <div className="formrow">
+                      <div><label htmlFor={`dn-${d.id}`}>Name</label>
+                        <input className="field" id={`dn-${d.id}`} name="name"
+                               defaultValue={d.name} required /></div>
+                      <div><label htmlFor={`dl-${d.id}`}>Leader</label>
+                        <Choice id={`dl-${d.id}`} name="leader_person_id"
+                                defaultValue={d.leader_person_id ?? ''} placeholder="Nobody yet"
+                                options={[{ value: '', label: 'Nobody yet' },
+                                          ...roster.map((p: any) => ({ value: p.id,
+                                            label: p.full_name,
+                                            hint: p.role_title ?? undefined }))]} /></div>
+                    </div>
+                  </RowForm>
+                </RecordRow>
               )
             })}
           </div>

@@ -6061,3 +6061,142 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
   .scopesay__go{margin-left:0; width:100%}
   .scopesay__go .btn{flex:1}
 }
+
+/* ==================================================================== ADMIN ==
+   The index used to be five identical cards saying "Open" -- a menu rather than
+   a screen. What somebody opening Admin wants to know is which of the five
+   wants them today. */
+.adg{display:grid; grid-template-columns:repeat(auto-fill,minmax(268px,1fr)); gap:13px;
+  margin-top:16px}
+.adc{display:block; text-decoration:none; color:inherit; padding:16px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  transition:border-color .15s ease}
+.adc:hover{border-color:var(--ink-3)}
+.adc__t{display:flex; align-items:center; gap:10px; font-size:15px; font-weight:800;
+  letter-spacing:-.02em; color:var(--ink)}
+.adc__t svg{width:17px; height:17px; flex:none; fill:none; stroke:currentColor;
+  stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; color:var(--steel)}
+.adc:hover .adc__t{color:var(--sea)}
+.adc__b{display:block; font-size:12.5px; color:var(--ink-3); margin-top:6px;
+  line-height:1.5; min-height:3em}
+.adc__n{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin-top:11px;
+  padding-top:11px; border-top:1px solid var(--rule-soft)}
+.adc__big{font-size:20px; font-weight:800; letter-spacing:-.03em; color:var(--ink);
+  font-variant-numeric:tabular-nums}
+.adc__w{font-size:12px; color:var(--ink-3)}
+/* An area with nothing wrong says nothing at all, rather than drawing an empty
+   green tick that has to be read before it can be dismissed. */
+.adc__f{display:flex; align-items:center; gap:7px; margin-left:auto; font-size:11.5px;
+  font-weight:700; color:#8A5A0B}
+.adc__f svg{width:13px; height:13px; flex:none; fill:none; stroke:currentColor;
+  stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round}
+
+/* ---- the roster ---- */
+.rst{border:1px solid var(--rule); border-radius:var(--r); background:var(--surface);
+  overflow:hidden; margin-top:12px}
+.rrw{display:grid; grid-template-columns:26px 40px minmax(0,1.5fr) minmax(0,1.2fr)
+  minmax(0,1fr) 128px 92px; gap:0 13px; align-items:center;
+  border-top:1px solid var(--rule-soft); padding:9px 14px}
+.rrw:first-child{border-top:0}
+.rrw:hover{background:var(--sunken)}
+.rrw--h{background:var(--sunken); border-top:0; border-bottom:1px solid var(--rule);
+  font-family:var(--mono); font-size:9.5px; font-weight:800; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3)}
+.rrw--h:hover{background:var(--sunken)}
+/* Inactive is kept and shown, not hidden and not deleted. */
+.rrw--off{background:var(--stripe)}
+.rrw--off .rrw__n b{color:var(--ink-3)}
+.rrw--off .ava--init{opacity:.55}
+.rrw__n{min-width:0}
+.rrw__n b{display:block; font-size:13.5px; font-weight:800; letter-spacing:-.01em;
+  color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.rrw__n small{display:block; font-size:11.5px; color:var(--ink-3); margin-top:2px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.rrw__c{font-size:12.5px; color:var(--ink-2); min-width:0; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap}
+.rrw__a{display:flex; gap:6px; justify-content:flex-end}
+.rrw__a .btn{padding:4px 10px; font-size:11.5px; height:auto; min-height:0; width:auto}
+
+/* Roster only, invited, signs in -- three states, and the difference between
+   them is the whole reason People and Users used to be two screens. */
+.sign{display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-2)}
+.sign svg{width:14px; height:14px; flex:none; fill:none; stroke:currentColor;
+  stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
+.sign--in{color:#256F46}
+.sign--wait{color:#8A5A0B}
+.sign--no{color:var(--ink-3)}
+
+/* the bar above the roster. .rosbar, not .rbar2 -- that one is the reporting
+   bar and already means something else. */
+.rosbar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:16px}
+.rosbar__f{position:relative; flex:1; min-width:200px; max-width:360px}
+.rosbar__f input{width:100%; height:38px; padding:0 12px 0 36px; font-size:13.5px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  color:var(--ink)}
+.rosbar__f input:focus-visible{outline:none; box-shadow:var(--focus); border-color:var(--ink-3)}
+.rosbar__f svg{position:absolute; left:12px; top:19px; transform:translateY(-50%);
+  width:15px; height:15px; fill:none; stroke:var(--ink-3); stroke-width:2;
+  pointer-events:none}
+/* A count on each chip, so "Never invited: 0" answers the question without
+   being pressed. */
+.chipbar{display:flex; gap:6px; flex-wrap:wrap}
+.chip2{font-size:12px; font-weight:700; color:var(--ink-2); background:var(--surface);
+  border:1px solid var(--rule); border-radius:var(--r); padding:5px 11px; cursor:pointer}
+.chip2:hover{border-color:var(--ink-3)}
+.chip2.is-on{background:var(--steel); border-color:var(--steel); color:#FBF9F5}
+.chip2 i{font-style:normal; opacity:.62; margin-left:5px; font-variant-numeric:tabular-nums}
+
+/* When rows are picked, what can be done with them. .selbar, not .pickbar --
+   that one already exists and means "what a filter is hiding", which is a
+   different sentence about the same table. */
+.selbar{display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  background:var(--warmbg); border:1px solid var(--warmrule); border-radius:var(--r);
+  padding:10px 13px; margin-top:12px; font-size:12.5px; color:var(--ink-2)}
+.selbar > svg{width:16px; height:16px; flex:none; fill:none; stroke:currentColor;
+  stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; color:#8A5A0B}
+.selbar b{color:var(--ink); font-weight:800}
+.selbar__go{margin-left:auto; display:flex; gap:8px; align-items:center}
+.selbar__go .btn{padding:5px 11px; font-size:12px; height:auto; min-height:0; width:auto}
+
+/* ---- modules, one model ---- */
+.modr{display:grid; grid-template-columns:minmax(0,1fr) repeat(var(--cols,4), 104px);
+  gap:0 12px; align-items:center; padding:11px 14px;
+  border-top:1px solid var(--rule-soft)}
+.modr:first-child{border-top:0}
+.modr:hover{background:var(--sunken)}
+.modr--h{background:var(--sunken); border-top:0; border-bottom:1px solid var(--rule);
+  font-family:var(--mono); font-size:9.5px; font-weight:800; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3); text-align:center}
+.modr--h > :first-child{text-align:left}
+.modr--h:hover{background:var(--sunken)}
+.modr__n{font-size:13.5px; font-weight:700; color:var(--ink); min-width:0}
+.modr__n small{display:block; font-size:11.5px; font-weight:500; color:var(--ink-3);
+  margin-top:2px}
+.modr__c{display:grid; place-items:center}
+/* An abbreviation nobody can expand is a puzzle. The full name is on hover and
+   on keyboard focus -- and printed outright on a phone, where the header is
+   gone and each switch carries its organization's name itself. */
+.modr__o{cursor:help; text-decoration:underline; text-decoration-style:dotted;
+  text-decoration-color:var(--canvas-3); text-underline-offset:4px}
+/* Not paid for is not the same as switched off, and a greyed toggle that looks
+   switched off is a support call. */
+.modr__no{font-size:11px; color:var(--canvas-3); font-weight:700; text-align:center;
+  line-height:1.3}
+
+@media (max-width:900px){
+  /* Standing rule: a row of results becomes a card. */
+  .rrw{grid-template-columns:26px 40px minmax(0,1fr); gap:6px 12px; padding:11px 14px}
+  .rrw--h{display:none}
+  .rrw > :nth-child(n+4){grid-column:3}
+  .rrw__a{justify-content:flex-start; margin-top:4px}
+  .modr{grid-template-columns:minmax(0,1fr); gap:10px}
+  .modr--h{display:none}
+  .modr__c{justify-items:start; display:grid; grid-template-columns:minmax(0,1fr) auto;
+    align-items:center; width:100%}
+  .modr__c::before{content:attr(data-org); font-family:var(--mono); font-size:9.5px;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3)}
+  .modr__no{text-align:right}
+  .adc__b{min-height:0}
+  .selbar__go{margin-left:0; width:100%}
+  .selbar__go .btn{flex:1}
+}

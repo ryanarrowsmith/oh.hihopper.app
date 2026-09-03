@@ -38,7 +38,7 @@ export default async function Permissions({ searchParams }: {
     db.schema('hopper').from('person')
       .select('id, full_name, role_title, active').eq('active', true).order('full_name'),
     db.schema('hopper').from('entity').select('id, name, mark, parent_id').order('sort_order'),
-    db.schema('hopper').from('department').select('id, name, entity_id').order('name'),
+    db.schema('hopper').from('department').select('id, name, entity_id').eq('active', true).order('name'),
   ])
   const who = searchParams.person ?? people?.[0]?.id
   const person = (people ?? []).find((p: any) => p.id === who)

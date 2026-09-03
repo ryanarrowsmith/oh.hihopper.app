@@ -105,7 +105,7 @@ export async function importPeople(_p: Landed | null, form: FormData): Promise<L
 
   const [{ data: ents }, { data: depts }, { data: locs }, { data: existing }] = await Promise.all([
     db.schema('hopper').from('entity').select('id, name'),
-    db.schema('hopper').from('department').select('id, name, entity_id'),
+    db.schema('hopper').from('department').select('id, name, entity_id').eq('active', true),
     db.schema('hopper').from('location').select('id, name, entity_id'),
     db.schema('hopper').from('person').select('id, full_name, email'),
   ])
@@ -220,36 +220,84 @@ export async function importPeople(_p: Landed | null, form: FormData): Promise<L
 }
 
 /** Take people off the roster. */
-export async function removePeople(_p: Landed | null, form: FormData): Promise<Landed> {
+/**
+ * Take people out of use, in bulk.
+ *
+ * This used to DELETE, and deleting was wrong: Hopper's rule is that nothing is
+ * destroyed. A person made inactive keeps their history, their notes, the
+ * projects they closed and everything they wrote -- they simply stop appearing
+ * in the roster and stop being pickable. Deleting them would have quietly
+ * orphaned every one of those rows.
+ *
+ * Somebody who can sign in keeps their sign-in: that account is the platform's,
+ * and a roster screen silently removing a person's login is the kind of
+ * surprise that gets found out at 7am on a Monday. Their access is taken away
+ * under Permissions, deliberately.
+ */
+export async function setPeopleActive(_p: Landed | null, form: FormData): Promise<Landed> {
+  const session = await currentSession()
+  if (!session) return { ok: false, message: 'Not signed in.' }
+  const ids = form.getAll('id').map((v) => v.toString()).filter(Boolean)
+  const active = form.get('active') === 'true'
+  if (ids.length === 0) return { ok: false, message: 'Nobody was chosen.' }
+
+  const db = supabaseServer()
+  // A FOR ALL policy refuses by changing nothing and raising nothing, so the
+  // rows that came back are the only honest count.
+  const { data: hit, error } = await db.schema('hopper').from('person')
+    .update({ active }).in('id', ids).select('id, full_name')
+  if (error) return { ok: false, message: error.message }
+
+  const n = (hit ?? []).length
+  if (n) {
+    await logAudit(db, { account_id: session.accountId, kind: 'person',
+      summary: `${active ? 'Brought back' : 'Made inactive'}: ${n} ${n === 1 ? 'person' : 'people'}`,
+      payload: { people: (hit ?? []).map((p: any) => p.full_name) } })
+  }
+
+  revalidatePath('/people'); revalidatePath('/admin/people')
+  const missed = ids.length - n
+  return {
+    ok: true,
+    message: n === 0
+      ? 'Nothing changed — none of those were yours to change.'
+      : `${n} ${active ? 'brought back' : 'made inactive'}.`,
+    refused: missed > 0
+      ? [{ line: 0, who: `${missed} ${missed === 1 ? 'person' : 'people'}`,
+           why: 'Not yours to change.' }]
+      : [],
+  }
+}
+
+/** Move people to another organization, or another department inside it. */
+export async function movePeople(_p: Landed | null, form: FormData): Promise<Landed> {
   const session = await currentSession()
   if (!session) return { ok: false, message: 'Not signed in.' }
   const ids = form.getAll('id').map((v) => v.toString()).filter(Boolean)
   if (ids.length === 0) return { ok: false, message: 'Nobody was chosen.' }
 
+  const entity_id = (form.get('entity_id') ?? '').toString() || null
+  const department_id = (form.get('department_id') ?? '').toString() || null
+  if (!entity_id && !department_id) return { ok: false, message: 'Nowhere to move them to.' }
+
+  const patch: any = {}
+  if (entity_id) patch.entity_id = entity_id
+  // Moving to another organization without saying which department leaves them
+  // in none, rather than in a department belonging to a business they have just
+  // left.
+  patch.department_id = department_id
+  if (entity_id && !department_id) patch.department_id = null
+
   const db = supabaseServer()
-  const { data: who } = await db.schema('hopper').from('person')
-    .select('id, full_name, profile_id').in('id', ids)
+  const { data: hit, error } = await db.schema('hopper').from('person')
+    .update(patch).in('id', ids).select('id')
+  if (error) return { ok: false, message: error.message }
 
-  // Somebody who can SIGN IN is not deleted from here. Their account is the
-  // platform's, and a roster screen quietly removing a person's login is the
-  // kind of surprise that gets found out at 7am on a Monday.
-  const signin = (who ?? []).filter((p: any) => p.profile_id)
-  const safe = (who ?? []).filter((p: any) => !p.profile_id).map((p: any) => p.id)
-
-  let gone = 0
-  if (safe.length) {
-    const { error } = await db.schema('hopper').from('person').delete().in('id', safe)
-    if (error) return { ok: false, message: error.message }
-    gone = safe.length
+  const n = (hit ?? []).length
+  if (n) {
     await logAudit(db, { account_id: session.accountId, kind: 'person',
-      summary: `Removed ${gone} ${gone === 1 ? 'person' : 'people'} from the roster` })
+      summary: `Moved ${n} ${n === 1 ? 'person' : 'people'}` })
   }
-
   revalidatePath('/people'); revalidatePath('/admin/people')
-  return {
-    ok: true,
-    message: `${gone} removed.`,
-    refused: signin.map((p: any) => ({ line: 0, who: p.full_name,
-      why: 'They can sign in — remove their access under Users first.' })),
-  }
+  return { ok: true, message: n === 0 ? 'Nothing moved.' : `${n} moved.` }
 }

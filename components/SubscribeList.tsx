@@ -1,4 +1,5 @@
 'use client'
+import Choice from '@/components/Choice'
 import { useFormState, useFormStatus } from 'react-dom'
 import { addFeed, removeFeed } from '@/app/actions/calendar'
 
@@ -35,9 +36,10 @@ export default function SubscribeList({ feeds, mayEdit }: { feeds: Feed[]; mayEd
               </div>
               <div>
                 <label htmlFor="cf-colour">Colour</label>
-                <select className="field" id="cf-colour" name="colour" defaultValue="--s3">
-                  {COLOURS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
+                {/* A styled popover, not a native select: house rule, and the
+                    last native one in the codebase. */}
+                <Choice id="cf-colour" name="colour" defaultValue="--s3" filterFrom={99}
+                        options={COLOURS.map(([v, l]) => ({ value: v, label: l }))} />
               </div>
             </div>
             <div style={{ marginTop: 12 }}>

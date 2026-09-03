@@ -388,7 +388,7 @@ export async function addAdministrator(_prev: Result | null, form: FormData): Pr
     object_id: entity_id,
     summary: `Made ${full_name} an administrator` })
   revalidatePath(`/admin/organizations/${entity_id}`)
-  revalidatePath('/admin/users'); revalidatePath('/admin/permissions')
+  revalidatePath('/admin/people'); revalidatePath('/admin/permissions')
   return { ok: true, message: `${full_name} administers this organization now.` }
 }
 
@@ -409,7 +409,7 @@ export async function createPerson(_prev: Result | null, form: FormData): Promis
 
   await logAudit(db, { account_id: account, kind: 'person', object: full_name,
     summary: `Added ${full_name} to the roster` })
-  revalidatePath('/admin/users'); revalidatePath('/admin/permissions')
+  revalidatePath('/admin/people'); revalidatePath('/admin/permissions')
   return { ok: true, message: `${full_name} added.` }
 }
 
@@ -422,7 +422,7 @@ export async function setPersonActive(_prev: Result | null, form: FormData): Pro
 
   await logAudit(db, { account_id: account, kind: 'person', object: data.full_name,
     object_id: id, summary: `${active ? 'Reactivated' : 'Deactivated'} ${data.full_name}` })
-  revalidatePath('/admin/users')
+  revalidatePath('/admin/people')
   return { ok: true, message: 'Saved.' }
 }
 
@@ -578,7 +578,7 @@ export async function updateAdministrator(
   await logAudit(db, { account_id: account, kind: 'person', object: full_name,
     object_id: id, summary: `Edited ${full_name}` })
   if (entity_id) revalidatePath(`/admin/organizations/${entity_id}`)
-  revalidatePath('/admin/users')
+  revalidatePath('/admin/people')
   return { ok: true, message: 'Saved.' }
 }
 
@@ -628,21 +628,38 @@ export async function updateDepartment(_prev: Result | null, form: FormData): Pr
   return { ok: true, message: 'Saved.' }
 }
 
-export async function deleteDepartment(_prev: Result | null, form: FormData): Promise<Result> {
+/**
+ * Retire a department, or bring it back.
+ *
+ * This used to delete, and deleting was wrong: every person who sat in that
+ * department lost the answer to "which one were they in?" along with the row.
+ * An inactive department keeps its name, its leader and everybody's history --
+ * it simply stops being offered when somebody is filed.
+ */
+export async function setDepartmentActive(_prev: Result | null, form: FormData): Promise<Result> {
   const { db, account } = await ctx()
   const id = str(form, 'id'), entity_id = str(form, 'entity_id')
-  if (!id) return { ok: false, message: 'Nothing to remove.' }
+  const active = form.get('active') === 'true'
+  if (!id) return { ok: false, message: 'Nothing to change.' }
 
-  const { data: was } = await db.schema('hopper').from('department')
-    .select('name').eq('id', id).maybeSingle()
-  const { error } = await db.schema('hopper').from('department').delete().eq('id', id)
+  // A FOR ALL policy refuses by changing nothing and raising nothing, so the
+  // rows that came back are the only honest answer.
+  const { data: hit, error } = await db.schema('hopper').from('department')
+    .update({ active }).eq('id', id).select('id, name')
   if (error) return { ok: false, message: refused(error.message, 'department') }
+  if (!hit?.length) return { ok: false, message: 'That is not yours to change.' }
 
-  await logAudit(db, { account_id: account, kind: 'department',
-    object: was?.name ?? null, object_id: entity_id,
-    summary: `Removed the department ${was?.name ?? ''}`.trim() })
+  const { count } = await db.schema('hopper').from('person')
+    .select('id', { count: 'exact', head: true }).eq('department_id', id).eq('active', true)
+
+  await logAudit(db, { account_id: account, kind: 'department', object: hit[0].name,
+    object_id: entity_id,
+    summary: `${active ? 'Brought back' : 'Retired'} the department ${hit[0].name}` })
   revalidatePath(`/admin/organizations/${entity_id}`)
-  return { ok: true, message: 'Removed.' }
+  revalidatePath('/admin/organizations/departments')
+  return { ok: true, message: active ? 'Back in use.'
+    : count ? `Retired. ${count} ${count === 1 ? 'person is' : 'people are'} still filed under it — they keep it.`
+            : 'Retired. Nothing was deleted.' }
 }
 
 /**
