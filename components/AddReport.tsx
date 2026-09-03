@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Choice from '@/components/Choice'
+import GooglePick, { type Picked } from '@/components/GooglePick'
 import Chart, {
   Legend, CHART_KINDS, measureCap, isSplit, type Series, type ChartKind,
 } from '@/components/Chart'
@@ -40,6 +41,9 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
   const [tabs, setTabs] = useState<string[] | null>(null)
   const [tabbing, setTabbing] = useState(false)
   const [points, setPoints] = useState('')
+  /** Set when the sheet was PICKED rather than pasted: a private sheet, read
+   *  through the account's Google connection. */
+  const [file, setFile] = useState<Picked | null>(null)
 
   const [cols, setCols] = useState<Col[] | null>(null)
   const [sample, setSample] = useState<(string | number | null)[][]>([])
@@ -102,7 +106,7 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
     try {
       const res = await fetch('/api/report/peek', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, tab, kind }),
+        body: JSON.stringify({ url, tab, kind, file_id: file?.id ?? null }),
       })
       const out = await res.json()
       if (out.ok) {
@@ -131,6 +135,7 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
     f.set('category_id', cat); f.set('source_kind', kind); f.set('source_url', url)
     f.set('source_tab', tab); f.set('refresh', refresh); f.set('note', note)
     f.set('chart_points', points)
+    if (file) f.set('google_file_id', file.id)
     f.set('chart_type', chartType); f.set('date_column', dateCol); f.set('chart_x', dateCol)
     if (restricted) f.set('restricted', 'on')
     for (const m of measures) f.append('measure', m)
@@ -150,12 +155,12 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
    * knows; this asks it.
    */
   async function findTabs() {
-    if (!url.trim()) return
+    if (!url.trim() && !file) return
     setTabbing(true); setFailure(null)
     try {
       const r = await fetch('/api/report/tabs', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, file_id: file?.id ?? null }),
       }).then((x) => x.json())
       if (r.ok) setTabs(r.tabs)
       else { setTabs([]); setFailure(r.failure ?? 'Hopper could not read the tab list.') }
@@ -223,6 +228,33 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
                     ? 'It has to answer without a sign-in — Hopper reads it as nobody in particular, and does not hold anybody’s key.'
                     : 'Share → General access → Anyone with the link → Viewer. No key needed.'}
                 </p>
+
+                {/* The other door, for a sheet that must NOT be shared with
+                    anyone holding the link. Picking is what grants the access,
+                    not a convenience over typing an address: with the drive.file
+                    scope Hopper may only open files handed to it through
+                    Google's own window, so there is no way to reach a private
+                    sheet by naming one. */}
+                {kind === 'google_sheet' && (
+                  <div className="orpick">
+                    <span className="orpick__l">or, if it cannot be shared</span>
+                    {file ? (
+                      <p className="picked">
+                        <b>{file.name}</b>
+                        <span>Private, read through this account&rsquo;s Google connection.</span>
+                        <button className="lnk" type="button"
+                                onClick={() => { setFile(null); setCols(null); setTabs(null); setTab('') }}>
+                          Pick a different one
+                        </button>
+                      </p>
+                    ) : (
+                      <GooglePick onPick={(f) => {
+                        setFile(f); setCols(null); setTabs(null); setTab('')
+                        setUrl(`https://docs.google.com/spreadsheets/d/${f.id}/edit`)
+                      }} />
+                    )}
+                  </div>
+                )}
               </div>
               {/* A sheet has tabs and Hopper can ask it what they are, so
                   this is a list you pick from. A link has no such list --

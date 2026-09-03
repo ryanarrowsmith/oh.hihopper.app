@@ -4401,3 +4401,14 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
 
 /* Twelve types is four rows of three rather than one long shelf. */
 .srcs--kinds{grid-template-columns:repeat(auto-fill,minmax(212px,1fr))}
+
+/* ── the other door: a sheet that cannot be shared ─────────────────── */
+.orpick{margin-top:14px; padding-top:14px; border-top:1px dashed var(--rule)}
+.orpick__l{display:block; font-family:var(--mono); font-size:9.5px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-3); margin-bottom:9px}
+
+.picked{display:flex; flex-direction:column; gap:3px; margin:0; padding:11px 13px;
+  background:var(--warmbg); border:1px solid var(--warmrule); border-radius:var(--r)}
+.picked b{font-size:13.5px; font-weight:800; color:var(--ink)}
+.picked span{font-size:11.5px; color:var(--ink-3)}
+.picked .lnk{align-self:flex-start; margin-top:4px}

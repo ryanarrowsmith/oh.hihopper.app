@@ -35,6 +35,17 @@ const URL_ = Deno.env.get('SUPABASE_URL')!
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
+/**
+ * Google, for sheets that are NOT shared with anyone holding the link.
+ *
+ * Absent until somebody sets them, and everything below degrades to "Google is
+ * not connected" rather than throwing -- a Hopper with no Google client is the
+ * normal state, not a broken one.
+ */
+const G_ID = Deno.env.get('GOOGLE_CLIENT_ID') ?? ''
+const G_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET') ?? ''
+const G_REDIRECT = Deno.env.get('GOOGLE_REDIRECT_URI') ?? ''
+
 /** How many rows we keep. Hopper is not a copy of your spreadsheet and must not
  *  grow into one; the card and the table both read from what is kept, and the
  *  table says so when it has been cut. */
@@ -267,6 +278,137 @@ async function googleTabs(url: string): Promise<string[]> {
   // worse answer than a full one -- so that case falls back to everything.
   const shown = all.filter((t) => t.state === 'visible')
   return (shown.length ? shown : all).map((t) => t.name)
+}
+
+// ------------------------------------------------------- the private door
+
+/**
+ * Reading a sheet nobody may open without signing in.
+ *
+ * The open door -- gviz, and the xlsx export -- works because a link-shared
+ * sheet is readable by nobody in particular. A private sheet is readable by a
+ * PERSON, so Hopper has to be one, which means holding a token, which is the
+ * thing this codebase says it does not do. The exception is scoped by the scope
+ * itself: drive.file is not "read my Drive", it is "read the files I handed you
+ * through the picker", so this can only ever open sheets somebody explicitly
+ * chose.
+ *
+ * A refresh token is long-lived and an access token is not, so the refresh
+ * token stays in Vault and an access token is minted per call and never stored.
+ * One fewer thing that can leak, and nothing to expire in a row somewhere.
+ */
+async function googleAccessToken(admin: any, accountId: string): Promise<string> {
+  if (!G_ID || !G_SECRET) {
+    throw new Fail('no_google', 'Google is not connected to Hopper yet.')
+  }
+  const { data: refresh } = await admin.schema('hopper').rpc('google_token', { p_account: accountId })
+  if (!refresh) {
+    throw new Fail('not_connected',
+      'This account has not connected Google, so Hopper cannot open a private sheet.')
+  }
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: G_ID, client_secret: G_SECRET,
+      refresh_token: refresh, grant_type: 'refresh_token',
+    }),
+    signal: AbortSignal.timeout(10_000),
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok || !body.access_token) {
+    // A revoked or expired grant is a BROKEN connection, not a stale report, so
+    // it is written down against the connection rather than left for somebody
+    // to infer from every report going quiet at once.
+    const why = body.error_description ?? body.error ?? `Google answered ${res.status}`
+    await admin.schema('hopper').rpc('google_failed', { p_account: accountId, p_why: String(why) })
+    throw new Fail('google_refused',
+      /invalid_grant/.test(String(body.error))
+        ? 'Google has revoked Hopper’s access. Connect Google again in Admin.'
+        : `Google refused to renew the connection: ${why}`)
+  }
+  return body.access_token as string
+}
+
+/** Every tab in a private sheet, straight from the Sheets API. */
+async function googleTabsPrivate(admin: any, accountId: string, fileId: string): Promise<string[]> {
+  const token = await googleAccessToken(admin, accountId)
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(fileId)}`
+    + '?fields=sheets.properties(title,hidden)',
+    { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(12_000) })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Fail('google_refused', gErr(body, res.status))
+
+  const all = (body.sheets ?? []).map((sh: any) => ({
+    title: String(sh?.properties?.title ?? ''),
+    hidden: sh?.properties?.hidden === true,
+  })).filter((t: any) => t.title !== '')
+  if (all.length === 0) throw new Fail('empty', 'That spreadsheet has no tabs in it.')
+  // Same rule as the open door: a hidden tab is one its owner took out of a
+  // picker already.
+  const shown = all.filter((t: any) => !t.hidden)
+  return (shown.length ? shown : all).map((t: any) => t.title)
+}
+
+/**
+ * A private sheet's rows.
+ *
+ * Values, not the grid: `values.get` hands back exactly the cells with anything
+ * in them, which is the same shape gviz gives and lets one typing pass serve
+ * both doors. UNFORMATTED_VALUE so a currency column arrives as a number rather
+ * than as "$16,785" -- the formatting is the spreadsheet's opinion, and Hopper
+ * is after the figure.
+ */
+async function readGooglePrivate(
+  admin: any, accountId: string, fileId: string, tab: string | null,
+): Promise<Sheet> {
+  const token = await googleAccessToken(admin, accountId)
+  const which = tab ?? (await googleTabsPrivate(admin, accountId, fileId))[0]
+
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(fileId)}`
+    + `/values/${encodeURIComponent(which)}`
+    + '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING',
+    { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20_000) })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Fail('google_refused', gErr(body, res.status))
+
+  const values: any[][] = body.values ?? []
+  if (values.length === 0) throw new Fail('empty', `The tab “${which}” is empty.`)
+
+  const head = values[0].map((h: any, i: number) =>
+    String(h ?? '').trim() || `Column ${i + 1}`)
+  const columns: Col[] = head.map((label, i) => ({ key: `c${i}`, label, type: 'text' }))
+  // Padded to the header's width: the API stops each row at its last non-empty
+  // cell, so a row ending in blanks arrives short and would otherwise shift
+  // every column after it.
+  const rows = values.slice(1)
+    .filter((r) => r.some((v) => String(v ?? '').trim() !== ''))
+    .map((r) => columns.map((_, i) => String(r[i] ?? '').trim()))
+
+  await admin.schema('hopper').from('google_grant')
+    .update({ last_used: new Date().toISOString() }).eq('account_id', accountId)
+
+  // Through the SAME typing pass the other doors use, so a private sheet and a
+  // shared one cannot disagree about what a column is.
+  return typed(columns, rows)
+}
+
+/** Google's error wording, unwrapped, without the HTML it sometimes arrives in. */
+function gErr(body: any, status: number) {
+  const m = body?.error?.message ?? body?.error_description ?? body?.error
+  if (typeof m === 'string' && m) {
+    if (/not found/i.test(m)) {
+      return 'Google cannot find that spreadsheet, or it is no longer one of the files you picked.'
+    }
+    if (/permission|forbidden/i.test(m)) {
+      return 'Google will not open that file for Hopper. Pick it again so the connection covers it.'
+    }
+    return strip(m)
+  }
+  return `Google answered ${status}.`
 }
 
 // ------------------------------------------------------- anything at a URL
@@ -611,7 +753,13 @@ async function look(admin: any, rep: any) {
       throw new Fail('unsupported',
         `Hopper cannot read a ${rep.source_kind === 'airtable' ? 'Airtable' : 'Microsoft'} source yet.`)
     }
-    const sheet = rep.source_kind === 'google_sheet'
+    // A file id means this report was PICKED rather than pasted, so it is read
+    // through the account's Google connection. No id means the sheet is open to
+    // anyone with the link and is read with no credential at all -- which is
+    // still the normal case and still the one to prefer.
+    const sheet = rep.google_file_id
+      ? await readGooglePrivate(admin, rep.account_id, rep.google_file_id, rep.source_tab)
+      : rep.source_kind === 'google_sheet'
       ? await readGoogle(rep.source_url, rep.source_tab)
       : await readLink(rep.source_url, rep.source_tab)
     const { readings } = await store(admin, rep, sheet)
@@ -631,6 +779,14 @@ async function look(admin: any, rep: any) {
     })
     return { report_id: id, ok: false, failure }
   }
+}
+
+/** Which account this person belongs to, asked through THEIR token so RLS is
+ *  the one that answers -- never from anything the caller sent. */
+async function accountOf(who: any): Promise<string | null> {
+  const { data } = await who.schema('hopper').from('person')
+    .select('account_id').limit(1).maybeSingle()
+  return data?.account_id ?? null
 }
 
 // ---------------------------------------------------------------- the door
@@ -674,6 +830,75 @@ Deno.serve(async (req) => {
     return json({ looked: results.length, left: Math.max(0, (due ?? []).length - batch.length), results })
   }
 
+  // ---- connecting Google
+  //
+  // The code-for-token exchange happens HERE and not in the Next app, for the
+  // same reason the writing does: that app deliberately holds no service key
+  // and must never hold the client secret either. One place holds both, and it
+  // is the place that already reaches past RLS.
+  if (body.google) {
+    const auth = req.headers.get('Authorization')
+    if (!auth) return json({ error: 'Not signed in.' }, 401)
+    const who = createClient(URL_, ANON, {
+      global: { headers: { Authorization: auth } }, auth: { persistSession: false },
+    })
+    const { data: { user } } = await who.auth.getUser()
+    if (!user) return json({ error: 'Not signed in.' }, 401)
+
+    const account = await accountOf(who)
+    if (!account) return json({ ok: false, failure: 'You have no account in Hopper.' })
+    const { data: me } = await who.schema('hopper').from('person')
+      .select('id').eq('profile_id', user.id).maybeSingle()
+
+    if (body.google.disconnect) {
+      await admin.schema('hopper').rpc('google_disconnect', { p_account: account })
+      return json({ ok: true, connected: false })
+    }
+
+    if (!G_ID || !G_SECRET || !G_REDIRECT) {
+      return json({ ok: false, failure: 'Google is not set up on this Hopper yet.' })
+    }
+    const code = body.google.code
+    if (!code) return json({ ok: false, failure: 'Google sent no code back.' })
+
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code, client_id: G_ID, client_secret: G_SECRET,
+        redirect_uri: G_REDIRECT, grant_type: 'authorization_code',
+      }),
+      signal: AbortSignal.timeout(12_000),
+    })
+    const tok = await res.json().catch(() => ({}))
+    if (!res.ok) return json({ ok: false, failure: gErr(tok, res.status) })
+
+    // No refresh token means Google remembered a previous consent and only sent
+    // an access token, which expires within the hour and would leave Hopper
+    // connected today and broken tomorrow. Said plainly rather than stored.
+    if (!tok.refresh_token) {
+      return json({ ok: false, failure:
+        'Google sent no lasting permission. Remove Hopper at myaccount.google.com/permissions and connect again.' })
+    }
+
+    // Whose Google it is, so the UI can say. userinfo needs no extra scope --
+    // it comes with the sign-in itself.
+    let email: string | null = null
+    try {
+      const u = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${tok.access_token}` },
+        signal: AbortSignal.timeout(8_000),
+      }).then((r) => r.json())
+      email = u?.email ?? null
+    } catch { /* a connection with no name on it still works */ }
+
+    await admin.schema('hopper').rpc('google_connect', {
+      p_account: account, p_person: me?.id ?? null, p_email: email,
+      p_token: tok.refresh_token, p_scope: tok.scope ?? 'drive.file',
+    })
+    return json({ ok: true, connected: true, email })
+  }
+
   // ---- the form, asking what tabs there are
   //
   // Its own action rather than a flag on peek: peek answers "what is IN this
@@ -690,6 +915,12 @@ Deno.serve(async (req) => {
     if (!user) return json({ error: 'Not signed in.' }, 401)
 
     try {
+      const fileId = body.tabs.file_id
+      if (fileId) {
+        const account = await accountOf(who)
+        if (!account) return json({ ok: false, failure: 'You have no account in Hopper.' })
+        return json({ ok: true, tabs: await googleTabsPrivate(admin, account, fileId) })
+      }
       return json({ ok: true, tabs: await googleTabs(body.tabs.url ?? '') })
     } catch (err) {
       return json({ ok: false, failure: err instanceof Fail ? err.message : String(err) })
@@ -724,9 +955,17 @@ Deno.serve(async (req) => {
         : body.peek.kind === 'google_sheet' ? 'google_sheet'
         // No kind sent: guess from the address, so an older client still works.
         : /docs\.google\.com\/spreadsheets/.test(url) ? 'google_sheet' : 'link'
-      const sheet = kind === 'google_sheet'
-        ? await readGoogle(url, body.peek.tab ?? null)
-        : await readLink(url, body.peek.tab ?? null)
+      const fileId = body.peek.file_id
+      let sheet: Sheet
+      if (fileId) {
+        const account = await accountOf(who)
+        if (!account) return json({ ok: false, failure: 'You have no account in Hopper.' })
+        sheet = await readGooglePrivate(admin, account, fileId, body.peek.tab ?? null)
+      } else {
+        sheet = kind === 'google_sheet'
+          ? await readGoogle(url, body.peek.tab ?? null)
+          : await readLink(url, body.peek.tab ?? null)
+      }
       return json({
         ok: true,
         columns: sheet.columns,
@@ -752,7 +991,7 @@ Deno.serve(async (req) => {
     auth: { persistSession: false },
   })
   const { data: rep } = await asUser.schema('hopper').from('report')
-    .select('id, account_id, source_kind, source_url, source_tab, date_column, chart_measures')
+    .select('id, account_id, source_kind, source_url, source_tab, date_column, chart_measures, google_file_id')
     .eq('id', body.report_id).maybeSingle()
   if (!rep) return json({ error: 'No such report.' }, 404)
 

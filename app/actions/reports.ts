@@ -114,6 +114,9 @@ export async function createReport(_p: Result | null, form: FormData): Promise<R
     // How many of the most recent readings the chart draws. Empty means every
     // reading the date range holds, which is what every report meant before
     // this existed -- so an untouched form changes nothing.
+    // A picked file, when the sheet is private. Null keeps the open door, which
+    // is still the one to prefer: no credential is involved in it at all.
+    google_file_id: nul(form, 'google_file_id'),
     chart_points: (() => {
       const n = Number(str(form, 'chart_points'))
       return Number.isFinite(n) && n >= 2 && n <= 500 ? Math.round(n) : null
@@ -159,6 +162,9 @@ export async function updateReport(_p: Result | null, form: FormData): Promise<R
     // How many of the most recent readings the chart draws. Empty means every
     // reading the date range holds, which is what every report meant before
     // this existed -- so an untouched form changes nothing.
+    // A picked file, when the sheet is private. Null keeps the open door, which
+    // is still the one to prefer: no credential is involved in it at all.
+    google_file_id: nul(form, 'google_file_id'),
     chart_points: (() => {
       const n = Number(str(form, 'chart_points'))
       return Number.isFinite(n) && n >= 2 && n <= 500 ? Math.round(n) : null
