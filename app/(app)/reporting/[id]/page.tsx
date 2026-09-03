@@ -33,7 +33,8 @@ export default async function Page({ params }: { params: { id: string } }) {
     .select('columns').eq('report_id', params.id).maybeSingle()
 
   const [{ data: state }, { data: readings }, { data: notes }, { data: checks },
-         { data: ents }, { data: depts }, { data: cats }, { data: rights }, { data: siblings }] =
+         { data: ents }, { data: depts }, { data: cats }, { data: rights }, { data: siblings },
+         { data: people }] =
     await Promise.all([
       db.schema('hopper').from('report_state').select('*').eq('report_id', params.id).maybeSingle(),
       db.schema('hopper').from('reading')
@@ -55,7 +56,12 @@ export default async function Page({ params }: { params: { id: string } }) {
       // the same table with the same policy on it. Nothing surfaces here that
       // would have been hidden there.
       db.schema('hopper').from('report_state').select('*').neq('report_id', params.id),
+      // Who a note may name. RLS decides which people come back, which is also
+      // the access check: a mention cannot light up somebody you cannot see.
+      db.schema('hopper').from('directory').select('id, full_name, email').eq('active', true),
     ])
+
+  const roster = (people ?? []).map((p: any) => ({ id: p.id, name: p.full_name, email: p.email }))
 
   const entName = new Map((ents ?? []).map((e: any) => [e.id, e.name]))
   const deptName = new Map((depts ?? []).map((d: any) => [d.id, d.name]))
@@ -112,6 +118,7 @@ export default async function Page({ params }: { params: { id: string } }) {
         lastFailure: state?.last_failure ?? null,
       }}
       series={series}
+      roster={roster}
       notes={(notes ?? []).map((n: any) => ({ id: n.id, body: n.body, at: n.created_at }))}
       checks={checks ?? []}
       related={related.map((r: any) => ({

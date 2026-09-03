@@ -1,14 +1,16 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useScope } from '@/components/useScope'
+import { NotiList, type Note } from '@/components/Notifications'
+import { supabaseBrowser } from '@/lib/supabase/client'
 
 type Entity = { id: string; name: string; parent_id: string | null }
 
 export default function TopBar(
-  { initials, entities, personId, displayName, accountName, email }:
+  { initials, entities, personId, displayName, accountName, email, notes = [] }:
   { initials: string; entities: Entity[]
     personId: string | null; displayName: string; accountName: string
-    email: string | null },
+    email: string | null; notes?: Note[] },
 ) {
   const [open, setOpen] = useState<'scope' | 'noti' | 'me' | null>(null)
   // The choice lives outside this component now. It used to be local state
@@ -16,6 +18,29 @@ export default function TopBar(
   // page could see it, and a name is not something you can filter rows by.
   const { scope, setScope, applies } = useScope()
   const wrap = useRef<HTMLDivElement>(null)
+
+  /**
+   * The list, and what is unread in it.
+   *
+   * Held here rather than read from props on every render because opening the
+   * bell MARKS them read -- the count has to fall the moment you look, not the
+   * next time the page happens to revalidate.
+   */
+  const [seen, setSeen] = useState<Note[]>(notes)
+  useEffect(() => { setSeen(notes) }, [notes])
+  const unread = seen.filter((n) => !n.read_at).length
+
+  useEffect(() => {
+    if (open !== 'noti' || unread === 0) return
+    // Opening the bell is reading them. The rows stay in the list, they just
+    // stop counting -- a notification that vanished when you glanced at it
+    // would be a notification you can never go back to.
+    const now = new Date().toISOString()
+    const ids = seen.filter((n) => !n.read_at).map((n) => n.id)
+    setSeen((list) => list.map((n) => (n.read_at ? n : { ...n, read_at: now })))
+    supabaseBrowser().schema('hopper').from('notification')
+      .update({ read_at: now }).in('id', ids).then(() => {})
+  }, [open, unread, seen])
 
   useEffect(() => {
     const away = (e: MouseEvent) => {
@@ -122,16 +147,18 @@ export default function TopBar(
                   onClick={(e) => { e.stopPropagation(); setOpen(open === 'noti' ? null : 'noti') }}>
             <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-2 8-2 8h16s-2-1-2-8" />
               <path d="M13.7 21a2 2 0 0 1-3.4 0" /></svg>
+            {unread > 0 && <span className="ndot" aria-label={`${unread} unread`}>{unread}</span>}
           </button>
 
           {open === 'noti' && (
             <div className="notipop" role="dialog" aria-label="Notifications">
-              <p className="nhead">Notifications <em>all read</em></p>
-              <div className="empty" style={{ border: 0, background: 'transparent',
-                color: 'rgba(251,249,245,.55)' }}>
-                Nothing waiting. A notification is the small set that names you and that
-                you haven&rsquo;t seen — everything else is the Activity Log&rsquo;s job.
-              </div>
+              <p className="nhead2">
+                Notifications
+                {unread > 0
+                  ? <span className="nhead2__n">{unread} new</span>
+                  : <em>all read</em>}
+              </p>
+              <NotiList notes={seen} onRead={() => {}} />
             </div>
           )}
         </span>

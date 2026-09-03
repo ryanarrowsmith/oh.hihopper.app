@@ -5,6 +5,8 @@ import { useFormState, useFormStatus } from 'react-dom'
 import Chart, { Legend, isSplit, type Series } from '@/components/Chart'
 import { EditableSection } from '@/components/RowEdit'
 import EditReport from '@/components/EditReport'
+import Mentioned from '@/components/Mentioned'
+import type { Named } from '@/lib/mentions'
 import RawTable from '@/components/RawTable'
 import RangeBar from '@/components/RangeBar'
 import { useRange, inWindow } from '@/components/useRange'
@@ -31,7 +33,7 @@ const sourceName = (k: string) => k === 'google_sheet' ? 'Google Sheets'
   : k === 'airtable' ? 'Airtable' : k === 'microsoft' ? 'Microsoft 365'
   : k === 'link' ? 'A link' : k === 'upload' ? 'An uploaded file' : 'Pasted data'
 
-export default function ReportPage({ report, state, series: all, notes, checks, related, mayEdit, columns }: {
+export default function ReportPage({ report, state, series: all, notes, roster, checks, related, mayEdit, columns }: {
   columns: { key: string; label: string; type: 'text' | 'number' | 'date' }[]
   report: {
     id: string; name: string; entity: string; department: string; category: string | null
@@ -45,6 +47,7 @@ export default function ReportPage({ report, state, series: all, notes, checks, 
   }
   series: Series[]
   notes: { id: string; body: string; at: string }[]
+  roster: Named[]
   checks: { read_at: string; ok: boolean; failure: string | null; row_count: number | null; took_ms: number | null }[]
   related: { id: string; name: string; where: string; value: number | null }[]
   mayEdit: boolean
@@ -290,7 +293,7 @@ export default function ReportPage({ report, state, series: all, notes, checks, 
             : notes.map((n) => (
                 <div className="noteline" key={n.id}>
                   <p className="noteline__at">{at(n.at)}</p>
-                  <p className="noteline__b">{n.body}</p>
+                  <p className="noteline__b"><Mentioned text={n.body} roster={roster} /></p>
                 </div>
               ))}
         </div></div>

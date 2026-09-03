@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { supabaseServer } from '@/lib/supabase/server'
 import { currentSession } from '@/lib/tenant'
 import { logAudit } from '@/lib/audit'
+import { tellMentioned } from '@/lib/notify'
 
 export type Result = { ok: boolean; message: string }
 
@@ -197,6 +198,13 @@ export async function updateReport(_p: Result | null, form: FormData): Promise<R
 
   await logAudit(db, { account_id: account, kind: 'report', object: name,
     object_id: id, summary: `Edited the report ${name}`, note })
+
+  // Anybody the note names hears about it. After the write, never before: a
+  // notification about a change that did not save is worse than none.
+  await tellMentioned(note, {
+    title: `You were mentioned on ${name}`,
+    href: `/reporting/${id}`, object: 'report', objectId: id,
+  })
 
   revalidatePath('/reporting'); revalidatePath(`/reporting/${id}`)
   return { ok: true, message: 'Saved.' }
