@@ -3,8 +3,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Choice from '@/components/Choice'
 import GooglePick, { type Picked } from '@/components/GooglePick'
+import Fold from '@/components/Fold'
 import Chart, {
-  Legend, CHART_KINDS, measureCap, isSplit, type Series, type ChartKind,
+  Legend, CHART_KINDS, KIND_NAME, measureCap, isSplit, type Series, type ChartKind,
 } from '@/components/Chart'
 import { createReport } from '@/app/actions/reports'
 
@@ -437,11 +438,11 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
 
       {step === 4 && (
         <>
-          {/* The preview leads the screen. It used to sit under the controls,
-              which put the thing you are deciding about below the thing you are
-              deciding with — every adjustment meant scrolling away from the
-              answer. */}
-          <div className="came" style={{ marginBottom: 18 }}>
+          {/* The preview leads the screen AND stays on it. Leading was the
+              right idea and not enough of it: the controls under it are taller
+              than a screen, so every adjustment still scrolled the answer out
+              of sight. */}
+          <div className="came came--stick" style={{ marginBottom: 18 }}>
             <div className="came__h">
               <b>Live preview</b>
               <span style={{ color: 'var(--ink-3)' }}>
@@ -466,38 +467,50 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
               know what a total is made of. Choosing a type also trims the
               measures to what that type can draw, so the form cannot hold an
               answer the chart would refuse. */}
-          {CHART_KINDS.map((g) => (
-            <div key={g.group}>
-              <p className="srchead">{g.group}</p>
-              <div className="srcs srcs--kinds">
-                {g.kinds.map((c) => (
-                  <button key={c.k} className="src" type="button" aria-pressed={chartType === c.k}
-                          onClick={() => {
-                            setChartType(c.k)
-                            setMeasures((m) => m.slice(0, measureCap(c.k)))
-                          }}>
-                    <span className="src__t">{c.t}</span>
-                    <span className="src__s">{c.s}</span>
-                  </button>
-                ))}
+          {/* Grouped by the question each type answers rather than by shape.
+              Nobody arrives wanting "a stacked column"; they arrive wanting to
+              know what a total is made of. Choosing a type also trims the
+              measures to what that type can draw, so the form cannot hold an
+              answer the chart would refuse. */}
+          <Fold title="How it draws" note={KIND_NAME[chartType] ?? 'Choose a mark'}>
+            {CHART_KINDS.map((g) => (
+              <div key={g.group}>
+                <p className="srchead">{g.group}</p>
+                <div className="srcs srcs--kinds">
+                  {g.kinds.map((c) => (
+                    <button key={c.k} className="src" type="button" aria-pressed={chartType === c.k}
+                            onClick={() => {
+                              setChartType(c.k)
+                              setMeasures((m) => m.slice(0, measureCap(c.k)))
+                            }}>
+                      <span className="src__t">{c.t}</span>
+                      <span className="src__s">{c.s}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
 
-          <div className="formrow" style={{ marginTop: 18 }}>
-            <div>
-              <label htmlFor="ar-pts">How many readings to draw</label>
-              <input className="field" id="ar-pts" type="number" min={2} max={500}
-                     value={points} onChange={(e) => setPoints(e.target.value)}
-                     placeholder="All of them" />
-              <p className="hint">
-                The most recent this many. Empty draws every reading the date range holds,
-                which is what a chart does until somebody says otherwise.
-              </p>
+            <div className="formrow" style={{ marginTop: 6 }}>
+              <div>
+                <label htmlFor="ar-pts">How many readings to draw</label>
+                <input className="field" id="ar-pts" type="number" min={2} max={500}
+                       value={points} onChange={(e) => setPoints(e.target.value)}
+                       placeholder="All of them" />
+                <p className="hint">
+                  The most recent this many. Empty draws every reading the date range holds,
+                  which is what a chart does until somebody says otherwise.
+                </p>
+              </div>
+              <div />
             </div>
-          </div>
+          </Fold>
 
-          <div className="formrow" style={{ marginTop: 18 }}>
+          <Fold title="What it draws"
+                note={measures.length
+                  ? `${dateCol || 'no date column'} · ${measures.join(', ')}`
+                  : 'Choose a date column and what to measure'}>
+          <div className="formrow">
             <div>
               <label htmlFor="ar-date">What dates the rows</label>
               <Choice id="ar-date" name="date_column" defaultValue={dateCol} placeholder="Choose a column"
@@ -529,9 +542,18 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
                   )
                 })}
               </div>
-              <p className="hint">{chartType === 'pie' ? 'One measure.' : 'Up to three.'}</p>
+              <p className="hint">
+                {(() => {
+                  const cap = measureCap(chartType)
+                  return cap === 1 ? 'This one draws a single measure.'
+                    : `Up to ${cap}. ${measures.length} chosen.`
+                })()}
+                {measures.length > 3 &&
+                  ' Past three, each gets a plot of its own — a heading rather than a colour says which is which.'}
+              </p>
             </div>
           </div>
+          </Fold>
 
           {(cols ?? []).every((c) => c.type !== 'date') &&
             <p className="note note--err" style={{ marginTop: 14 }}>

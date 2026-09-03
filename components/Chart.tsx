@@ -30,7 +30,7 @@ const PIE_VAR = ['--s1', '--s2', '--s3', '--steel', '--amber', '--canvas-3'] as 
  * the renderer cannot disagree about what exists.
  */
 export {
-  CHART_KINDS, KIND_ICON, appliesTo, measureCap, type ChartKind,
+  CHART_KINDS, KIND_ICON, KIND_NAME, appliesTo, measureCap, type ChartKind,
 } from '@/lib/charts'
 
 /** Which marks stack, so the scale is the running total rather than the value. */

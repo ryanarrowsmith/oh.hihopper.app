@@ -117,7 +117,14 @@ p{margin:0}
 .app{
   width:95%; max-width:1240px; margin-inline:auto;
   background:var(--paper); border:1px solid var(--rule); border-radius:var(--r);
-  box-shadow:var(--lift); overflow:hidden;
+  box-shadow:var(--lift);
+  /* clip, not hidden. Both keep a child inside the frame; only `hidden` makes
+     this a scroll container, and a scroll container is what position:sticky
+     sticks to -- so a sticky preview inside here was measuring itself against a
+     box as tall as the whole page and never stuck to anything. `clip` clips and
+     stays out of the way. The `hidden` first is for a browser that does not
+     know `clip`: it keeps the clipping and simply does not get the stickiness. */
+  overflow:hidden; overflow:clip;
 }
 
 /* ---- wordmark ---- */
@@ -2435,6 +2442,33 @@ a.gcard:hover{border-color:var(--canvas-3); box-shadow:var(--lift)}
 
 /* ---- what came back ---- */
 .came{border:1px solid var(--rule); border-radius:var(--r); background:var(--surface); overflow:hidden}
+
+/* ---- the preview stays put ----
+   It led the screen already, which was the right idea and not enough of it: the
+   controls under it are taller than a screen, so every adjustment still
+   scrolled the answer out of sight. Stuck to the top, the thing you are
+   deciding about and the thing you are deciding with are on the same screen at
+   every scroll position, which is the whole point of a preview. */
+.came--stick{
+  position:sticky; top:8px; z-index:6;
+  box-shadow:0 14px 28px -18px rgba(35,31,32,.5);
+}
+
+/* ---- a section you can put away ---- */
+.fold{border:1px solid var(--rule); background:var(--surface); margin-top:12px}
+.fold__h{
+  display:flex; align-items:center; gap:9px; width:100%; padding:11px 13px;
+  background:var(--sunken); border:0; cursor:pointer; font:inherit; text-align:left;
+}
+.fold.is-open .fold__h{border-bottom:1px solid var(--rule)}
+.fold__h:hover{background:var(--canvas-2)}
+.fold__h b{font-size:13px; font-weight:800; letter-spacing:-.01em; color:var(--ink)}
+.fold__h em{font-style:normal; font-size:12px; color:var(--ink-3); min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.fold__c{width:13px; height:13px; flex:none; color:var(--ink-3); transition:transform .16s}
+.fold.is-open .fold__c{transform:rotate(90deg)}
+.fold__b{padding:15px 14px 17px}
+.fold__b > .srchead:first-child{margin-top:0}
 
 .came__h{display:flex; align-items:center; gap:10px; padding:10px 13px; background:var(--sunken);
   border-bottom:1px solid var(--rule); font-size:12.5px; color:var(--ink-2)}

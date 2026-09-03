@@ -95,3 +95,8 @@ export function measureCap(kind: string) {
   if (kind === 'stack' || kind === 'stack100' || kind === 'areastack') return 6
   return 10
 }
+
+
+/** A kind's name, by its key. Derived, so it cannot drift from the catalogue. */
+export const KIND_NAME: Record<string, string> =
+  Object.fromEntries(CHART_KINDS.flatMap((g) => g.kinds.map((k) => [k.k, k.t])))
