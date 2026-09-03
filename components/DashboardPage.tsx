@@ -49,6 +49,17 @@ export default function DashboardPage(
         </div>
         <div className="hi__go">
           <Link className="btn" href="/dashboards">All dashboards</Link>
+          {/* An icon, because it sits between two worded buttons and a third
+              word would make the row a sentence nobody reads. */}
+          <a className="btn btn--icon" href={`/dashboards/${board.id}/print`}
+             target="_blank" rel="noreferrer"
+             data-tip="Print or save as PDF" aria-label="Print or save as PDF">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 9V3h12v6" /><path d="M6 18H4a1 1 0 0 1-1-1v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-2" />
+              <rect x="6" y="14" width="12" height="7" rx="1" />
+            </svg>
+          </a>
           {/* Nothing a person may not do is rendered: on somebody else's board
               there is no greyed-out Edit to explain. */}
           {board.is_mine && (

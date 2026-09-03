@@ -1,5 +1,5 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Chart, { Legend, isSplit, type Series } from '@/components/Chart'
 import { useRange, inWindow, windowOf } from '@/components/useRange'
 
@@ -27,13 +27,55 @@ type Sheet = {
 export default function PrintSheet({ sheets }: { sheets: Sheet[] }) {
   const { range, ready, window: win } = useRange()
 
-  // Print once the page has actually settled — charts measure their box on
-  // layout, and printing before that gives you a sheet of empty rectangles.
+  /**
+   * Print when the page is actually ready, not when a timer says it might be.
+   *
+   * This was a 350ms setTimeout and it printed empty sheets. A chart here
+   * measures its own box on layout and sizes its SVG from what it finds, so
+   * printing before that has happened gives you a page of blank rectangles --
+   * and the print dialog is modal, so by the time you see it there is nothing
+   * to do but cancel. A guess at how long layout takes is a guess that is
+   * wrong on a slow machine, on a cold cache, and on a tab that opened in the
+   * background and was never given an animation frame.
+   *
+   * So it asks. Every chart is measured; when they all have width, and the
+   * fonts have loaded -- a font swapping after layout re-wraps every label --
+   * it prints. If something never measures it gives up after four seconds and
+   * prints anyway, because the figures and the words are the report and a
+   * missing chart is better than a dialog that never comes.
+   */
+  const [printed, setPrinted] = useState(false)
   useEffect(() => {
-    if (!ready) return
-    const t = setTimeout(() => window.print(), 350)
-    return () => clearTimeout(t)
-  }, [ready])
+    if (!ready || printed) return
+    let done = false
+    const go = () => {
+      if (done) return
+      done = true
+      setPrinted(true)
+      window.print()
+    }
+
+    const measured = () => {
+      const charts = document.querySelectorAll<SVGElement>('.sheet__r svg.chart')
+      // No charts at all is a legitimate ready: every report can be one that
+      // has never been read, and that page is words.
+      if (charts.length === 0) return true
+      return [...charts].every((c) => c.getBoundingClientRect().width > 1)
+    }
+
+    const started = Date.now()
+    let frame = 0
+    const wait = () => {
+      if (done) return
+      if (measured() || Date.now() - started > 4000) { go(); return }
+      frame = requestAnimationFrame(wait)
+    }
+
+    const fonts = (document as any).fonts?.ready ?? Promise.resolve()
+    fonts.then(() => { frame = requestAnimationFrame(wait) })
+
+    return () => { done = true; cancelAnimationFrame(frame) }
+  }, [ready, printed])
 
   const w = windowOf(range)
   const said = range.preset === 'all' ? 'All time'
@@ -49,7 +91,10 @@ export default function PrintSheet({ sheets }: { sheets: Sheet[] }) {
             printed {new Date().toLocaleDateString('en-US',
               { month: 'long', day: 'numeric', year: 'numeric' })}</span>
         </span>
-        <button className="btn noprint" type="button" onClick={() => window.print()}>Print</button>
+        {/* Cancelling the dialog used to leave a page with no way to try
+            again short of reloading. */}
+        <button className="btn btn--amber noprint" type="button"
+                onClick={() => window.print()}>Print</button>
       </div>
 
       {sheets.map((s) => {

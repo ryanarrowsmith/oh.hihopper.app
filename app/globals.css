@@ -2889,6 +2889,15 @@ a.gcard:hover{border-color:var(--canvas-3); box-shadow:var(--lift)}
 @media (min-width:641px){
   .rlist--cols:has(.rpen) .rrec__face{grid-template-columns:var(--cols) 32px}
   .rlist--cols:has(.rpen) .rhead{grid-template-columns:var(--cols) 32px}
+  /* The pencil's margin is for the flex rows, where it is what separates it
+     from the text beside it. In the grid it is inside a 32px track, so the
+     margin eats the track from the left and shoves the button against the
+     row's right edge -- which is what the last column and the pencil were
+     doing to each other. The grid's own gap does that job here. */
+  .rlist--cols:has(.rpen) .rpen{margin-left:0}
+  /* And the header's last label needs the same 32px track allowed for, or
+     REPORTS sits over the pencil column and the two disagree by a button. */
+  .rlist--cols:has(.rpen) .rhead > :last-child{padding-right:0}
 }
 
 /* Opened wide, the table gets the popover's own header so it still says which
@@ -3786,3 +3795,110 @@ a.idc__org:hover{background:var(--steel)}
 .helppop__go:hover{background:var(--steelwash)}
 /* The title it hangs off is a heading, so the bubble must not inherit its size. */
 h1 .helpb{font-size:12px}
+
+/* ==========================================================================
+   A DASHBOARD, ON PAPER
+   Printing is not screenshotting. A screen is one endless column and paper is
+   a sequence of fixed rectangles, so every decision worth making here is about
+   where the cuts fall -- and none of them can be made by the person pressing
+   the button, which is why they are all made here.
+   ========================================================================== */
+@page{ size:letter; margin:16mm 15mm 20mm }
+
+.pdoc{color:var(--ink); width:186mm; margin:0 auto; padding:24px 0 60px; position:relative}
+.pdoc__again{position:absolute; top:0; right:0}
+
+/* A cover BLOCK, not a cover page. A one-report dashboard does not deserve a
+   sheet of paper with four words on it, so this is a header the first report
+   flows under; it takes a page of its own only when there is enough behind it. */
+.pdoc__top{
+  display:flex; align-items:flex-start; gap:16px;
+  padding-bottom:10px; border-bottom:2px solid var(--ink);
+  break-after:avoid;                 /* never the last thing on a page */
+}
+.pdoc__mark{flex:none}
+.pdoc__t{flex:1 1 auto; min-width:0}
+.pdoc__t h1{margin:0; font-size:23pt; letter-spacing:-.02em; line-height:1.1}
+.pdoc__t p{margin:4px 0 0; font-size:9.5pt; color:var(--ink-2)}
+.pdoc__meta{flex:none; text-align:right; font-family:var(--mono); font-size:7.5pt;
+  line-height:1.7; color:var(--ink-3)}
+.pdoc__meta b{display:block; color:var(--ink-2); font-weight:700}
+
+/* Figures on the right, so the page answers "how is everything" before anybody
+   turns it. */
+.pdoc__toc{margin:12px 0 0; padding:10px 0 0; break-inside:avoid; break-after:avoid;
+  border-bottom:1px solid var(--rule)}
+.pdoc__toc p{margin:0 0 7px; font-family:var(--mono); font-size:7pt; font-weight:700;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3)}
+.pdoc__toc ol{list-style:none; margin:0 0 10px; padding:0; columns:2; column-gap:14mm}
+.pdoc__toc li{display:flex; align-items:baseline; gap:6px; font-size:9pt;
+  padding:3px 0; break-inside:avoid}
+.pdoc__toc li b{font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums}
+.pdoc__toc li span{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap}
+.pdoc__toc li i{flex:none; font-style:normal; font-family:var(--mono); font-size:7pt;
+  color:var(--ink-3)}
+
+/* break-inside:avoid is the whole reason to do this as a document: a report cut
+   across a fold is a report somebody holds two sheets up to read. */
+.pblock{break-inside:avoid; page-break-inside:avoid;
+  padding:9mm 0 7mm; border-bottom:1px solid var(--rule)}
+.pblock:last-of-type{border-bottom:0}
+.pblock__h{margin-bottom:2mm}
+.pblock__h h2{margin:0; font-size:13pt; letter-spacing:-.015em; line-height:1.2}
+.pblock__b{display:flex; gap:9mm; align-items:flex-start}
+.pblock__fig{flex:none; width:44mm}
+.pblock__v{font-size:26pt; font-weight:800; letter-spacing:-.035em; line-height:1;
+  font-variant-numeric:tabular-nums}
+.pblock__on{margin:3px 0 0; font-size:8pt; color:var(--ink-3)}
+.pblock__facts{margin:5mm 0 0; font-size:8pt; line-height:1.7; color:var(--ink-2)}
+.pblock__facts b{font-weight:700; color:var(--ink)}
+.pblock__c{flex:1 1 auto; min-width:0}
+.pblock__none{margin:0; padding:8mm 0; text-align:center; font-size:9pt; color:var(--ink-3)}
+
+/* Where the report sits is a caption on the chart, not a second title. On the
+   heading line it read as part of the name, and on a narrow block it drifted
+   over the plot. */
+.pblock__w{display:block; margin:1.5mm 0 0; padding-top:1.5mm;
+  border-top:1px solid var(--rule-soft);
+  font-family:var(--mono); font-size:7.5pt; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ink-3); text-align:right}
+
+/* A chart on paper is a shape, not an interface: no hover, no ring on the last
+   point, and a heavier line because toner is thinner than pixels. */
+.pblock__c .chart__ln{stroke-width:2.6}
+.pblock__c .chart__ar{opacity:.16}
+.pblock__c .chart__now{display:none}
+.pblock__c .chart__ax{font-size:7pt}
+
+/* A report that could not be read says so where its number is, rather than
+   printing the last good figure as though it were current. A PDF outlives the
+   moment it was made. */
+.pblock--stale .pblock__v{color:var(--ink-3)}
+.pblock__warn{margin:3mm 0 0; padding:2mm 3mm; font-size:8pt; line-height:1.5;
+  border-left:2.5px solid var(--ink-3); background:var(--sunken); color:var(--ink-2)}
+
+/* position:fixed is the only reliable running content: the @page margin boxes
+   that would do this properly are still not implemented. No page number for the
+   same reason -- counter(page) lives only in those boxes, and a number that is
+   wrong on page two is worse than no number. */
+.pdoc__foot{display:flex; align-items:center; gap:8px; margin-top:10mm;
+  font-family:var(--mono); font-size:7pt; letter-spacing:.06em; color:var(--ink-3);
+  border-top:1px solid var(--rule); padding-top:2mm}
+.pdoc__foot span:last-child{margin-left:auto}
+
+/* A button that is only an icon, for a row where a third word would make the
+   header a sentence nobody reads. */
+.btn--icon{width:38px; padding:0; display:inline-grid; place-items:center}
+.btn--icon svg{width:17px; height:17px}
+
+@media print{
+  .noprint, .app > .tbar, .rail, .foot, .crumbs{display:none !important}
+  .pdoc{width:auto; margin:0; padding:0}
+  .pdoc__foot{position:fixed; bottom:8mm; left:0; right:0; margin:0}
+  :root, :root[data-theme="dark"]{
+    --paper:#fff; --surface:#fff; --sunken:#fafafa; --ground:#fff;
+    --ink:#111; --ink-2:#333; --ink-3:#666; --rule:#bbb; --rule-soft:#e0e0e0;
+    --shadow:none; --lift:none;
+  }
+}
