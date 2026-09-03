@@ -165,6 +165,266 @@ function cell(c: any, type: Col['type']): string | number | null {
 
 const strip = (s: string) => s.replace(/<[^>]*>/g, '').trim().slice(0, 400)
 
+// ------------------------------------------------------- anything at a URL
+
+/** A source that is not a spreadsheet is still a table, so it stops being
+ *  anything else as early as possible and becomes columns and rows. */
+const LINK_MAX = 8 * 1024 * 1024   // eight megabytes of text is already 500x KEEP
+
+/**
+ * A link is any https address that answers with a table.
+ *
+ * Deliberately not "a CSV endpoint" or "a JSON API": the useful thing is that
+ * an export URL, a published sheet from a vendor who is not Google, and a small
+ * internal endpoint are all the same shape once they arrive. So the content
+ * type is a hint and the body is the evidence -- servers mislabel CSV as
+ * text/plain and JSON as text/html often enough that trusting the header alone
+ * would refuse things that work.
+ *
+ * No credentials, ever. Hopper does not hold somebody's API key and replay it,
+ * because a stored credential is a thing that leaks and a thing that outlives
+ * the person who added it. A source that needs a key needs a proper connector,
+ * which is what the airtable and microsoft kinds are for.
+ */
+async function readLink(url: string, tab: string | null): Promise<Sheet> {
+  let res: Response
+  try {
+    res = await fetch(url, {
+      redirect: 'follow',
+      headers: { 'User-Agent': 'Hopper/1.0 (+https://oh.hihopper.app)', Accept: 'text/csv, application/json;q=0.9, */*;q=0.5' },
+      signal: AbortSignal.timeout(20_000),
+    })
+  } catch (e) {
+    throw new Fail('unreachable',
+      (e as Error)?.name === 'TimeoutError'
+        ? 'That address took more than twenty seconds to answer.'
+        : 'Hopper could not reach that address.')
+  }
+
+  if (res.status === 401 || res.status === 403) {
+    throw new Fail('not_shared',
+      'That address needs a sign-in. Hopper reads it as nobody in particular, so it has to be readable without one.')
+  }
+  if (res.status === 404) throw new Fail('no_source', 'There is nothing at that address.')
+  if (!res.ok) throw new Fail('refused', `That address answered ${res.status}.`)
+
+  const type = (res.headers.get('content-type') ?? '').toLowerCase()
+  const size = Number(res.headers.get('content-length') ?? 0)
+  if (size > LINK_MAX) {
+    throw new Fail('too_big', 'That file is larger than Hopper will read. Export a narrower range.')
+  }
+  if (/^(image|video|audio)\//.test(type) || type.includes('pdf')) {
+    throw new Fail('not_a_table', `That address answers with ${type.split(';')[0]}, which is not a table.`)
+  }
+
+  const text = await res.text()
+  if (text.length > LINK_MAX) {
+    throw new Fail('too_big', 'That file is larger than Hopper will read. Export a narrower range.')
+  }
+  return parseTable(text, type, tab)
+}
+
+/**
+ * Text to table, whatever the text is.
+ *
+ * Shared by the link kind and by a snapshot somebody uploaded or pasted, so a
+ * pasted CSV and a fetched one cannot end up shaped differently -- which they
+ * would within a week if this existed twice.
+ */
+function parseTable(text: string, contentType = '', tab: string | null = null): Sheet {
+  const trimmed = text.replace(/^\uFEFF/, '').trim()
+  if (!trimmed) throw new Fail('empty', 'There was nothing in it.')
+
+  const looksJson = trimmed.startsWith('[') || trimmed.startsWith('{')
+  if (contentType.includes('json') || looksJson) {
+    try { return fromJson(JSON.parse(trimmed), tab) }
+    catch (e) {
+      if (e instanceof Fail) throw e
+      // A JSON content type that is not JSON is worth saying so plainly; a
+      // body that merely started with a brace falls through to the CSV reader.
+      if (contentType.includes('json')) {
+        throw new Fail('unreadable', 'That address said it was JSON and sent something else.')
+      }
+    }
+  }
+  if (/<html|<!doctype/i.test(trimmed.slice(0, 200))) {
+    throw new Fail('not_a_table',
+      'That address answers with a web page rather than a file. If it is a sheet, use its export or publish-to-web address.')
+  }
+  return fromDelimited(trimmed)
+}
+
+/** Comma, semicolon, tab or pipe -- whichever divides the header most evenly. */
+function sniff(line: string): string {
+  const counts = [',', ';', '\t', '|'].map((d) => ({ d, n: countOutsideQuotes(line, d) }))
+  counts.sort((a, b) => b.n - a.n)
+  return counts[0].n > 0 ? counts[0].d : ','
+}
+function countOutsideQuotes(line: string, d: string) {
+  let n = 0, inQ = false
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i]
+    if (c === '"') { if (inQ && line[i + 1] === '"') i++; else inQ = !inQ }
+    else if (c === d && !inQ) n++
+  }
+  return n
+}
+
+/**
+ * RFC 4180 rather than split(','), because the first address anybody pastes has
+ * a company name with a comma in it and a quoted field with a newline inside.
+ * Splitting on the delimiter gets both wrong and gets them wrong quietly --
+ * columns shift by one and every number below lands under the wrong heading.
+ */
+function fromDelimited(text: string): Sheet {
+  const firstLine = text.slice(0, text.indexOf('\n') === -1 ? text.length : text.indexOf('\n'))
+  /**
+   * A header with no delimiter in it is a file with one column, and a
+   * one-column file must not be split at all. Defaulting to a comma there cut
+   * "Aug 8, 2026" in half and threw the year away -- silently, because the
+   * extra field had no column to land in. Found by a test, which is the only
+   * way this is ever found: the file still parses, it just quietly loses the
+   * back half of every value that contains a comma.
+   */
+  const d = countOutsideQuotes(firstLine, sniff(firstLine)) > 0 ? sniff(firstLine) : '\u0000'
+
+  const rows: string[][] = []
+  let row: string[] = [], field = '', inQ = false
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]
+    if (inQ) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++ } else inQ = false }
+      else field += c
+    } else if (c === '"') inQ = true
+    else if (c === d) { row.push(field); field = '' }
+    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = '' }
+    else if (c !== '\r') field += c
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row) }
+
+  const head = rows.shift()
+  if (!head?.length) throw new Fail('empty', 'There was no header row in it.')
+
+  const columns: Col[] = head.map((h, i) => ({
+    key: `c${i}`,
+    label: h.trim() || `Column ${i + 1}`,
+    type: 'text',
+  }))
+
+  // Ragged rows are normal in exported files: a trailing empty column, or a
+  // last line with nothing on it. Padded rather than refused.
+  const body = rows
+    .filter((r) => r.some((v) => v.trim() !== ''))
+    .map((r) => columns.map((_, i) => (r[i] ?? '').trim()))
+
+  return typed(columns, body)
+}
+
+/** An array of objects, an array of arrays, or one of those inside a wrapper. */
+function fromJson(j: any, tab: string | null): Sheet {
+  let arr: any = j
+  if (!Array.isArray(arr)) {
+    // A named tab picks the key when the body is an object of tables; otherwise
+    // the first array-valued key wins, which is what every "data"/"rows"/
+    // "results" envelope actually means.
+    if (tab && Array.isArray(j?.[tab])) arr = j[tab]
+    else {
+      const key = ['data', 'rows', 'results', 'records', 'items', 'values']
+        .find((k) => Array.isArray(j?.[k]))
+        ?? Object.keys(j ?? {}).find((k) => Array.isArray(j[k]))
+      arr = key ? j[key] : null
+    }
+  }
+  if (!Array.isArray(arr)) throw new Fail('not_a_table', 'That JSON has no list of rows in it.')
+  if (arr.length === 0) throw new Fail('empty', 'That list is empty.')
+
+  if (Array.isArray(arr[0])) {
+    const head = arr[0].map((h: any, i: number) => ({
+      key: `c${i}`, label: String(h ?? '').trim() || `Column ${i + 1}`, type: 'text' as const,
+    }))
+    return typed(head, arr.slice(1).map((r: any[]) => head.map((_, i) => str(r[i]))))
+  }
+
+  if (typeof arr[0] !== 'object' || arr[0] === null) {
+    throw new Fail('not_a_table', 'That list holds values rather than rows.')
+  }
+
+  // Every key any row has, in the order they were first seen. Union rather than
+  // the first row's keys, because a field that is absent on row one and present
+  // on row two is a column somebody will look for.
+  const keys: string[] = []
+  for (const r of arr.slice(0, 200)) {
+    for (const k of Object.keys(r ?? {})) if (!keys.includes(k)) keys.push(k)
+  }
+  const columns: Col[] = keys.map((k, i) => ({ key: `c${i}`, label: k, type: 'text' }))
+  return typed(columns, arr.map((r: any) => keys.map((k) => str(r?.[k]))))
+}
+
+const str = (v: any): string =>
+  v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v)
+
+/**
+ * What each column IS, decided by every value in it rather than the first one.
+ *
+ * A column is a number only if every value that is present parses as one --
+ * one "n/a" in a thousand rows makes it text, which is right: a column Hopper
+ * would silently turn into nulls is worse than a column it treats as words.
+ * Same for dates, and the accepted shapes are the unambiguous ones only. There
+ * is no way to tell 03/04/2026 apart from itself, so it stays text rather than
+ * being guessed at and being wrong for half the world.
+ */
+const ISO = /^\d{4}-\d{2}-\d{2}(?:[T ][\d:.]+)?(?:Z|[+-]\d{2}:?\d{2})?$/
+const DMY = /^(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* (\d{4})$/i
+const MDY = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* (\d{1,2}),? (\d{4})$/i
+const MONTH = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
+
+function typed(columns: Col[], rows: string[][]): Sheet {
+  const out: (string | number | null)[][] = rows.map((r) => [...r])
+
+  columns.forEach((col, i) => {
+    const seen = rows.map((r) => (r[i] ?? '').trim()).filter((v) => v !== '')
+    if (seen.length === 0) return
+
+    if (seen.every(isNumber)) {
+      col.type = 'number'
+      out.forEach((r, ri) => { r[i] = toNumber(String(rows[ri][i] ?? '')) })
+      return
+    }
+    if (seen.every((v) => isoDay(v) !== null)) {
+      col.type = 'date'
+      out.forEach((r, ri) => { r[i] = isoDay(String(rows[ri][i] ?? '')) })
+      return
+    }
+    out.forEach((r, ri) => { r[i] = (rows[ri][i] ?? '').trim() || null })
+  })
+
+  return { columns, rows: out }
+}
+
+/** Money and thousands separators are how a number arrives in a real export. */
+const isNumber = (v: string) => toNumber(v) !== null
+function toNumber(v: string): number | null {
+  const t = v.trim()
+  if (!t) return null
+  const neg = /^\(.*\)$/.test(t)                       // (1,234) is accounting for -1234
+  const bare = t.replace(/^\(|\)$/g, '').replace(/[$£€,\s]/g, '').replace(/%$/, '')
+  if (!/^[+-]?\d*\.?\d+(?:[eE][+-]?\d+)?$/.test(bare)) return null
+  const n = Number(bare)
+  return Number.isFinite(n) ? (neg ? -n : n) : null
+}
+
+function isoDay(v: string): string | null {
+  const t = v.trim()
+  if (ISO.test(t)) return t.slice(0, 10)
+  const a = t.match(DMY)
+  if (a) return `${a[3]}-${String(MONTH.indexOf(a[2].toLowerCase().slice(0,3)) + 1).padStart(2,'0')}-${a[1].padStart(2,'0')}`
+  const b = t.match(MDY)
+  if (b) return `${b[3]}-${String(MONTH.indexOf(b[1].toLowerCase().slice(0,3)) + 1).padStart(2,'0')}-${b[2].padStart(2,'0')}`
+  return null
+}
+
+
+
 class Fail extends Error {
   constructor(public code: string, message: string) { super(message) }
 }
@@ -236,10 +496,20 @@ async function look(admin: any, rep: any) {
   const id = rep.report_id ?? rep.id
   const started = Date.now()
   try {
-    if (rep.source_kind !== 'google_sheet') {
-      throw new Fail('unsupported', `Hopper cannot read a ${rep.source_kind} source yet.`)
+    // A snapshot is not looked at again -- it was stored when it was given, and
+    // the constraint on hopper.report already says a snapshot carries no
+    // schedule. Reaching here means somebody asked for a refresh anyway.
+    if (rep.source_kind === 'upload' || rep.source_kind === 'paste') {
+      throw new Fail('snapshot',
+        'This report is a snapshot of what was handed to Hopper, so there is nowhere to go back to. Replace it to change the figures.')
     }
-    const sheet = await readGoogle(rep.source_url, rep.source_tab)
+    if (rep.source_kind === 'airtable' || rep.source_kind === 'microsoft') {
+      throw new Fail('unsupported',
+        `Hopper cannot read a ${rep.source_kind === 'airtable' ? 'Airtable' : 'Microsoft'} source yet.`)
+    }
+    const sheet = rep.source_kind === 'google_sheet'
+      ? await readGoogle(rep.source_url, rep.source_tab)
+      : await readLink(rep.source_url, rep.source_tab)
     const { readings } = await store(admin, rep, sheet)
 
     await admin.schema('hopper').from('report_check').insert({
@@ -318,7 +588,19 @@ Deno.serve(async (req) => {
     if (!user) return json({ error: 'Not signed in.' }, 401)
 
     try {
-      const sheet = await readGoogle(body.peek.url ?? '', body.peek.tab ?? null)
+      // The kind comes from the form, because a link and a sheet are read two
+      // different ways and peek is meant to show you what the SAVED report
+      // will see. Without it a link peeked as a sheet, which failed with
+      // Google's own words about sharing -- for an address Google has never
+      // heard of.
+      const url = body.peek.url ?? ''
+      const kind = body.peek.kind === 'link' ? 'link'
+        : body.peek.kind === 'google_sheet' ? 'google_sheet'
+        // No kind sent: guess from the address, so an older client still works.
+        : /docs\.google\.com\/spreadsheets/.test(url) ? 'google_sheet' : 'link'
+      const sheet = kind === 'google_sheet'
+        ? await readGoogle(url, body.peek.tab ?? null)
+        : await readLink(url, body.peek.tab ?? null)
       return json({
         ok: true,
         columns: sheet.columns,

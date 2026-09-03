@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   const { data: { session } } = await db.auth.getSession()
   if (!session) return NextResponse.json({ ok: false, failure: 'Sign in again.' }, { status: 401 })
 
-  const { url, tab } = await req.json().catch(() => ({ url: null, tab: null }))
+  const { url, tab, kind } = await req.json().catch(() => ({ url: null, tab: null, kind: null }))
   if (!url) return NextResponse.json({ ok: false, failure: 'Where does the data live?' })
 
   try {
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ peek: { url, tab: tab || null } }),
+      body: JSON.stringify({ peek: { url, tab: tab || null, kind: kind || null } }),
       cache: 'no-store',
     })
     return NextResponse.json(await res.json())

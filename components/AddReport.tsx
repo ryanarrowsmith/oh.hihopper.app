@@ -12,7 +12,7 @@ type Col = { key: string; label: string; type: 'text' | 'number' | 'date' }
 
 const SOURCES = [
   { k: 'google_sheet', t: 'Google Sheets', s: 'A link-shared sheet. No key needed.', live: true },
-  { k: 'link', t: 'A link', s: 'Any address that answers with CSV or JSON.', live: true },
+  { k: 'link', t: 'A link', s: 'Any https address that answers with CSV or JSON.', live: true },
   { k: 'upload', t: 'Upload a file', s: 'A .csv or .tsv, kept as it is.', live: false },
   { k: 'paste', t: 'Paste the data', s: 'For a one-off number nobody else holds.', live: false },
 ]
@@ -87,7 +87,7 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
     try {
       const res = await fetch('/api/report/peek', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, tab }),
+        body: JSON.stringify({ url, tab, kind }),
       })
       const out = await res.json()
       if (out.ok) {
@@ -177,14 +177,27 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
               <div>
                 <label htmlFor="ar-url">Where does the data live?</label>
                 <input className="field" id="ar-url" value={url} onChange={(e) => { setUrl(e.target.value); setCols(null) }}
-                       placeholder="https://docs.google.com/spreadsheets/d/…" />
-                <p className="hint">Share → General access → Anyone with the link → Viewer. No key needed.</p>
+                       placeholder={kind === 'link'
+                         ? 'https://example.com/exports/weekly.csv'
+                         : 'https://docs.google.com/spreadsheets/d/…'} />
+                <p className="hint">
+                  {kind === 'link'
+                    ? 'It has to answer without a sign-in — Hopper reads it as nobody in particular, and does not hold anybody’s key.'
+                    : 'Share → General access → Anyone with the link → Viewer. No key needed.'}
+                </p>
               </div>
+              {/* Two fields, two meanings. A sheet has tabs; a JSON body has a
+                  key holding the list. Same box, because it is the same
+                  question -- which part of what is there? */}
               <div>
-                <label htmlFor="ar-tab">Tab</label>
+                <label htmlFor="ar-tab">{kind === 'link' ? 'Which list' : 'Tab'}</label>
                 <input className="field" id="ar-tab" value={tab} onChange={(e) => { setTab(e.target.value); setCols(null) }}
-                       placeholder="The one the link points at" />
-                <p className="hint">Tab names are case-sensitive. Leave it empty for the tab in the link.</p>
+                       placeholder={kind === 'link' ? 'Leave empty for a CSV' : 'The one the link points at'} />
+                <p className="hint">
+                  {kind === 'link'
+                    ? 'Only for JSON, and only when the rows sit under a name Hopper cannot guess. CSV ignores it.'
+                    : 'Tab names are case-sensitive. Leave it empty for the tab in the link.'}
+                </p>
               </div>
             </div>
           )}
