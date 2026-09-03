@@ -269,21 +269,43 @@ export async function setEntityAdmins(_prev: Result | null, form: FormData): Pro
 export async function addAdministrator(_prev: Result | null, form: FormData): Promise<Result> {
   const { db, account } = await ctx()
   const entity_id = str(form, 'entity_id')
-  const full_name = str(form, 'full_name')
-  if (!entity_id || !full_name) return { ok: false, message: 'An administrator needs a name.' }
+  const person_id = str(form, 'person_id')
+  if (!entity_id) return { ok: false, message: 'No organization to administer.' }
+  if (!person_id) return { ok: false, message: 'Choose somebody from the roster.' }
 
-  const existing = str(form, 'person_id')
-  let person_id = existing
-
-  if (!person_id) {
-    const { data, error } = await db.schema('hopper').from('person').insert({
-      account_id: account, full_name,
-      email: nul(form, 'email'), role_title: nul(form, 'role_title'),
-      entity_id,
-    }).select('id').single()
-    if (error) return { ok: false, message: refused(error.message, 'person') }
-    person_id = data.id
+  /**
+   * Somebody already on the roster, and only that.
+   *
+   * This used to take a name and an email and CREATE a person, which is how
+   * the account ended up with two rows for the same human -- twice, an hour
+   * apart, both with the same address as the row that signs in. Two ways to
+   * make a person is one too many.
+   *
+   * And only somebody who can sign in. beebee.app_access decides who may open
+   * Hopper and it hangs off an identity; a roster entry without one cannot get
+   * in, so naming them an administrator writes a grant that does nothing and
+   * puts their name on a screen claiming otherwise.
+   *
+   * The name comes from the directory rather than from the form, so the line
+   * in the ledger says what the record says. A name typed into a form is a
+   * second answer to "who is this", which is exactly what today's identity
+   * work was about.
+   */
+  const { data: who } = await db.schema('hopper').from('person')
+    .select('full_name, profile_id').eq('id', person_id).maybeSingle()
+  if (!who) return { ok: false, message: 'That person is not on a roster you can see.' }
+  // Checked here as well as hidden from the picker: a form is a suggestion and
+  // this is the rule. Administering something you cannot open is not a
+  // permission, it is a label.
+  if (!who.profile_id) {
+    return { ok: false, message: 'They have no login yet, so there is nothing for them to administer. Invite them first.' }
   }
+
+  // The name of record, from the profile where there is one -- which here
+  // there always is.
+  const { data: named } = await db.schema('hopper').from('directory')
+    .select('full_name').eq('id', person_id).maybeSingle()
+  const full_name = named?.full_name ?? who.full_name
 
   const { error: gErr } = await db.schema('hopper').from('access_grant').upsert({
     account_id: account, person_id, object: 'entity', scope_id: entity_id,
@@ -306,8 +328,7 @@ export async function addAdministrator(_prev: Result | null, form: FormData): Pr
 
   await logAudit(db, { account_id: account, kind: 'access', object: full_name,
     object_id: entity_id,
-    summary: existing ? `Made ${full_name} an administrator`
-                      : `Added ${full_name} and made them an administrator` })
+    summary: `Made ${full_name} an administrator` })
   revalidatePath(`/admin/organizations/${entity_id}`)
   revalidatePath('/admin/users'); revalidatePath('/admin/permissions')
   return { ok: true, message: `${full_name} administers this organization now.` }

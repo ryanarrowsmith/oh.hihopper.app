@@ -30,7 +30,7 @@ export default async function Entity({ params }: { params: { id: string } }) {
       db.schema('hopper').from('entity_module')
         .select('module_key, enabled').eq('entity_id', params.id),
       db.schema('hopper').from('person')
-        .select('id, full_name, role_title, photo_url').eq('active', true).order('full_name'),
+        .select('id, full_name, role_title, photo_url, profile_id').eq('active', true).order('full_name'),
       db.schema('hopper').from('access_grant')
         .select('person_id, may_edit').eq('object', 'entity').eq('scope_id', params.id),
       db.schema('hopper').from('entity_rights').select('may_edit').eq('entity_id', params.id).maybeSingle(),
@@ -47,6 +47,22 @@ export default async function Entity({ params }: { params: { id: string } }) {
   const byPerson = new Map(roster.map((p: any) => [p.id, p]))
   const adminIds = new Set((grants ?? []).filter((g: any) => g.may_edit).map((g: any) => g.person_id))
   const admins = roster.filter((p: any) => adminIds.has(p.id))
+  /**
+   * Who can be made an administrator.
+   *
+   * Somebody who can sign in, and nobody else. A roster entry with no
+   * profile_id cannot open Hopper at all -- beebee.app_access decides that and
+   * it hangs off an identity that does not exist yet -- so naming them here
+   * writes a grant that does nothing until somebody invites them, and leaves a
+   * screen saying they administer this organization when they cannot open it.
+   *
+   * They are not greyed out in the list, they are absent, and the note below
+   * the picker says why rather than leaving somebody hunting for a name they
+   * can see on the People page.
+   */
+  const canSignIn = roster.filter((p: any) => p.profile_id)
+  const notAdmins = canSignIn.filter((p: any) => !adminIds.has(p.id))
+  const onRosterOnly = roster.filter((p: any) => !p.profile_id).length
 
   const leaderOptions = [
     { value: '', label: 'Nobody yet' },
@@ -140,22 +156,24 @@ export default async function Entity({ params }: { params: { id: string } }) {
         blurb="Only these people may edit this organization or add departments and offices to it. Everyone else can look. Naming somebody here also makes them an administrator of everything beneath this organization."
         addLabel="Adding an administrator"
         addForm={mayEdit ? (
-            <RowForm action={addAdministrator} label="Add them" busy="Adding…">
+            <RowForm action={addAdministrator} label="Make them an administrator" busy="Saving…">
               <input type="hidden" name="entity_id" value={e.id} />
-              <div className="formrow">
-                <div><label htmlFor="ad-name">Full name</label>
-                  <input className="field" id="ad-name" name="full_name" required /></div>
-                <div><label htmlFor="ad-email">Email</label>
-                  <input className="field" id="ad-email" name="email" type="email" /></div>
-              </div>
-              <div style={{ marginTop: 12 }}>
-                <label htmlFor="ad-role">Title</label>
-                <input className="field" id="ad-role" name="role_title"
-                       placeholder="Operations manager" />
-              </div>
+              <label htmlFor="ad-who">Who</label>
+              <Choice id="ad-who" name="person_id" required
+                      placeholder={notAdmins.length === 0
+                        ? (canSignIn.length === 0 ? 'Nobody has a login yet' : 'Everybody already does')
+                        : 'Choose somebody'}
+                      options={notAdmins.map((p: any) => ({
+                        value: p.id, label: p.full_name, hint: p.role_title ?? undefined }))} />
               <p className="fine" style={{ marginTop: 10 }}>
-                This puts them on the roster. It does not give them a login — the
-                platform owns identity, and an invitation is a separate act.
+                Only people who can sign in. Administering something you cannot
+                open is not a permission, it is a label — so somebody on the
+                roster without a login is not offered here until they have one.
+                {onRosterOnly > 0 && (
+                  <> {onRosterOnly} {onRosterOnly === 1 ? 'person is' : 'people are'} on
+                  the roster without one.</>
+                )}{' '}
+                <a href="/admin/users">Users</a> is where that starts.
               </p>
             </RowForm>
         ) : undefined}
