@@ -37,6 +37,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="app">
+      {/* Before anything paints, so a folded rail does not flash open on every
+          page load. One line, no dependency, and a browser that refuses
+          storage just gets the rail unfolded. */}
+      <script dangerouslySetInnerHTML={{ __html:
+        "try{if(localStorage.getItem('hopper.rail')==='min')document.documentElement.dataset.rail='min'}catch(e){}" }} />
       <TopBar initials={session.initials} entities={entities ?? []}
               personId={session.personId} displayName={session.displayName}
               accountName={session.accountName} email={session.email}

@@ -25,6 +25,7 @@ const I = (d: string, w = '1.7') => (
 )
 
 const H0 = 7, H1 = 20, PX = 34
+const SIDE_KEY = 'hopper.calside'
 
 export default function Calendar({ events, feeds, bdays, annis, address }: {
   events: Ev[]; feeds: Feed[]; bdays: Celebrant[]; annis: Celebrant[]; address: string | null
@@ -33,6 +34,19 @@ export default function Calendar({ events, feeds, bdays, annis, address }: {
   const [anchor, setAnchor] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d })
   const [off, setOff] = useState<Set<string>>(new Set())
   const [now, setNow] = useState<Date | null>(null)
+  // Folded or not. Starts open and corrects on mount rather than reading
+  // storage during render, because the server has no localStorage and a first
+  // paint that disagrees with the second is a flash of the wrong answer.
+  const [sideMin, setSideMin] = useState(false)
+
+  useEffect(() => {
+    try { setSideMin(localStorage.getItem(SIDE_KEY) === 'min') } catch { /* fine */ }
+  }, [])
+
+  const foldSide = () => setSideMin((m) => {
+    try { localStorage.setItem(SIDE_KEY, m ? 'open' : 'min') } catch { /* not fatal */ }
+    return !m
+  })
 
   // The line across today, and only ever drawn once the browser has a clock:
   // the server's is UTC, and a red line an hour out is worse than none.
@@ -110,8 +124,9 @@ export default function Calendar({ events, feeds, bdays, annis, address }: {
 
   return (
     <>
-      <div className="calwrap">
-        <CalSide feeds={feeds} off={off} toggle={toggle} address={address} />
+      <div className={`calwrap${sideMin ? ' is-min' : ''}`}>
+        <CalSide feeds={feeds} off={off} toggle={toggle} address={address}
+                 min={sideMin} fold={foldSide} />
 
         <div className="calmain">
           <div className="calbar">
@@ -249,8 +264,9 @@ function Timed({ e, col, cols, top, px }: {
 
 /** What is on, what is subscribed, and the address that puts Hopper in your
  *  own calendar app. */
-function CalSide({ feeds, off, toggle, address }: {
+function CalSide({ feeds, off, toggle, address, min, fold }: {
   feeds: Feed[]; off: Set<string>; toggle: (k: string) => void; address: string | null
+  min: boolean; fold: () => void
 }) {
   const [copied, setCopied] = useState(false)
   const url = address ? `${typeof window === 'undefined' ? '' : window.location.origin}/cal/${address}/hopper.ics` : null
@@ -266,7 +282,17 @@ function CalSide({ feeds, off, toggle, address }: {
 
   return (
     <aside className="calside">
-      <p className="calside__h">Calendars</p>
+      <button className="calside__top" type="button" aria-expanded={!min} onClick={fold}
+              aria-label={min ? 'Show the calendars' : 'Hide the calendars'}>
+        {I('<rect x="3" y="5" width="18" height="16"/><path d="M3 10h18M8 3v4M16 3v4"/>', '1.8')}
+        <b>Calendars</b>
+        <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M15 6l-6 6 6 6" /></svg>
+      </button>
+
+      <div className="calside__body">
+      <p className="calside__h">Showing</p>
       {row('sched', 'Report schedule', '--s1')}
       {row('late', 'Behind', '--amber')}
       {row('birthday', 'Birthdays', '--amber')}
@@ -307,6 +333,7 @@ function CalSide({ feeds, off, toggle, address }: {
       ) : (
         <p className="calsub">No address yet.</p>
       )}
+      </div>
     </aside>
   )
 }

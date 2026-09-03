@@ -273,7 +273,7 @@ p{margin:0}
 .mrow--out:hover{background:rgba(242,169,59,.14); color:#F2A93B}
 
 /* ============ BODY: rail + main ============ */
-.shell{display:grid; grid-template-columns:214px minmax(0,1fr)}
+.shell{display:grid; grid-template-columns:var(--rail-w,214px) minmax(0,1fr)}
 .rail{
   background:var(--sunken); border-right:1px solid var(--rule);
   padding:14px 0 20px;
@@ -335,6 +335,60 @@ p{margin:0}
 .menubtn .cur{color:var(--ink-3); font-weight:600}
 .menubtn .chev{margin-left:auto; transition:transform .16s}
 .menubtn[aria-expanded="true"] .chev{transform:rotate(180deg)}
+
+/* ---- folding the rail ----
+   A rail you cannot put away is a rail that costs 214px on every page whether
+   you are using it or not. Folded it keeps every destination -- the icons stay,
+   and hovering one gives its name back, with its children under it, so folding
+   never makes a place unreachable. */
+.railtog{
+  display:flex; align-items:center; gap:10px; width:100%; margin-top:10px;
+  padding:10px 16px; background:none; border:0; border-top:1px solid var(--rule);
+  font:inherit; font-size:12px; font-weight:600; color:var(--ink-3);
+  cursor:pointer; text-align:left;
+}
+.railtog:hover{background:var(--rule-soft); color:var(--ink)}
+.railtog svg{width:15px; height:15px; flex:none; fill:none; stroke:currentColor;
+  stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; transition:transform .18s}
+
+/* Below 861px the rail is already a drop-down, and a drop-down of icons with
+   no names is nobody's idea of a menu. So folding only exists above that. */
+@media (min-width:861px){
+  [data-rail="min"] .shell{--rail-w:58px}
+  [data-rail="min"] .railtog{justify-content:center; padding:10px 0}
+  [data-rail="min"] .railtog svg{transform:rotate(180deg)}
+  [data-rail="min"] .railtog .nav__t{display:none}
+
+  /* The section labels keep their words for anything reading rather than
+     looking, and give a sighted reader the one thing that still fits: a rule. */
+  [data-rail="min"] .rail__lbl{
+    height:1px; padding:0; margin:14px 14px 9px; background:var(--rule);
+    overflow:hidden; color:transparent;
+  }
+  [data-rail="min"] .rail__cut{margin:12px 14px}
+
+  [data-rail="min"] .navgrp{position:relative}
+  [data-rail="min"] .par > a{height:38px; justify-content:center; padding:0; gap:0}
+  [data-rail="min"] .par .nav__t{display:none}
+  [data-rail="min"] .navcar{display:none}
+  [data-rail="min"] .par[aria-expanded="true"] + .kids{display:none}
+
+  /* The name, and what is under it, hang off the rail's own edge -- flush, so
+     there is no gap between control and panel to lose the pointer in. */
+  [data-rail="min"] .navgrp:hover .par .nav__t{
+    display:flex; align-items:center; position:absolute; left:100%; top:0;
+    z-index:61; height:38px; min-width:184px; padding:0 14px; white-space:nowrap;
+    background:var(--surface); border:1px solid var(--rule); border-left:0;
+    box-shadow:var(--shadow); font-size:13.5px; font-weight:700; color:var(--ink);
+  }
+  [data-rail="min"] .navgrp:hover .kids{
+    display:flex; position:absolute; left:100%; top:38px; z-index:60;
+    min-width:184px; width:max-content; padding:4px 0;
+    background:var(--surface); border:1px solid var(--rule); border-left:0;
+    border-top:0; box-shadow:var(--shadow);
+  }
+  [data-rail="min"] .navgrp:hover .kids a{padding:8px 14px}
+}
 
 /* ============ BUBBLE BUTTONS (canvas-toned, on the canvas) ============ */
 .tools{display:flex; justify-content:flex-end; gap:16px; margin-bottom:2px; padding-bottom:24px}
@@ -4192,7 +4246,19 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
 .hx .hxcard--map{padding:0; overflow:hidden}
 .hx .hxcard--map .hxcard__h{padding:13px 14px 10px}
 .hx .hxcard--map .hxrows{padding:4px 14px}
-.hx .hxcard--map .hxcard__f{padding:10px 14px 13px}
+.hx .hxcard--map .hxcard__f{padding:10px 14px 13px; align-items:center}
+/* One goes further in, one goes out of Hopper entirely. Two opposite journeys,
+   so they sit at opposite ends rather than side by side pretending to be a
+   pair. */
+.hx .hxcard--map .hxcard__f > :last-child{margin-left:auto}
+/* A card that clips cannot hold a tip that hangs below it, so in here they
+   hang upward, and the two at the ends hang from the end they are at. */
+.hx .hxcard--map .hxcard__f [data-tip]::after{top:auto; bottom:calc(100% + 7px)}
+.hx .hxcard--map .hxcard__f [data-tip]::before{top:auto; bottom:calc(100% + 3px)}
+.hx .hxcard--map .hxcard__f > :first-child::after{left:0; transform:none}
+.hx .hxcard--map .hxcard__f > :first-child::before{left:19px}
+.hx .hxcard--map .hxcard__f > :last-child::after{left:auto; right:0; transform:none}
+.hx .hxcard--map .hxcard__f > :last-child::before{left:auto; right:19px; margin-left:-3.5px}
 
 .hx .map{position:relative; display:block; width:100%; aspect-ratio:16/9;
   background:var(--mapland); border-top:1px solid var(--rule);
@@ -4592,9 +4658,44 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
 .app:has(.notipop) .toasts{display:none}
 
 /* ============ THE CALENDAR ============ */
-.calwrap{display:grid; grid-template-columns:222px minmax(0,1fr);
+.calwrap{display:grid; grid-template-columns:var(--calside-w,238px) minmax(0,1fr);
   gap:clamp(16px,2vw,22px); align-items:start; margin-top:16px}
-@media (max-width:900px){ .calwrap{grid-template-columns:minmax(0,1fr)} }
+
+/* The switches and the subscribe address were loose text sitting on the canvas
+   next to a box. They are one thing, so they get one container -- and a
+   container you can fold, because most days you set the switches once and then
+   want the width back. */
+.calside{
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  box-shadow:var(--shadow); overflow:hidden;
+}
+.calside__top{
+  display:flex; align-items:center; gap:9px; width:100%; padding:11px 12px;
+  background:var(--sunken); border:0; border-bottom:1px solid var(--rule);
+  font:inherit; font-size:12px; font-weight:700; color:var(--ink);
+  cursor:pointer; text-align:left;
+}
+.calside__top:hover{background:var(--canvas-2)}
+.calside__top svg{width:15px; height:15px; flex:none; fill:none; stroke:currentColor;
+  stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round}
+.calside__top .chev{margin-left:auto}
+.calside__body{padding:13px 13px 15px}
+
+.calwrap.is-min{--calside-w:44px}
+.calwrap.is-min .calside__top{justify-content:center; padding:13px 0; border-bottom:0}
+.calwrap.is-min .calside__top b, .calwrap.is-min .calside__top .chev{display:none}
+.calwrap.is-min .calside__body{display:none}
+
+@media (max-width:900px){
+  .calwrap, .calwrap.is-min{grid-template-columns:minmax(0,1fr)}
+  /* Stacked, the panel is already full width, so folding it is a matter of
+     the body going away -- a full-width bar with one centred icon in it is
+     not a control, it is a mistake. */
+  .calwrap.is-min .calside__top{justify-content:flex-start; padding:11px 12px;
+    border-bottom:1px solid var(--rule)}
+  .calwrap.is-min .calside__top b{display:revert}
+  .calwrap.is-min .calside__top .chev{display:revert; transform:rotate(180deg)}
+}
 
 .calmain{min-width:0; background:var(--surface); border:1px solid var(--rule);
   border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden}

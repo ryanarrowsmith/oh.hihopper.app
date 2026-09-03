@@ -237,13 +237,19 @@ export function LocsWidget({ places }: { places: any[] }) {
                       journeys, so they are two buttons rather than one that
                       guesses. */}
                   {l.entityId && (
-                    <Link className="btn" href={`/admin/organizations/${l.entityId}/locations/${l.id}` as any}>
-                      Open
+                    <Link className="cbub" data-tip="Open" aria-label={`Open ${l.name}`}
+                          href={`/admin/organizations/${l.entityId}/locations/${l.id}` as any}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
+                           strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12h13M12 5.5 18.5 12 12 18.5" /></svg>
                     </Link>
                   )}
-                  <a className="btn" target="_blank" rel="noreferrer"
+                  <a className="cbub" target="_blank" rel="noreferrer"
+                     data-tip="Directions" aria-label={`Directions to ${l.name}`}
                      href={`https://maps.google.com/?q=${encodeURIComponent(String(l.address).replace(/\n/g, ', '))}`}>
-                    Directions
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
+                         strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21.5 3.2 2.8 10.4l7.3 2.9 2.9 7.3z" /></svg>
                   </a>
                 </span>
               </article>

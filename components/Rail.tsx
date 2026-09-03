@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -65,35 +65,40 @@ function Group({ items, path, here }: { items: Item[]; path: string; here: strin
     <div className="nav">
       {items.map((it) => {
         const on = it.href === here
-        if (!it.kids) return (
-          <Link key={it.href} href={it.href as any} className={on ? 'on' : ''}
-                aria-current={on ? 'page' : undefined}>{it.icon}{it.label}</Link>
-        )
         // A submenu holding the current page opens itself. The old default of
         // closed meant landing on Locations lit the parent and hid the child --
         // the one item that was actually where you are.
-        const holds = it.kids.some((k) => k.href === here)
+        const holds = (it.kids ?? []).some((k) => k.href === here)
         const isOpen = open[it.href] ?? (on || holds)
+        // Every entry is wrapped the same way, kids or not: folded, the group is
+        // what a hover hangs a name off, and a shape that changes per item is a
+        // shape you have to write twice.
         return (
-          <div key={it.href}>
-            <div className="par" aria-expanded={isOpen}>
+          <div className="navgrp" key={it.href}>
+            <div className="par" aria-expanded={it.kids ? isOpen : undefined}>
               <Link href={it.href as any} className={on ? 'on' : ''}
-                    aria-current={on ? 'page' : undefined}>{it.icon}{it.label}</Link>
-              <button className="navcar" type="button"
-                aria-label={`${isOpen ? 'Hide' : 'Show'} what's under ${it.label}`}
-                onClick={() => setOpen({ ...open, [it.href]: !isOpen })}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
-                     strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
-              </button>
+                    aria-current={on ? 'page' : undefined}>
+                {it.icon}<span className="nav__t">{it.label}</span>
+              </Link>
+              {it.kids && (
+                <button className="navcar" type="button"
+                  aria-label={`${isOpen ? 'Hide' : 'Show'} what's under ${it.label}`}
+                  onClick={() => setOpen({ ...open, [it.href]: !isOpen })}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
+                       strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+                </button>
+              )}
             </div>
-            <div className="kids">
-              {it.kids.map((k) => (
-                <Link key={k.href} href={k.href as any} className={k.href === here ? 'on' : ''}
-                      aria-current={k.href === here ? 'page' : undefined}>
-                  <Elbow />{k.label}
-                </Link>
-              ))}
-            </div>
+            {it.kids && (
+              <div className="kids">
+                {it.kids.map((k) => (
+                  <Link key={k.href} href={k.href as any} className={k.href === here ? 'on' : ''}
+                        aria-current={k.href === here ? 'page' : undefined}>
+                    <Elbow /><span className="nav__t">{k.label}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         )
       })}
@@ -117,9 +122,32 @@ function currentHref(path: string, items: Item[]) {
   return all.filter(holds).sort((a, b) => b.length - a.length)[0] ?? '/'
 }
 
+/**
+ * Folded or not.
+ *
+ * The attribute lives on <html> and is put there by a one-line script in the
+ * layout, before anything paints -- so a folded rail does not flash open on
+ * every page load. This only reads it back and writes it, which is why the
+ * state starts false and corrects on mount rather than reading storage during
+ * render: the server has no localStorage.
+ */
+const RAIL_KEY = 'hopper.rail'
+
 export default function Rail({ modules }: { modules: string[] }) {
   const path = usePathname()
   const [open, setOpen] = useState(false)
+  const [min, setMin] = useState(false)
+
+  useEffect(() => { setMin(document.documentElement.dataset.rail === 'min') }, [])
+
+  const fold = () => {
+    const next = !min
+    setMin(next)
+    const el = document.documentElement
+    if (next) el.dataset.rail = 'min'
+    else delete el.dataset.rail
+    try { localStorage.setItem(RAIL_KEY, next ? 'min' : 'full') } catch { /* not fatal */ }
+  }
   const mods = modules.map((m) => MODULE_NAV[m]).filter(Boolean)
   const items = [...FRAME, ...mods, ...TAIL]
   const here = currentHref(path, items)
@@ -148,6 +176,14 @@ export default function Rail({ modules }: { modules: string[] }) {
         </>}
         <div className="rail__cut" />
         <Group items={TAIL} path={path} here={here} />
+
+        <button className="railtog" type="button" onClick={fold}
+                aria-label={min ? 'Show the menu names' : 'Collapse the menu'}
+                data-tip={min ? 'Expand' : undefined}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+               strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg>
+          <span className="nav__t">Collapse</span>
+        </button>
       </nav>
     </>
   )
