@@ -80,7 +80,7 @@ export default async function Page() {
                     {/* Retired, not gone. It keeps its name and everybody filed
                         under it keeps their answer to "which department?". */}
                     {d.active === false && (
-                      <span className="mark mark--sm" data-tip="Retired — no longer offered"
+                      <span className="statmark statmark--sm" data-tip="Retired — no longer offered"
                             role="img" aria-label="Retired">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                              strokeWidth="2" strokeLinecap="round"><path d="M5 12h14" /></svg>

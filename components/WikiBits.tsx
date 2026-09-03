@@ -43,10 +43,10 @@ export function CheckMark({ at }: { at: string | null }) {
     : s === 'old' ? `Last checked ${ago(at)} — probably out of date`
     : s === 'due' ? `Last checked ${ago(at)} — wants confirming`
     : `Checked ${ago(at)}`
-  const tone = s === 'ok' ? 'mark--good' : s === 'due' ? 'mark--warn' : 'mark--bad'
+  const tone = s === 'ok' ? 'statmark--good' : s === 'due' ? 'statmark--warn' : 'statmark--bad'
   const short = s === 'never' ? 'Never checked' : `Checked ${ago(at)}`
   return (
-    <span className={`mark mark--sm ${tone}`} data-tip={word} role="img" aria-label={word}>
+    <span className={`statmark statmark--sm ${tone}`} data-tip={word} role="img" aria-label={word}>
       {s === 'ok' ? I(TICK, '2.4') : s === 'due' ? I(CLOCK, '2') : I(WARN, '2')}
       <b>{short}</b>
     </span>

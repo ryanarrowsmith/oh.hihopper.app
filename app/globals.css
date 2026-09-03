@@ -460,8 +460,10 @@ a.bub{text-decoration:none}
   margin-top:9px; font-size:13px; color:var(--ink-3);
   display:flex; flex-wrap:wrap; gap:4px 8px; align-items:center;
 }
-.hi .scopeline a{color:var(--steel-ink); font-weight:700; text-decoration:none}
-.hi .scopeline a:hover{text-decoration:underline}
+/* No hover rule here. .scopeline a already draws a hairline underneath and
+   darkens it on hover; adding text-decoration:underline on top drew a SECOND
+   line a pixel below the first. One link, one underline. */
+.hi .scopeline a{color:var(--steel-ink); font-weight:700}
 
 /* ============ DOLLY CARD ============ */
 .dolly{
@@ -5600,8 +5602,18 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
     font-weight:800; letter-spacing:.11em; text-transform:uppercase}
 }
 
-/* ====================================================== A MARK, NOT A BOX ==
+/* ================================================= A MARK, NOT A BOX OF WORDS ==
    Standing rule: prefer an icon with a floating label to a text box.
+
+   .statmark, not .mark. .mark is the Hopper WORDMARK -- the top bar, the
+   footer, sign-in, forgot, reset, no-access, both print sheets and the email
+   preview all render <span class="mark mark--sm">hopper<span class="pd">.</span>
+   </span>. Defining .mark here forced every one of them into a 23px box with a
+   sunken background, which is why the 'h' had a pale square around it and the
+   amber period fell out of the bar.
+
+   The collision check that should have caught this was run BEFORE this block
+   was written and never run again. Checking once is not checking.
 
    A status printed in a bordered box is read once and then re-read on every
    visit forever, and six in a row is a wall of shouting capitals. A mark is
@@ -5612,26 +5624,26 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
    switches its tooltips off there -- so an icon labelled only by a tooltip is
    an unlabelled icon on every phone. Below 640px, and anywhere the pointer
    cannot hover, the mark grows and prints its word. One class, both shapes. */
-.mark{width:28px; height:28px; flex:none; display:grid; place-items:center;
+.statmark{width:28px; height:28px; flex:none; display:grid; place-items:center;
   border:1px solid var(--rule); border-radius:var(--r);
   background:var(--sunken); color:var(--ink-3)}
-.mark svg{width:15px; height:15px; display:block; fill:none; stroke:currentColor;
+.statmark svg{width:15px; height:15px; display:block; fill:none; stroke:currentColor;
   stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round}
-.mark b{display:none}
-.mark--good{color:#256F46; background:rgba(46,139,87,.10); border-color:rgba(46,139,87,.34)}
-.mark--warn{color:#8A5A0B; background:var(--warmbg); border-color:var(--warmrule)}
-.mark--bad{color:var(--bad); background:rgba(217,58,43,.09); border-color:rgba(217,58,43,.3)}
-.mark--steel{color:var(--steel-ink); background:var(--steelwash);
+.statmark b{display:none}
+.statmark--good{color:#256F46; background:rgba(46,139,87,.10); border-color:rgba(46,139,87,.34)}
+.statmark--warn{color:#8A5A0B; background:var(--warmbg); border-color:var(--warmrule)}
+.statmark--bad{color:var(--bad); background:rgba(217,58,43,.09); border-color:rgba(217,58,43,.3)}
+.statmark--steel{color:var(--steel-ink); background:var(--steelwash);
   border-color:rgba(45,93,123,.35)}
-.mark--sm{width:23px; height:23px}
-.mark--sm svg{width:13px; height:13px}
-@media (max-width:640px){ .mark{width:auto; height:auto; display:inline-flex;
+.statmark--sm{width:23px; height:23px}
+.statmark--sm svg{width:13px; height:13px}
+@media (max-width:640px){ .statmark{width:auto; height:auto; display:inline-flex;
   align-items:center; gap:6px; padding:4px 9px}
-  .mark b{display:inline; font-family:var(--mono); font-size:9.5px; font-weight:800;
+  .statmark b{display:inline; font-family:var(--mono); font-size:9.5px; font-weight:800;
     letter-spacing:.11em; text-transform:uppercase} }
-@media (hover:none){ .mark{width:auto; height:auto; display:inline-flex;
+@media (hover:none){ .statmark{width:auto; height:auto; display:inline-flex;
   align-items:center; gap:6px; padding:4px 9px}
-  .mark b{display:inline; font-family:var(--mono); font-size:9.5px; font-weight:800;
+  .statmark b{display:inline; font-family:var(--mono); font-size:9.5px; font-weight:800;
     letter-spacing:.11em; text-transform:uppercase} }
 
 /* ================================================================ THE WIKI ==
