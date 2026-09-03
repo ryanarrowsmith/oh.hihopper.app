@@ -100,3 +100,7 @@ export function measureCap(kind: string) {
 /** A kind's name, by its key. Derived, so it cannot drift from the catalogue. */
 export const KIND_NAME: Record<string, string> =
   Object.fromEntries(CHART_KINDS.flatMap((g) => g.kinds.map((k) => [k.k, k.t])))
+
+/** And its one sentence, by key. Same derivation, same reason. */
+export const KIND_SAY: Record<string, string> =
+  Object.fromEntries(CHART_KINDS.flatMap((g) => g.kinds.map((k) => [k.k, k.s])))

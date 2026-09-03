@@ -30,7 +30,7 @@ const PIE_VAR = ['--s1', '--s2', '--s3', '--steel', '--amber', '--canvas-3'] as 
  * the renderer cannot disagree about what exists.
  */
 export {
-  CHART_KINDS, KIND_ICON, KIND_NAME, appliesTo, measureCap, type ChartKind,
+  CHART_KINDS, KIND_ICON, KIND_NAME, KIND_SAY, appliesTo, measureCap, type ChartKind,
 } from '@/lib/charts'
 
 /** Which marks stack, so the scale is the running total rather than the value. */
@@ -72,6 +72,23 @@ const SPREAD_LIMIT = 25
  * caller has to know: a legend under split plots is a second label for
  * something each plot already labels itself.
  */
+/**
+ * Why a chart split, in a sentence, or null if it did not.
+ *
+ * Splitting was the right call and it looked like a fault: three plots appear
+ * where one was asked for and nothing on the screen says why. A reason turns
+ * the same picture from "this is broken" into "of course".
+ */
+export function splitWhy(series: Series[], type?: string): string | null {
+  const live = series.filter((s) => s.points.length > 0)
+  if (!isSplit(live, type)) return null
+  if (live.length > 3) {
+    return `A plot each, because past three measures a colour can no longer say which is which — only the first three separate for every kind of colour vision. The heading does it instead.`
+  }
+  const spread = Math.round(spreadOf(live))
+  return `A plot each, because these are ${spread.toLocaleString()}× apart in size. On one scale the smaller ones would be a flat line along the bottom.`
+}
+
 export function isSplit(series: Series[], type?: string) {
   const live = series.filter((s) => s.points.length > 0)
   // A stacked or single-mark chart is never split: its whole point is that the
@@ -148,9 +165,15 @@ export type Picked = {
 
 export default function Chart({
   type, series, height = 250, labels = true, compact = false, bare = false, picked,
+  together = false,
 }: {
   type: string; series: Series[]; height?: number
   labels?: boolean; compact?: boolean
+  /** Keep every measure on ONE plot, whatever the arithmetic says. The split is
+   *  right often enough to be the default and wrong often enough to need an
+   *  override: somebody comparing shapes rather than sizes wants one picture
+   *  and knows what they are giving up for it. */
+  together?: boolean
   /** Linked selection with the rows behind it. Absent means the plot is not
    *  interactive, which is right on a card. */
   picked?: Picked
@@ -183,7 +206,7 @@ export default function Chart({
    * vertical room, which is why a card never does this and shows the headline
    * measure alone instead.
    */
-  if (!bare && isSplit(live, type)) {
+  if (!bare && !together && isSplit(live, type)) {
     /**
      * The first measure is the headline -- it is the number on the card and at
      * the top of the page -- so it gets the room to show it. Three plots at

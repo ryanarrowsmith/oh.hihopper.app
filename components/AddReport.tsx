@@ -1,11 +1,12 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Choice from '@/components/Choice'
 import GooglePick, { type Picked } from '@/components/GooglePick'
 import Fold from '@/components/Fold'
 import Chart, {
-  Legend, CHART_KINDS, KIND_NAME, measureCap, isSplit, type Series, type ChartKind,
+  Legend, CHART_KINDS, KIND_NAME, KIND_ICON, KIND_SAY, measureCap, isSplit, splitWhy,
+  type Series, type ChartKind,
 } from '@/components/Chart'
 import { createReport } from '@/app/actions/reports'
 
@@ -42,6 +43,7 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
   const [tabs, setTabs] = useState<string[] | null>(null)
   const [tabbing, setTabbing] = useState(false)
   const [points, setPoints] = useState('')
+  const [together, setTogether] = useState(false)
   /** Set when the sheet was PICKED rather than pasted: a private sheet, read
    *  through the account's Google connection. */
   const [file, setFile] = useState<Picked | null>(null)
@@ -151,6 +153,7 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
     f.set('chart_points', points)
     if (file) f.set('google_file_id', file.id)
     f.set('chart_type', chartType); f.set('date_column', dateCol); f.set('chart_x', dateCol)
+    if (together) f.set('chart_together', 'on')
     if (restricted) f.set('restricted', 'on')
     for (const m of measures) f.append('measure', m)
     const out = await createReport(null, f)
@@ -453,8 +456,15 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
             </div>
             <div style={{ padding: 14 }}>
               {preview.length
-                ? <><Chart type={chartType} series={preview} height={220} />
-                    {!isSplit(preview, chartType) && <Legend series={preview} />}</>
+                ? <>
+                    {/* Splitting was the right call and looked like a fault:
+                        three plots appear where one was asked for and nothing
+                        says why. */}
+                    {!together && splitWhy(preview, chartType) &&
+                      <p className="splitwhy">{splitWhy(preview, chartType)}</p>}
+                    <Chart type={chartType} series={preview} height={220} together={together} />
+                    {(together || !isSplit(preview, chartType)) && <Legend series={preview} />}
+                  </>
                 : <p className="empty" style={{ margin: 0 }}>
                     Nothing to draw yet — a chart needs something along the bottom
                     and something to measure.
@@ -473,36 +483,58 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
               measures to what that type can draw, so the form cannot hold an
               answer the chart would refuse. */}
           <Fold title="How it draws" note={KIND_NAME[chartType] ?? 'Choose a mark'}>
-            {CHART_KINDS.map((g) => (
-              <div key={g.group}>
-                <p className="srchead">{g.group}</p>
-                <div className="srcs srcs--kinds">
-                  {g.kinds.map((c) => (
-                    <button key={c.k} className="src" type="button" aria-pressed={chartType === c.k}
-                            onClick={() => {
-                              setChartType(c.k)
-                              setMeasures((m) => m.slice(0, measureCap(c.k)))
-                            }}>
-                      <span className="src__t">{c.t}</span>
-                      <span className="src__s">{c.s}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
+            <div className="kinds">
+              {CHART_KINDS.map((g) => (
+                <Fragment key={g.group}>
+                  <span className="kinds__g">{g.group}</span>
+                  <div className="kinds__r">
+                    {g.kinds.map((c) => (
+                      <button key={c.k} className="kind" type="button"
+                              aria-pressed={chartType === c.k}
+                              onClick={() => {
+                                setChartType(c.k)
+                                setMeasures((m) => m.slice(0, measureCap(c.k)))
+                              }}>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"
+                             dangerouslySetInnerHTML={{ __html: KIND_ICON[c.k] }} />
+                        {c.t}
+                      </button>
+                    ))}
+                  </div>
+                </Fragment>
+              ))}
+            </div>
+            {/* The sentence belongs to whichever one is chosen. Twelve of them
+                at once is twelve answers to a question nobody asked. */}
+            <p className="kinds__say">
+              <b>{KIND_NAME[chartType]}</b> — {KIND_SAY[chartType]}
+            </p>
 
-            <div className="formrow" style={{ marginTop: 6 }}>
-              <div>
-                <label htmlFor="ar-pts">How many readings to draw</label>
-                <input className="field" id="ar-pts" type="number" min={2} max={500}
-                       value={points} onChange={(e) => setPoints(e.target.value)}
-                       placeholder="All of them" />
-                <p className="hint">
-                  The most recent this many. Empty draws every reading the date range holds,
-                  which is what a chart does until somebody says otherwise.
-                </p>
+            {/* Only a question when there is something to answer. */}
+            {splitWhy(preview, chartType) && (
+              <div className="togline" style={{ marginTop: 14 }}>
+                <span className="tog">
+                  <input id="ar-together" type="checkbox" checked={together}
+                         aria-label="Keep them on one plot"
+                         onChange={(e) => setTogether(e.target.checked)} />
+                  <span className="tog__track" /><span className="tog__knob" />
+                </span>
+                <span className="togstate">{together ? 'On' : 'Off'}</span>
+                <span className="togsay">{together
+                  ? 'One plot, one scale. The smaller measures will be close to flat — that is the trade you have made.'
+                  : 'Keep them on one plot anyway. Turn this on when you are comparing shapes rather than sizes.'}</span>
               </div>
-              <div />
+            )}
+
+            <div className="inline1" style={{ marginTop: 16 }}>
+              <label htmlFor="ar-pts">How many readings to draw</label>
+              <input className="field" id="ar-pts" type="number" min={2} max={500}
+                     value={points} onChange={(e) => setPoints(e.target.value)}
+                     placeholder="All of them" />
+              <p className="hint">
+                The most recent this many. Empty draws every reading the date range holds,
+                which is what a chart does until somebody says otherwise.
+              </p>
             </div>
           </Fold>
 

@@ -2910,7 +2910,25 @@ a.gcard:hover{border-color:var(--canvas-3); box-shadow:var(--lift)}
   font:700 12px/1.2 var(--sans); color:var(--ink-2)}
 .chips .chip:hover:not(:disabled){border-color:var(--canvas-3); color:var(--ink)}
 .chips .chip:disabled{opacity:.45; cursor:not-allowed}
-.chip--on{background:var(--steelwash); border-color:var(--steel); color:var(--steel-ink)}
+/* Chosen, and unmistakably. A pale wash and a slightly darker border is a
+   difference you have to go looking for, and people were not finding it -- they
+   clicked a column and could not tell whether it had taken. Amber is what
+   "chosen" already looks like everywhere else in here, and a tick says it in
+   words for anyone the colour does not reach. */
+.chip--on{
+  background:var(--warmbg); border-color:var(--amber); color:var(--ink);
+  box-shadow:inset 0 0 0 1px var(--amber);
+}
+.chips .chip--on:hover:not(:disabled){border-color:var(--amber); color:var(--ink)}
+.chip--on::before{
+  content:"✓"; font-size:11px; line-height:1; color:var(--amber); font-weight:800;
+}
+
+/* Why a chart split into several, said where the several are. */
+.splitwhy{
+  font-size:12px; line-height:1.5; color:var(--ink-3); margin:0 0 9px;
+  padding-left:11px; border-left:2px solid var(--warmrule);
+}
 
 /* ---- one chart kit ----
    The card, the popover and the report's own page all draw through the same
@@ -4589,6 +4607,45 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
 
 /* Twelve types is four rows of three rather than one long shelf. */
 .srcs--kinds{grid-template-columns:repeat(auto-fill,minmax(212px,1fr))}
+
+/* ---- the twelve marks, as five rows ----
+   As cards with a sentence each they were seven hundred pixels of chooser above
+   a form, which put the preview off the screen the moment you scrolled to the
+   thing the preview is about. The mark is drawn on the tile now, which is
+   faster to read than its description ever was, and the description belongs to
+   whichever one is chosen -- said once, underneath, where it is answering a
+   question you have actually asked. */
+.kinds{display:grid; grid-template-columns:auto minmax(0,1fr); gap:7px 14px; align-items:center}
+.kinds__g{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--ink-3); white-space:nowrap; text-align:right;
+}
+.kinds__r{display:flex; flex-wrap:wrap; gap:7px}
+.kind{
+  display:inline-flex; align-items:center; gap:7px; padding:7px 11px; white-space:nowrap;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  font:inherit; font-size:12.5px; font-weight:700; color:var(--ink-2); cursor:pointer;
+}
+.kind svg{width:15px; height:15px; flex:none; color:var(--ink-3);
+  fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round}
+.kind:hover{border-color:var(--canvas-3); color:var(--ink); background:var(--canvas-2)}
+.kind[aria-pressed="true"]{border-color:var(--amber); background:var(--warmbg); color:var(--ink)}
+.kind[aria-pressed="true"] svg{color:var(--amber)}
+.kinds__say{font-size:12.5px; line-height:1.5; color:var(--ink-3); margin:12px 0 0}
+.kinds__say b{color:var(--ink-2); font-weight:800}
+@media (max-width:760px){
+  /* The label stops being a margin and becomes a heading. */
+  .kinds{grid-template-columns:minmax(0,1fr); gap:3px}
+  .kinds__g{text-align:left; margin-top:9px}
+}
+
+/* ---- a field that is one line ----
+   A label above a 190px box, alone on a row, is three lines of screen for one
+   small number. On one line it is one, and the box takes what is left. */
+.inline1{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.inline1 > label{margin:0; flex:none}
+.inline1 > .field{flex:1 1 200px; min-width:0}
+.inline1 > .hint{flex:1 0 100%; margin-top:0}
 
 /* ── the other door: a sheet that cannot be shared ─────────────────── */
 .orpick{margin-top:14px; padding-top:14px; border-top:1px dashed var(--rule)}

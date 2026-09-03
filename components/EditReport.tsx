@@ -33,14 +33,17 @@ export default function EditReport({ report, columns, onPreview }: {
     id: string; name: string; sourceUrl: string | null; sourceTab: string | null
     refresh: string; restricted: boolean; chartType: string
     dateColumn: string | null; measures: string[]; points?: number | null
+    together?: boolean
   }
   columns: Col[]
   /** Moves the real chart above this form, live, before anything is saved. */
-  onPreview?: (d: { measures: string[]; chartType: string; points: number | null }) => void
+  onPreview?: (d: { measures: string[]; chartType: string; points: number | null
+                    together: boolean }) => void
 }) {
   const [chartType, setChartType] = useState(report.chartType)
   const [measures, setMeasures] = useState<string[]>(report.measures)
   const [points, setPoints] = useState<string>(report.points ? String(report.points) : '')
+  const [together, setTogether] = useState(report.together === true)
   const [restricted, setRestricted] = useState(report.restricted)
 
   const dates = columns.filter((c) => c.type === 'date')
@@ -56,9 +59,9 @@ export default function EditReport({ report, columns, onPreview }: {
   // one you answer by seeing it.
   useEffect(() => {
     const n = Number(points)
-    onPreview?.({ measures, chartType,
+    onPreview?.({ measures, chartType, together,
       points: Number.isFinite(n) && n >= 2 ? Math.round(n) : null })
-  }, [measures, chartType, points, onPreview])
+  }, [measures, chartType, points, together, onPreview])
 
   const moveMeasure = (i: number, by: number) => setMeasures((m) => {
     const j = i + by
@@ -169,16 +172,31 @@ export default function EditReport({ report, columns, onPreview }: {
         </div>
       </div>
 
-      <div className="formrow" style={{ marginTop: 12 }}>
+      <div className="inline1" style={{ marginTop: 14 }}>
+        <label htmlFor="er-points">How many readings the chart draws</label>
+        <input className="field" id="er-points" name="chart_points" type="number"
+               min={2} max={500} value={points} placeholder="Every one in the range"
+               onChange={(e) => setPoints(e.target.value)} />
+        <p className="hint">The most recent this many. Empty draws every reading the date
+          range holds, which is what a report meant before this existed.</p>
+      </div>
+
+      <div className="formrow formrow--one" style={{ marginTop: 12 }}>
         <div>
-          <label htmlFor="er-points">How many readings the chart draws</label>
-          <input className="field" id="er-points" name="chart_points" type="number"
-                 min={2} max={500} value={points} placeholder="Every one in the range"
-                 onChange={(e) => setPoints(e.target.value)} />
-          <p className="hint">The most recent this many. Empty draws every reading the date
-            range holds, which is what a report meant before this existed.</p>
+          <label htmlFor="er-together">Keep them on one plot</label>
+          <div className="togline">
+            <span className="tog">
+              <input id="er-together" name="chart_together" type="checkbox" checked={together}
+                     aria-label="Keep them on one plot"
+                     onChange={(e) => setTogether(e.target.checked)} />
+              <span className="tog__track" /><span className="tog__knob" />
+            </span>
+            <span className="togstate">{together ? 'On' : 'Off'}</span>
+            <span className="togsay">{together
+              ? 'One plot, one scale. Measures much smaller than the biggest will be close to flat — that is the trade.'
+              : 'Off, Hopper gives each measure its own plot when they are orders of magnitude apart, because one scale would flatten the small ones.'}</span>
+          </div>
         </div>
-        <div />
       </div>
 
       <p className="edh">What it reads</p>

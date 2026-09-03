@@ -139,6 +139,9 @@ export async function createReport(_p: Result | null, form: FormData): Promise<R
       return Number.isFinite(n) && n >= 2 && n <= 500 ? Math.round(n) : null
     })(),
     date_column: nul(form, 'date_column'),
+    // Null and false both mean "decide for me", which is what every report
+    // meant before this column existed.
+    chart_together: form.get('chart_together') === 'on',
     created_by: person, updated_by: person,
   }).select('id').single()
 
@@ -187,6 +190,9 @@ export async function updateReport(_p: Result | null, form: FormData): Promise<R
       return Number.isFinite(n) && n >= 2 && n <= 500 ? Math.round(n) : null
     })(),
     date_column: nul(form, 'date_column'),
+    // Null and false both mean "decide for me", which is what every report
+    // meant before this column existed.
+    chart_together: form.get('chart_together') === 'on',
     updated_by: person, updated_at: new Date().toISOString(),
   }).eq('id', id)
 

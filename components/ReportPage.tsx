@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { useCallback, useMemo, useState } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
-import Chart, { Legend, isSplit, type Series } from '@/components/Chart'
+import Chart, { Legend, isSplit, splitWhy, type Series } from '@/components/Chart'
 import ChartPick from '@/components/ChartPick'
 import { EditableSection } from '@/components/RowEdit'
 import EditReport from '@/components/EditReport'
@@ -41,6 +41,7 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
     sourceKind: string; sourceUrl: string | null; sourceTab: string | null
     refresh: string; restricted: boolean; chartType: string
     dateColumn: string | null; measures: string[]; points?: number | null
+    together?: boolean
   }
   state: {
     value: number | null; valueOn: string | null
@@ -68,9 +69,11 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
   const [drawAs, setDrawAs] = useState(report.chartType)
   const [drawOrder, setDrawOrder] = useState<string[]>(report.measures)
   const [drawPoints, setDrawPoints] = useState<number | null>(report.points ?? null)
+  const [drawTogether, setDrawTogether] = useState(report.together === true)
   const preview = useCallback(
-    (d: { measures: string[]; chartType: string; points: number | null }) => {
-      setDrawOrder(d.measures); setDrawAs(d.chartType); setDrawPoints(d.points)
+    (d: { measures: string[]; chartType: string; points: number | null; together: boolean }) => {
+      setDrawOrder(d.measures); setDrawAs(d.chartType)
+      setDrawPoints(d.points); setDrawTogether(d.together)
     }, [])
   const windowed = useMemo(() => {
     if (!dated) return all
@@ -226,11 +229,14 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
                 {/* Full height here on purpose. This is the room the popover
                     does not have: measures orders of magnitude apart get a plot
                     each rather than one scale that flattens the small ones. */}
-                <Chart type={drawAs} series={series} height={400} picked={picked} />
+                {!drawTogether && splitWhy(series, drawAs) &&
+                  <p className="splitwhy">{splitWhy(series, drawAs)}</p>}
+                <Chart type={drawAs} series={series} height={400} picked={picked}
+                       together={drawTogether} />
                 {/* Only when the plot is shared. Split plots each carry their
                     own name and swatch, so a legend under them is a second
                     label for something already labelled. */}
-                {!isSplit(series) && <Legend series={series} />}
+                {(drawTogether || !isSplit(series, drawAs)) && <Legend series={series} />}
               </>}
           </div>
 
