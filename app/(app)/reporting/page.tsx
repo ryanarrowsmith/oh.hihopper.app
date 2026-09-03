@@ -36,11 +36,13 @@ export default async function Reporting() {
           <span>{cards.length === 0
             ? 'Nothing registered yet.'
             : `${cards.length} report${cards.length === 1 ? '' : 's'} across the organizations you can open.`}</span>
+          <Link href="/dashboards">Put the ones you watch on a dashboard</Link>
         </p>
       </div>
       {mayAdd && <div className="hi__go">
         {/* Categories live under Reporting rather than beside it: one entry in
             the menu, and the vocabulary is reachable from the place it governs. */}
+        <Link className="btn" href="/dashboards">Dashboards</Link>
         <Link className="btn" href="/reporting/categories">Categories</Link>
         <Link className="btn btn--amber" href="/reporting/new">Add a report</Link>
       </div>}</div>

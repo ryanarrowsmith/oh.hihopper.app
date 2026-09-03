@@ -5,7 +5,7 @@ import { refreshReport } from '@/app/actions/reports'
 import { toggleFavorite } from '@/app/actions/admin'
 import Chart, { Legend, isSplit, type Series } from '@/components/Chart'
 import RawTable from '@/components/RawTable'
-import RangeBar from '@/components/RangeBar'
+import { RangeControls, RangeSay } from '@/components/RangeBar'
 import { useRange, inWindow } from '@/components/useRange'
 
 export type Card = {
@@ -82,12 +82,14 @@ export default function Reports({ cards: raw }: { cards: Card[] }) {
 
   return (
     <>
-      <RangeBar range={range} setRange={setRange}
-                kept={counted.kept} total={counted.total} undated={counted.undated} />
-
-      <div className="rbar">
-        <span className="rbar__l">How it is drawn</span>
-        <input className="field rbar__q" value={q} placeholder="Find a report"
+      {/* One bar, not two bands. When and how-much are both "how am I looking
+          at this", and each had a mono label describing buttons that already
+          said what they were -- two labels, two rows, and the controls pushed
+          to the right of both. */}
+      <div className="rtools">
+        <RangeControls range={range} setRange={setRange} />
+        <span className="rtools__cut" />
+        <input className="field rtools__q" value={q} placeholder="Find a report"
                onChange={(e) => setQ(e.target.value)} aria-label="Find a report" />
         <div className="seg" role="group" aria-label="How much of each report to show">
           {([['lg', 'Large'], ['md', 'Medium'], ['list', 'List']] as const).map(([k, label]) => (
@@ -96,6 +98,8 @@ export default function Reports({ cards: raw }: { cards: Card[] }) {
           ))}
         </div>
       </div>
+      <RangeSay range={range} kept={counted.kept}
+                total={counted.total} undated={counted.undated} />
 
       {groups.length === 0 && <p className="empty">Nothing matches “{q}”.</p>}
 
@@ -308,12 +312,12 @@ function ReportPop({ c, startOn, onClose }: {
 
           <div className="barbtns" role="group" aria-label="This report">
             <button className="barbtn" type="button" aria-pressed={tab === 'shape'}
-                    title="The shape" aria-label="The shape"
+                    data-tip="The shape" aria-label="The shape"
                     onClick={() => setTab('shape')}>
               <svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 4 4-7 5 5" /><path d="M3 21h18" /></svg>
             </button>
             <button className="barbtn" type="button" aria-pressed={tab === 'rows'}
-                    title="The rows behind it" aria-label="The rows behind it"
+                    data-tip="The rows behind it" aria-label="The rows behind it"
                     onClick={() => setTab('rows')}>
               <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" />
                 <path d="M3 9h18M3 14h18M9 9v11" /></svg>
@@ -324,14 +328,15 @@ function ReportPop({ c, startOn, onClose }: {
             <RefreshIcon id={c.id} />
             <HeartIcon id={c.id} on={c.favorite} />
             <a className="barbtn" href={`/reporting/${c.id}`}
-               title="Open its own page" aria-label="Open its own page">
+               data-tip="Its own page" aria-label="Open its own page">
               <svg viewBox="0 0 24 24"><path d="M15 4h5v5" /><path d="M20 4l-8 8" />
                 <path d="M19 14v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" /></svg>
             </a>
 
             <span className="barbtns__cut" />
 
-            <button className="barbtn barbtn--x" type="button" aria-label="Close" onClick={onClose}>
+            <button className="barbtn barbtn--x" type="button" data-tip="Close"
+                    aria-label="Close" onClick={onClose}>
               <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
             </button>
           </div>
@@ -408,21 +413,32 @@ function RefreshGo() {
   const { pending } = useFormStatus()
   return (
     <button className={`barbtn${pending ? ' is-busy' : ''}`} type="submit" disabled={pending}
-            title={pending ? 'Looking…' : 'Go and look now'}
+            data-tip={pending ? 'Looking…' : 'Go and look now'}
             aria-label={pending ? 'Looking' : 'Go and look now'}>
       <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 4v5h-5" /></svg>
     </button>
   )
 }
 
+/**
+ * The heart answers the click, not the next page load.
+ *
+ * The server action revalidates /reporting, but this popover is holding the
+ * card it was handed when it opened -- so the heart sat unchanged until you
+ * closed it and came back, which reads as a button that did nothing. It keeps
+ * its own answer from the moment you press, and takes the server's again if
+ * the card underneath changes for any other reason.
+ */
 function HeartIcon({ id, on }: { id: string; on: boolean }) {
   const [, run] = useFormState(toggleFavorite, null)
+  const [mine, setMine] = useState(on)
+  useEffect(() => { setMine(on) }, [on])
   return (
-    <form action={run} className="barform">
+    <form action={run} className="barform" onSubmit={() => setMine((v) => !v)}>
       <input type="hidden" name="object" value="report" />
       <input type="hidden" name="object_id" value={id} />
       <input type="hidden" name="back" value="/reporting" />
-      <HeartGo on={on} />
+      <HeartGo on={mine} />
     </form>
   )
 }
@@ -431,8 +447,8 @@ function HeartGo({ on }: { on: boolean }) {
   const { pending } = useFormStatus()
   return (
     <button className={`barbtn${on ? ' is-on' : ''}`} type="submit" disabled={pending}
-            title={on ? 'In your favourites' : 'Add to your favourites'}
-            aria-label={on ? 'In your favourites' : 'Add to your favourites'}
+            data-tip={on ? 'In your favorites' : 'Add to your favorites'}
+            aria-label={on ? 'In your favorites' : 'Add to your favorites'}
             aria-pressed={on}>
       <svg viewBox="0 0 24 24" fill={on ? 'currentColor' : 'none'}>
         <path d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 8a4 4 0 0 1 7 2.8C19 15.6 12 20 12 20z" /></svg>
