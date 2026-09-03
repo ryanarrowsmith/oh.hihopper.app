@@ -6143,8 +6143,12 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
   stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round}
 
 /* ---- the roster ---- */
+/* A box that clips must not be a box that contains a popover -- the fourth
+   time this rule has been earned. The frame clipped both axes, so a tip on the
+   Sign-in column was cut off half way through its own sentence. It only ever
+   needed the horizontal clip, to keep the rows inside its corners. */
 .rst{border:1px solid var(--rule); border-radius:var(--r); background:var(--surface);
-  overflow:hidden; margin-top:12px}
+  overflow:hidden; overflow-x:clip; overflow-y:visible; margin-top:12px}
 .rrw{display:grid; grid-template-columns:26px 40px minmax(0,1.5fr) minmax(0,1.2fr)
   minmax(0,1fr) 128px 92px; gap:0 13px; align-items:center;
   border-top:1px solid var(--rule-soft); padding:9px 14px}
