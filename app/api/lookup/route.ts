@@ -34,6 +34,34 @@ export type Hit = {
 
 const UA = 'Hopper/1.0 (oh.hihopper.app; support@hihopper.app)'
 
+/**
+ * A small memory, because these are free services on somebody else's budget.
+ *
+ * Google Books answered 429 and Open Food Facts 503 within a minute of real
+ * use -- a shared cloud address types the same searches as everybody else on
+ * it. Typing "wizard of oz" fires a request per keystroke pause; holding the
+ * answer for ten minutes turns a room full of people picking the same films
+ * into one call instead of forty. It is per instance and it is allowed to
+ * vanish; a cache that has to survive is a database, and this is not worth one.
+ */
+const HELD = new Map<string, { at: number; v: { hits: Hit[] } }>()
+const HOLD_MS = 10 * 60_000
+const HOLD_MAX = 300
+
+function remembered(key: string) {
+  const hit = HELD.get(key)
+  if (!hit) return null
+  if (Date.now() - hit.at > HOLD_MS) { HELD.delete(key); return null }
+  return hit.v
+}
+
+function remember(key: string, v: { hits: Hit[] }) {
+  // Only worth keeping an answer that answered something.
+  if (!v.hits.length) return
+  if (HELD.size >= HOLD_MAX) HELD.delete(HELD.keys().next().value as string)
+  HELD.set(key, { at: Date.now(), v })
+}
+
 async function grab(url: string, label: string, ms = 8000): Promise<{ j: any } | { why: string }> {
   let res: Response
   try {
@@ -64,8 +92,11 @@ const itunes = (kind: 'song' | 'movie') => async (q: string) => {
     + `&entity=${kind === 'song' ? 'song' : 'movie'}&limit=8`
   const r = await grab(url, 'iTunes')
   if ('why' in r) return r
-  const rows = r.j?.results
-  if (!Array.isArray(rows)) return { why: 'iTunes answered, but without a results list.' }
+  const all = r.j?.results
+  if (!Array.isArray(all)) return { why: 'iTunes answered, but without a results list.' }
+  const rows = kind === 'movie'
+    ? all.filter((x: any) => x?.kind === 'feature-movie').slice(0, 8)
+    : all
   return {
     hits: rows.map((x: any): Hit => ({
       id: String(x.trackId ?? x.collectionId ?? x.trackViewUrl ?? Math.random()),
@@ -216,7 +247,16 @@ export async function GET(req: Request) {
   if (!run) return NextResponse.json({ ok: false, why: `Nothing searches "${kind}".` }, { status: 400 })
   if (q.length < 2) return NextResponse.json({ ok: true, hits: [] })
 
+  const key = `${kind}:${q.toLowerCase()}`
+  const held = remembered(key)
+  if (held) return NextResponse.json({ ok: true, hits: held.hits, held: true })
+
   const out = await run(q)
-  if ('why' in out) return NextResponse.json({ ok: false, why: out.why }, { status: 502 })
+  if ('why' in out) {
+    // Say what happened AND say the way past it, because the field can still
+    // keep what was typed and most people do not know that.
+    return NextResponse.json({ ok: false, why: out.why }, { status: 502 })
+  }
+  remember(key, out)
   return NextResponse.json({ ok: true, hits: out.hits })
 }

@@ -159,7 +159,6 @@ export default function GetToKnowEdit({ personId, mine, answers, title }:
             <input type="hidden" name="book_url" value={a.book_url ?? ''} />
 
             <Lookup kind="candy" label="Favorite candy" placeholder="Bit-O-Honey"
-                    freeText
                     picked={a.candy ? { title: a.candy, sub: null, img: a.candy_img_url } : null}
                     onPick={(h) => set({
                       candy: h && h.title, candy_img_url: h?.img ?? null, candy_url: h?.url ?? null,
@@ -202,8 +201,19 @@ function Save() {
  * -- "iTunes answered 503" is a thing somebody can wait out; "no results" is a
  * thing they would keep retyping.
  */
-function Lookup({ kind, label, placeholder, picked, onPick, freeText }: {
-  kind: string; label: string; placeholder: string; freeText?: boolean
+/**
+ * Search is a convenience here, never a gate.
+ *
+ * A favourite film is whatever somebody says it is. When the search came back
+ * empty -- or rate-limited, or 503, all of which these free services do -- the
+ * field simply refused to accept the answer that was already typed into it.
+ * That is a personal detail held hostage by somebody else's API.
+ *
+ * So what you typed is always keepable, whether the search failed, succeeded
+ * with the wrong things, or is still thinking. A picture is a bonus.
+ */
+function Lookup({ kind, label, placeholder, picked, onPick }: {
+  kind: string; label: string; placeholder: string
   picked: { title: string; sub?: string | null; img?: string | null } | null
   onPick: (h: Hit | null) => void
 }) {
@@ -257,18 +267,17 @@ function Lookup({ kind, label, placeholder, picked, onPick, freeText }: {
              autoComplete="off"
              onChange={(e) => { setQ(e.target.value); setSearching(true) }} />
       {busy && <p className="fine">Looking…</p>}
-      {why && (
+      {why && <p className="fine">{why}</p>}
+
+      {/* Always available once there is something to keep -- above the results,
+          because when the list is wrong this is the thing you want. */}
+      {q.trim().length > 1 && !busy && (
         <p className="fine">
-          {why}
-          {freeText && q.trim().length > 1 && (
-            <>
-              {' '}
-              <button className="lnk" type="button"
-                      onClick={() => { onPick({ id: q, title: q.trim() }); setSearching(false) }}>
-                Just use “{q.trim()}”
-              </button>
-            </>
-          )}
+          <button className="lnk" type="button"
+                  onClick={() => { onPick({ id: q, title: q.trim() }); setSearching(false) }}>
+            Keep “{q.trim()}”
+          </button>
+          {hits.length > 0 && ' — or pick one below.'}
         </p>
       )}
       {hits.length > 0 && (
