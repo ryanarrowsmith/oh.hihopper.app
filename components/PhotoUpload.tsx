@@ -184,7 +184,7 @@ export default function PhotoUpload(
                   A square picture, cropped here. It is used as a circle in lists and
                   full-width on cards, so put the face where you want it.
                 </p>
-                <label className="btn btn--pri phpick">
+                <label className="btn btn--amber phpick">
                   {src ? 'Choose a new picture' : 'Choose a picture'}
                   <input type="file" accept="image/jpeg,image/png,image/webp" onChange={chose} />
                 </label>
@@ -212,7 +212,7 @@ export default function PhotoUpload(
                 </label>
 
                 <div className="rowacts">
-                  <button className="btn btn--pri" type="button" onClick={save} disabled={busy || !nat}>
+                  <button className="btn btn--amber" type="button" onClick={save} disabled={busy || !nat}>
                     {busy ? 'Saving…' : 'Save'}
                   </button>
                   <button className="btn" type="button" onClick={close} disabled={busy}>Cancel</button>

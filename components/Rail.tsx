@@ -39,7 +39,11 @@ export const FRAME: Item[] = [
 
 export const MODULE_NAV: Record<string, Item> = {
   reporting: { href: '/reporting', label: 'Reporting',
-    icon: I('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>') },
+    icon: I('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+    kids: [
+      { href: '/dashboards', label: 'Dashboards' },
+      { href: '/reporting/categories', label: 'Categories' },
+    ] },
   projects: { href: '/projects', label: 'Projects',
     icon: I('<path d="M4 6h16M4 12h16M4 18h9"/><circle cx="19.5" cy="18" r="1.6"/>') },
   staffing: { href: '/staffing', label: 'Staffing',

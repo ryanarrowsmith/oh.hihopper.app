@@ -619,6 +619,10 @@ a.bub{text-decoration:none}
 .btn:hover{border-color:var(--ink-3); background:var(--sunken)}
 .btn--amber{background:var(--amber); border-color:var(--amber); color:#231F20}
 .btn--amber:hover{background:#E39B29; border-color:#E39B29}
+/* The one destructive button in the product. Outlined rather than filled: a
+   red slab reads as the thing to press, and this is the thing not to. */
+.btn--danger{color:var(--bad); border-color:var(--bad)}
+.btn--danger:hover{background:var(--bad); border-color:var(--bad); color:#FBF9F5}
 
 /* ============ OPEN ITEMS ============ */
 .items{border:1px solid var(--rule); background:var(--surface); border-radius:var(--r)}
@@ -3339,3 +3343,90 @@ a.idc__org:hover{background:var(--steel)}
   .req__w{grid-column:2; justify-self:end}
   .reqreply{flex-direction:column; align-items:stretch}
 }
+
+/* ==========================================================================
+   DASHBOARDS
+   Reporting is every report you may see. A dashboard is the handful you watch,
+   in the order you watch them, and it belongs to a person rather than to the
+   account. That is why these are two screens and not one with a filter.
+   ========================================================================== */
+.bgrid{
+  display:grid; gap:12px; margin-top:12px;
+  grid-template-columns:repeat(auto-fill, minmax(232px, 1fr));
+}
+.bcard{
+  display:flex; flex-direction:column; gap:6px; padding:16px 17px 14px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  box-shadow:var(--shadow); text-decoration:none; color:inherit;
+  transition:border-color .15s, box-shadow .15s, transform .15s;
+}
+.bcard:hover{border-color:var(--amber); box-shadow:var(--lift); transform:translateY(-1px)}
+.bcard__t{font-size:15.5px; font-weight:800; letter-spacing:-.015em; color:var(--ink)}
+.bcard:hover .bcard__t{color:var(--steel-ink)}
+.bcard__m{font-size:12.5px; color:var(--ink-3)}
+/* The count made visible. An empty board reads as empty from across the room
+   rather than by reading the word "Empty". */
+.bcard__bars{display:flex; gap:3px; margin-top:6px; height:16px; align-items:flex-end}
+.bcard__bars i{
+  flex:1 1 0; max-width:15px; background:var(--steelwash);
+  border-bottom:2px solid var(--steel); border-radius:1px 1px 0 0;
+}
+.bcard__bars i:nth-child(2n){height:70%} .bcard__bars i:nth-child(3n){height:100%}
+.bcard__bars i:nth-child(4n){height:52%} .bcard__bars i{height:82%}
+
+/* ---- the editor ---- */
+.bedit{
+  width:min(560px, calc(100vw - 32px)); max-height:min(88vh, 860px); overflow:hidden;
+  display:flex; flex-direction:column; text-align:left;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  box-shadow:0 22px 60px rgba(35,31,32,.35); animation:rin .18s cubic-bezier(.2,.7,.3,1);
+}
+.bedit__tabs{margin:0 0 0 auto; flex:0 0 auto; width:min(260px, 52%)}
+.bedit__b{padding:16px 18px; overflow-y:auto; flex:1 1 auto}
+.bedit__b label{display:block; font-size:12px; font-weight:700; color:var(--ink-2); margin-bottom:5px}
+.bedit__s{
+  font-family:var(--mono); font-size:10px; font-weight:800; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3); margin:18px 0 7px;
+}
+
+.bpick{list-style:none; border:1px solid var(--rule); border-radius:var(--r);
+  background:var(--sunken)}
+.bpick li{
+  display:grid; grid-template-columns:minmax(0,1fr) auto auto auto auto;
+  align-items:center; gap:8px; padding:8px 10px;
+  border-bottom:1px solid var(--rule-soft);
+}
+.bpick--off li{grid-template-columns:minmax(0,1fr) auto auto}
+.bpick li:last-child{border-bottom:0}
+.bpick__n{font-size:13.5px; font-weight:700; min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.bpick__w{font-size:11.5px; color:var(--ink-3); white-space:nowrap}
+.bpick button{
+  width:26px; height:26px; display:grid; place-items:center; cursor:pointer;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  color:var(--ink-2); font-size:13px; line-height:1; padding:0;
+}
+.bpick button:hover:not(:disabled){border-color:var(--ink-3); color:var(--ink)}
+.bpick button:disabled{opacity:.35; cursor:default}
+.bpick__off:hover:not(:disabled){border-color:var(--bad) !important; color:var(--bad) !important}
+.bpick__add{width:auto !important; padding:0 11px !important; font-size:12px !important;
+  font-weight:700; color:var(--steel-ink) !important}
+
+.bwho{list-style:none; border:1px solid var(--rule); border-radius:var(--r);
+  background:var(--sunken); margin-top:12px}
+.bwho li{display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center;
+  gap:11px; padding:9px 11px; border-bottom:1px solid var(--rule-soft)}
+.bwho li:last-child{border-bottom:0}
+.bwho__n{font-size:13.5px; font-weight:700; min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.bwho__w{font-size:11.5px; color:var(--ink-3); white-space:nowrap}
+
+/* Delete sits at the foot behind a confirmation, away from everything you
+   might be doing on purpose. */
+.bedit__end{
+  margin-top:22px; padding-top:14px; border-top:1px solid var(--rule);
+  display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+}
+.bedit__end span{flex:1 1 220px; font-size:12.5px; color:var(--ink-2)}
+.bedit__del{margin-left:auto; color:var(--ink-3); font-size:12.5px}
+.bedit__del:hover{color:var(--bad); border-color:var(--bad)}

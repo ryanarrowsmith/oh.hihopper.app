@@ -142,7 +142,7 @@ export default function SupportForm({ accountId }: { accountId: string }) {
       )}
 
       <div className="rowacts">
-        <button className="btn btn--pri" type="button" onClick={send} disabled={busy}>
+        <button className="btn btn--amber" type="button" onClick={send} disabled={busy}>
           {busy ? 'Sending…' : 'Send it'}
         </button>
       </div>
