@@ -5,7 +5,8 @@ import { refreshReport } from '@/app/actions/reports'
 import { toggleFavorite } from '@/app/actions/admin'
 import Chart, { Legend, isSplit, type Series } from '@/components/Chart'
 import RawTable from '@/components/RawTable'
-import { RangeControls, RangeSay } from '@/components/RangeBar'
+import { PRESETS } from '@/components/useRange'
+import DateField from '@/components/DateField'
 import { useRange, inWindow } from '@/components/useRange'
 
 export type Card = {
@@ -23,6 +24,14 @@ export type Card = {
 
 const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
 
+/** The mark on the row you are already on. */
+const Tick = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
+       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="m4 12 5 5L20 7" />
+  </svg>
+)
+
 // ------------------------------------------------------------------ the list
 
 export default function Reports({ cards: raw }: { cards: Card[] }) {
@@ -34,6 +43,24 @@ export default function Reports({ cards: raw }: { cards: Card[] }) {
   // because the answer has to survive the list re-sorting under it.
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const { range, setRange, window: win } = useRange()
+  /** Which control is open. One at a time, because two popovers over the same
+   *  bar is two answers to "what am I doing". */
+  const [pop, setPop] = useState<'when' | 'find' | null>(null)
+  const bar = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!pop) return
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setPop(null) }
+    const away = (e: MouseEvent) => {
+      if (!bar.current?.contains(e.target as Node)) setPop(null)
+    }
+    document.addEventListener('keydown', esc)
+    document.addEventListener('click', away)
+    return () => {
+      document.removeEventListener('keydown', esc)
+      document.removeEventListener('click', away)
+    }
+  }, [pop])
 
   /**
    * The range narrows the READINGS, and the number follows from them: a card's
@@ -82,15 +109,103 @@ export default function Reports({ cards: raw }: { cards: Card[] }) {
 
   return (
     <>
-      {/* One bar, not two bands. When and how-much are both "how am I looking
-          at this", and each had a mono label describing buttons that already
-          said what they were -- two labels, two rows, and the controls pushed
-          to the right of both. */}
-      <div className="rtools">
-        <RangeControls range={range} setRange={setRange} />
-        <span className="rtools__cut" />
-        <input className="field rtools__q" value={q} placeholder="Find a report"
-               onChange={(e) => setQ(e.target.value)} aria-label="Find a report" />
+      {/* One bar, and it belongs to the list rather than floating above it.
+          Each control opens what it is for and carries its current answer
+          beside the icon -- an icon alone hides what is SET, and a hidden date
+          range is the difference between a number that means this month and
+          one that means all year. */}
+      <div className="rbar2" ref={bar}>
+        <span className="rpickw">
+          <button className={`rbtn${range.preset !== 'all' ? ' is-set' : ''}`} type="button"
+                  aria-expanded={pop === 'when'} aria-haspopup="dialog"
+                  onClick={(e) => { e.stopPropagation(); setPop(pop === 'when' ? null : 'when') }}>
+            <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="1.6" />
+              <path d="M3 10h18M8 3v4M16 3v4" /></svg>
+            <b>{PRESETS.find((p) => p.k === range.preset)?.label ?? 'Custom'}</b>
+          </button>
+          {pop === 'when' && (
+            <div className="rpick" role="dialog" aria-label="Which time">
+              <p className="rpick__h">Which time</p>
+              <div className="rpick__rows">
+                {PRESETS.map((p) => (
+                  <button key={p.k} className="rpick__r" type="button"
+                          aria-pressed={range.preset === p.k}
+                          onClick={() => setRange({ preset: p.k, from: null, to: null })}>
+                    {p.label}
+                    {range.preset === p.k && <Tick />}
+                  </button>
+                ))}
+              </div>
+              <span className="rpick__cut" />
+              <div className="rpick__f">
+                <DateField label="From" value={range.from}
+                           onChange={(v) => setRange({ preset: 'custom', from: v, to: range.to })} />
+                <span>to</span>
+                <DateField label="To" value={range.to}
+                           onChange={(v) => setRange({ preset: 'custom', from: range.from, to: v })} />
+              </div>
+              {(range.preset !== 'all' || counted.undated > 0) && (
+                <p className="rpick__n">
+                  {range.preset !== 'all' && <>
+                    <b>{counted.kept.toLocaleString()}</b> of {counted.total.toLocaleString()} readings
+                    fall inside it.{' '}
+                  </>}
+                  {counted.undated > 0 && <>
+                    {counted.undated} {counted.undated === 1 ? 'report has' : 'reports have'} no date
+                    column, so {counted.undated === 1 ? 'it is' : 'they are'} shown whole.
+                  </>}
+                </p>
+              )}
+            </div>
+          )}
+        </span>
+
+        <span className="rpickw">
+          <button className={`rbtn${q ? ' is-set' : ''}`} type="button"
+                  aria-expanded={pop === 'find'} aria-haspopup="dialog"
+                  onClick={(e) => { e.stopPropagation(); setPop(pop === 'find' ? null : 'find') }}>
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></svg>
+            {q ? <b>&ldquo;{q}&rdquo;</b> : 'Find a report'}
+            {q && (
+              // A span, not a button: a button inside a button is invalid, and
+              // the browser will not nest the click anyway.
+              <span className="rbtn__x" role="button" tabIndex={0} aria-label="Clear the search"
+                    onClick={(e) => { e.stopPropagation(); setQ(''); setPop(null) }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setQ('') }
+                    }}>
+                &times;
+              </span>
+            )}
+          </button>
+          {pop === 'find' && (
+            <div className="rpick rpick--wide" role="dialog" aria-label="Find a report">
+              <p className="rpick__h">Find a report</p>
+              <input className="field rpick__q" value={q} autoFocus
+                     placeholder="Name, category or organization"
+                     onChange={(e) => setQ(e.target.value)} aria-label="Find a report" />
+              <p className="rpick__n">It looks at the name, the category and the organization.</p>
+            </div>
+          )}
+        </span>
+
+        {/* What you are looking AT on the left, how you are looking at it on
+            the right. Two different kinds of question, and the gap between them
+            is what says so. */}
+        <span className="rbar2__sp" />
+
+        {/* The count travels with the size control rather than the filters.
+            It is the one thing on the bar that is neither a control nor a
+            heading -- it is the answer -- so it sits at the far end where the
+            eye lands last, against the right group rather than adrift. */}
+        {range.preset !== 'all' && (
+          <span className="rbar2__say">
+            <b>{counted.kept.toLocaleString()}</b> of {counted.total.toLocaleString()} readings
+          </span>
+        )}
+
+        {/* Not a popover. Three words fit on the bar, and a control you can
+            read without opening it is better than a tidier one you cannot. */}
         <div className="seg" role="group" aria-label="How much of each report to show">
           {([['lg', 'Large'], ['md', 'Medium'], ['list', 'List']] as const).map(([k, label]) => (
             <button key={k} className="seg__b" type="button" aria-pressed={density === k}
@@ -98,14 +213,12 @@ export default function Reports({ cards: raw }: { cards: Card[] }) {
           ))}
         </div>
       </div>
-      <RangeSay range={range} kept={counted.kept}
-                total={counted.total} undated={counted.undated} />
 
       {groups.length === 0 && <p className="empty">Nothing matches “{q}”.</p>}
 
       {groups.map(([label, list]) => (
-        <section key={label} className="rgroup">
-          <h2 className="rgroup__h">{label}<span>{list.length}</span></h2>
+        <section key={label} className="oboard">
+          <h2 className="oboard__h">{label}<span>{list.length}</span></h2>
           {density === 'list'
             ? <div className="rlist2">{list.map((c) => (
                 <button key={c.id} className="rrow" type="button" onClick={() => setOpen(c)}>

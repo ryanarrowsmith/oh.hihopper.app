@@ -28,6 +28,8 @@ const NAMES: Record<string, string> = {
   meetings: 'Meetings',
   support: 'Support',
   profile: 'Profile',
+  favorites: 'Favorites',
+  dashboards: 'Dashboards',
   me: 'You',
   access: 'What you may do',
 }

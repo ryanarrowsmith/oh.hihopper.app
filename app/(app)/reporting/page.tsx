@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
 import Reports from '@/components/Reports'
 import { loadCards } from '@/lib/cards'
+import Help from '@/components/Help'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,12 +32,27 @@ export default async function Reporting() {
   return (
     <>
       <div className="hi"><div className="hi__t">
-        <h1>Reporting</h1>
+        <h1>
+          Reporting
+          {/* What the line under the title used to say, and four things it
+              never had room for. */}
+          <Help
+            title="Reporting"
+            lead="A report in Hopper is a pointer, not data: a source, one tab inside it, and a schedule for going back to look."
+            points={[
+              { t: 'The bar', d: 'Which time narrows the readings, and the number on a card follows — it becomes the last reading inside the window rather than the last one Hopper has.' },
+              { t: 'A card', d: 'Opens the shape and the rows behind it. Click a point on the graph to filter the rows, or a row to mark it on the graph.' },
+              { t: 'The heart', d: 'Keeps a report in your Favorites. Yours alone — nobody else can see what you hearted.' },
+              { t: 'Dashboards', d: 'The handful you actually watch, in your own order, on a page of their own.' },
+              { t: 'Categories', d: 'The vocabulary reports are grouped by, so two businesses can use the same words.' },
+            ]}
+            more={{ label: 'Put the ones you watch on a dashboard', href: '/dashboards' }}
+          />
+        </h1>
         <p className="scopeline">
           <span>{cards.length === 0
             ? 'Nothing registered yet.'
             : `${cards.length} report${cards.length === 1 ? '' : 's'} across the organizations you can open.`}</span>
-          <Link href="/dashboards">Put the ones you watch on a dashboard</Link>
         </p>
       </div>
       {mayAdd && <div className="hi__go">
