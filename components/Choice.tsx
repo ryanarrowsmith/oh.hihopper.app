@@ -1,8 +1,17 @@
 'use client'
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-export type Opt = { value: string; label: string; hint?: string }
+export type Opt = {
+  value: string; label: string; hint?: string
+  /** A mark drawn against the option. Twelve chart types read as twelve
+   *  sentences; the same twelve with a mark each read as a set of choices. */
+  icon?: string
+  /** A heading printed once, above the first option that carries it. The
+   *  options must already be in group order -- this labels a list, it does not
+   *  sort one. */
+  group?: string
+}
 
 /**
  * A choice, in Hopper's own popover rather than the browser's.
@@ -154,6 +163,11 @@ export default function Choice({
         onClick={() => (open ? setOpen(false) : openList())}
         onKeyDown={onKey}
       >
+        {chosen?.icon && (
+          <svg className="choice__opt__i" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+               dangerouslySetInnerHTML={{ __html: chosen.icon }} />
+        )}
         <span className={`choice__cur${chosen ? '' : ' choice__cur--none'}`}>
           {chosen?.label ?? placeholder}
         </span>
@@ -186,14 +200,24 @@ export default function Choice({
                tabIndex={showFilter ? -1 : 0} ref={list}>
             {shown.length === 0 && <div className="choicepop__none">Nothing matches that.</div>}
             {shown.map((o, i) => (
+              <Fragment key={o.value}>
+              {o.group && o.group !== shown[i - 1]?.group && (
+                <div className="choicepop__grp" aria-hidden="true">{o.group}</div>
+              )}
               <div
-                key={o.value} id={`${listId}-${i}`} role="option"
+                id={`${listId}-${i}`} role="option"
                 aria-selected={o.value === value}
                 data-active={i === active}
                 className={`choice__opt${i === active ? ' is-active' : ''}${o.value === value ? ' is-on' : ''}`}
                 onPointerEnter={() => setActive(i)}
                 onClick={() => pick(o)}
               >
+                {o.icon && (
+                  <svg className="choice__opt__i" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"
+                       strokeLinejoin="round" aria-hidden="true"
+                       dangerouslySetInnerHTML={{ __html: o.icon }} />
+                )}
                 <span className="choice__opt__l">{o.label}</span>
                 {o.hint && <span className="choice__opt__h">{o.hint}</span>}
                 {o.value === value && (
@@ -203,6 +227,7 @@ export default function Choice({
                   </svg>
                 )}
               </div>
+              </Fragment>
             ))}
           </div>
         </div>,

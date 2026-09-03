@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { CHART_KINDS, appliesTo, measureCap, type ChartKind } from '@/lib/charts'
 
 /**
  * One chart kit, drawn once and used everywhere.
@@ -28,47 +29,9 @@ const PIE_VAR = ['--s1', '--s2', '--s3', '--steel', '--amber', '--canvas-3'] as 
  * arrive wanting to know what a total is made of. Exported so the builder and
  * the renderer cannot disagree about what exists.
  */
-export const CHART_KINDS = [
-  { group: 'Compare', kinds: [
-    { k: 'col',  t: 'Columns',           s: 'One measure, period by period.' },
-    { k: 'colg', t: 'Grouped columns',   s: 'Two or three measures side by side in each period.' },
-    { k: 'barh', t: 'Horizontal bars',   s: 'When the labels are long. The reason this exists.' },
-  ] },
-  { group: 'Over time', kinds: [
-    { k: 'line', t: 'Line',              s: 'The shape of a number, named at the end of its own line.' },
-    { k: 'area', t: 'Area',              s: 'A line that says which way is up.' },
-    { k: 'combo', t: 'Columns and a line', s: 'Two measures, two marks. Never two axes.' },
-  ] },
-  { group: 'Parts of a whole', kinds: [
-    { k: 'stack',     t: 'Stacked columns', s: 'What the total is made of.' },
-    { k: 'stack100',  t: '100% stacked',    s: 'The mix, when the total does not matter.' },
-    { k: 'areastack', t: 'Stacked area',    s: 'The mix, over time.' },
-    { k: 'pie',       t: 'Pie',             s: 'How one total splits. The latest reading only.' },
-  ] },
-  { group: 'Relationship', kinds: [
-    { k: 'scatter', t: 'Scatter', s: 'Does one move with the other. Exactly two measures.' },
-  ] },
-  { group: 'One number', kinds: [
-    { k: 'big', t: 'One number', s: 'No chart. The figure, and when it was read.' },
-  ] },
-] as const
-
-export type ChartKind =
-  'col'|'colg'|'barh'|'line'|'area'|'combo'|'stack'|'stack100'|'areastack'|'pie'|'scatter'|'big'|'bar'
-
-/** How many measures a type will actually draw. The builder reads this rather
- *  than carrying its own copy of the rule. */
-export function measureCap(kind: string) {
-  if (kind === 'pie' || kind === 'big') return 1
-  if (kind === 'scatter') return 2
-  if (kind === 'combo') return 2
-  if (kind === 'col' || kind === 'barh') return 1
-  // Stacked marks touch only their neighbours in a fixed order, so they carry
-  // six; everything else past three is split into a plot each, where a heading
-  // rather than a colour says which is which.
-  if (kind === 'stack' || kind === 'stack100' || kind === 'areastack') return 6
-  return 10
-}
+export {
+  CHART_KINDS, KIND_ICON, appliesTo, measureCap, type ChartKind,
+} from '@/lib/charts'
 
 /** Which marks stack, so the scale is the running total rather than the value. */
 const STACKED = new Set(['stack', 'stack100', 'areastack'])

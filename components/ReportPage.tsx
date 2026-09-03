@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useCallback, useMemo, useState } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import Chart, { Legend, isSplit, type Series } from '@/components/Chart'
+import ChartPick from '@/components/ChartPick'
 import { EditableSection } from '@/components/RowEdit'
 import EditReport from '@/components/EditReport'
 import Mentioned from '@/components/Mentioned'
@@ -85,6 +86,10 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
   /** Opened from the header, and by the pencil on the section below it. One
    *  answer, because two edit forms is two things to keep in step. */
   const [editing, setEditing] = useState(false)
+  // What the chart is drawn as RIGHT NOW. Seeded from the report and moved by
+  // the picker before the server has answered, so the chart redraws on the
+  // click rather than a round trip later.
+  const [drawAs, setDrawAs] = useState(report.chartType)
 
   const [days, setDays] = useState<Set<string>>(new Set())
   const [last, setLast] = useState<string | null>(null)
@@ -162,10 +167,20 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
                 kept={counted.kept} total={counted.total} undated={counted.undated} />
 
       <section className="sec">
-        <div className="sec__h"><div className="sec__t">
-          <h2>The shape</h2>
-          <p>What the number has been doing, from the readings Hopper has actually taken.</p>
-        </div></div>
+        <div className="sec__h">
+          <div className="sec__t">
+            <h2>The shape</h2>
+            <p>What the number has been doing, from the readings Hopper has actually taken.</p>
+          </div>
+          {/* Nothing a person may not do is rendered, so a reader gets the
+              chart and no control over it. */}
+          {mayEdit && series.length > 0 && (
+            <div className="sec__a">
+              <ChartPick id={report.id} current={drawAs} measures={series.length}
+                         onDraft={setDrawAs} />
+            </div>
+          )}
+        </div>
 
         <div className="card" style={{ padding: 18 }}><div className="shape">
           <div className="shape__c">
@@ -181,7 +196,7 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
                 {/* Full height here on purpose. This is the room the popover
                     does not have: measures orders of magnitude apart get a plot
                     each rather than one scale that flattens the small ones. */}
-                <Chart type={report.chartType} series={series} height={400} picked={picked} />
+                <Chart type={drawAs} series={series} height={400} picked={picked} />
                 {/* Only when the plot is shared. Split plots each carry their
                     own name and swatch, so a legend under them is a second
                     label for something already labelled. */}

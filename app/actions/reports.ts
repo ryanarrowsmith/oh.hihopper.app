@@ -5,6 +5,11 @@ import { supabaseServer } from '@/lib/supabase/server'
 import { liveToken } from '@/lib/supabase/token'
 import { currentSession } from '@/lib/tenant'
 import { logAudit } from '@/lib/audit'
+import { CHART_KINDS } from '@/lib/charts'
+
+/** The set the database will take, derived from the catalogue rather than
+ *  typed out a second time next to it. */
+const CHART_TYPES = new Set(CHART_KINDS.flatMap((g) => g.kinds.map((k) => k.k as string)))
 import { tellMentioned } from '@/lib/notify'
 
 export type Result = { ok: boolean; message: string }
@@ -255,4 +260,32 @@ export async function refreshReport(_p: Result | null, form: FormData): Promise<
   // The failure is already kept as a failure on the report. This just repeats
   // it to the person who asked, in the same words.
   return { ok: false, message: out?.failure ?? out?.error ?? 'The look failed and Hopper does not know why.' }
+}
+
+/**
+ * Change how a report draws itself.
+ *
+ * Its own action rather than a trip through the whole edit form, because
+ * choosing a chart type is a thing you do while LOOKING at the chart -- the
+ * question is "does this read better as columns", and it is answered by seeing
+ * it, not by opening a form, changing a field and coming back.
+ *
+ * Nothing else moves. The measures, the date column and the source are what
+ * they were; only the mark changes.
+ */
+export async function setChartType(id: string, kind: string): Promise<Result> {
+  const { db, account, person } = await ctx()
+  if (!id) return { ok: false, message: 'Which report?' }
+  if (!CHART_TYPES.has(kind)) return { ok: false, message: 'Hopper cannot draw that.' }
+
+  const { data, error } = await db.schema('hopper').from('report')
+    .update({ chart_type: kind, updated_by: person })
+    .eq('id', id).select('name').single()
+  if (error) return { ok: false, message: refused(error.message, 'report') }
+
+  await logAudit(db, { account_id: account, kind: 'report', object: data.name,
+    object_id: id, summary: `Drew ${data.name} as ${kind}` })
+
+  revalidatePath(`/reporting/${id}`); revalidatePath('/reporting'); revalidatePath('/dashboards')
+  return { ok: true, message: 'Redrawn.' }
 }

@@ -1755,6 +1755,44 @@ select.field{appearance:none}
 .choice__opt.is-on{font-weight:700}
 .choice__tick{width:15px; height:15px; margin-left:auto; flex:none; color:var(--steel-ink)}
 
+/* ---- a mark against each option, and a heading over each group ----
+   A list of twelve chart types reads as twelve sentences. The same twelve with
+   a mark each read as a set of choices, and the one you want is found by shape
+   before the words are read at all. */
+.choice__opt__i{
+  width:17px; height:17px; flex:none; color:var(--ink-3);
+  fill:none; stroke:currentColor;
+}
+/* Mark, name, tick -- then the sentence, wrapped underneath. Ordered
+   explicitly rather than by source position: the tick belongs at the end of the
+   NAME's line, and left in document order it landed under the sentence, on a
+   line of its own, pointing at nothing. */
+.choice__opt{display:flex; align-items:center; gap:9px; flex-wrap:wrap}
+.choice__opt__i{order:1}
+.choice__opt__l{order:2; flex:1 1 auto; min-width:0}
+.choice__opt .choice__tick{order:3; margin-left:0}
+.choice__opt__h{order:4; flex:1 0 100%; padding-left:26px; margin-top:1px}
+.choice__opt.is-on .choice__opt__i, .choice__opt.is-active .choice__opt__i{color:var(--ink)}
+.choicepop__grp{
+  font-family:var(--mono); font-size:9px; font-weight:800; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3);
+  padding:11px 13px 5px; border-top:1px solid var(--rule-soft);
+}
+.choicepop__grp:first-child{border-top:0; padding-top:9px}
+.choice__btn{display:flex; align-items:center; gap:8px}
+.choice__btn .choice__opt__i{color:var(--ink-2)}
+
+/* The picker sits in a section header, where it must not grow to the width of
+   a form field. */
+.chartpick{width:min(230px, 52vw)}
+.chartpick .field{font-size:13px; padding:7px 10px}
+@media (max-width:640px){
+  /* Under the heading with everything else, and as wide as it. */
+  .sec__h:has(.chartpick){display:block}
+  .sec__h:has(.chartpick) .sec__t{margin-bottom:11px}
+  .chartpick{width:100%}
+}
+
 /* ==========================================================================
    THE ADD POPOVER
    Adding happens in a popover carrying the whole form. It hangs off the plus
