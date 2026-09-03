@@ -2963,6 +2963,15 @@ a.gcard:hover{border-color:var(--canvas-3); box-shadow:var(--lift)}
   font-size:12px; line-height:1.5; color:var(--ink-3); margin:0 0 9px;
   padding-left:11px; border-left:2px solid var(--warmrule);
 }
+/* The switch lives inside the sentence, because the sentence is where somebody
+   is already looking when they wonder about it. */
+.splitwhy__go{
+  background:none; border:0; padding:0; margin-left:7px; cursor:pointer;
+  font:inherit; font-weight:800; color:var(--steel-ink);
+  text-decoration:underline; text-underline-offset:2px;
+}
+.splitwhy__go:hover{color:var(--ink)}
+.splitwhy__go:disabled{opacity:.5; cursor:progress}
 
 /* ---- one chart kit ----
    The card, the popover and the report's own page all draw through the same

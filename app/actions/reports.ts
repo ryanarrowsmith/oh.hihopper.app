@@ -51,7 +51,9 @@ function refused(message: string, thing: string) {
 
 // ---------------------------------------------------------------- categories
 
-export async function createCategory(_p: Result | null, form: FormData): Promise<Result> {
+export async function createCategory(
+  _p: Result | null, form: FormData,
+): Promise<Result & { id?: string }> {
   const { db, account } = await ctx()
   const department_id = str(form, 'department_id')
   const name = str(form, 'name')
@@ -61,12 +63,16 @@ export async function createCategory(_p: Result | null, form: FormData): Promise
   if (!department_id) return { ok: false, message: 'Choose the department this belongs to first.' }
   if (!name) return { ok: false, message: 'A category needs a name.' }
 
-  const { error } = await db.schema('hopper').from('report_category')
+  // The id comes back, because the one caller who needs it is the add-report
+  // form: it makes a category in the middle of making a report, and then has to
+  // CHOOSE it. Without the id that is a page reload in the middle of a form.
+  const { data, error } = await db.schema('hopper').from('report_category')
     .insert({ account_id: account, department_id, name })
+    .select('id').single()
   if (error) return { ok: false, message: refused(error.message, 'category') }
 
   revalidatePath('/reporting'); revalidatePath('/reporting/categories')
-  return { ok: true, message: `${name} added.` }
+  return { ok: true, message: `${name} added.`, id: data.id as string }
 }
 
 export async function deleteCategory(_p: Result | null, form: FormData): Promise<Result> {
@@ -294,4 +300,27 @@ export async function setChartType(id: string, kind: string): Promise<Result> {
 
   revalidatePath(`/reporting/${id}`); revalidatePath('/reporting'); revalidatePath('/dashboards')
   return { ok: true, message: 'Redrawn.' }
+}
+
+/**
+ * One plot, or a plot each.
+ *
+ * Its own action for the same reason setChartType is: it is a question you
+ * answer by looking at the chart, and the answer should land without a form.
+ */
+export async function setChartTogether(id: string, on: boolean): Promise<Result> {
+  const { db, account, person } = await ctx()
+  if (!id) return { ok: false, message: 'Which report?' }
+
+  const { data, error } = await db.schema('hopper').from('report')
+    .update({ chart_together: on, updated_by: person })
+    .eq('id', id).select('name').single()
+  if (error) return { ok: false, message: refused(error.message, 'report') }
+
+  await logAudit(db, { account_id: account, kind: 'report', object: data.name,
+    object_id: id,
+    summary: `Drew ${data.name} ${on ? 'on one plot' : 'with a plot per measure'}` })
+
+  revalidatePath(`/reporting/${id}`); revalidatePath('/reporting')
+  return { ok: true, message: on ? 'One plot.' : 'A plot each.' }
 }

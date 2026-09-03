@@ -79,14 +79,18 @@ const SPREAD_LIMIT = 25
  * where one was asked for and nothing on the screen says why. A reason turns
  * the same picture from "this is broken" into "of course".
  */
-export function splitWhy(series: Series[], type?: string): string | null {
+export function splitWhy(series: Series[], type?: string, together = false): string | null {
   const live = series.filter((s) => s.points.length > 0)
   if (!isSplit(live, type)) return null
   if (live.length > 3) {
-    return `A plot each, because past three measures a colour can no longer say which is which — only the first three separate for every kind of colour vision. The heading does it instead.`
+    return together
+      ? 'These are on one plot at your asking. Past three measures a colour can no longer say which is which — only the first three separate for every kind of colour vision.'
+      : 'A plot each, because past three measures a colour can no longer say which is which — only the first three separate for every kind of colour vision. The heading does it instead.'
   }
-  const spread = Math.round(spreadOf(live))
-  return `A plot each, because these are ${spread.toLocaleString()}× apart in size. On one scale the smaller ones would be a flat line along the bottom.`
+  const spread = Math.round(spreadOf(live)).toLocaleString()
+  return together
+    ? `These are on one plot at your asking, and they are ${spread}× apart in size — so the smaller ones are close to flat against the biggest.`
+    : `A plot each, because these are ${spread}× apart in size. On one scale the smaller ones would be a flat line along the bottom.`
 }
 
 export function isSplit(series: Series[], type?: string) {

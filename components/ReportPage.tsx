@@ -1,9 +1,10 @@
 'use client'
 import Link from 'next/link'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useTransition } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import Chart, { Legend, isSplit, splitWhy, type Series } from '@/components/Chart'
 import ChartPick from '@/components/ChartPick'
+import { setChartTogether } from '@/app/actions/reports'
 import { EditableSection } from '@/components/RowEdit'
 import EditReport from '@/components/EditReport'
 import Mentioned from '@/components/Mentioned'
@@ -70,6 +71,7 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
   const [drawOrder, setDrawOrder] = useState<string[]>(report.measures)
   const [drawPoints, setDrawPoints] = useState<number | null>(report.points ?? null)
   const [drawTogether, setDrawTogether] = useState(report.together === true)
+  const [swapping, swap] = useTransition()
   const preview = useCallback(
     (d: { measures: string[]; chartType: string; points: number | null; together: boolean }) => {
       setDrawOrder(d.measures); setDrawAs(d.chartType)
@@ -229,8 +231,28 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
                 {/* Full height here on purpose. This is the room the popover
                     does not have: measures orders of magnitude apart get a plot
                     each rather than one scale that flattens the small ones. */}
-                {!drawTogether && splitWhy(series, drawAs) &&
-                  <p className="splitwhy">{splitWhy(series, drawAs)}</p>}
+                {/* The reason stays whichever way round it is, because "why
+                    are there three charts" and "why is this one flat" are the
+                    same question and deserve the same answer. The switch is in
+                    the sentence: it is where you are already looking. */}
+                {splitWhy(series, drawAs, drawTogether) && (
+                  <p className="splitwhy">
+                    {splitWhy(series, drawAs, drawTogether)}
+                    {mayEdit && (
+                      <button className="splitwhy__go" type="button" disabled={swapping}
+                              onClick={() => {
+                                const next = !drawTogether
+                                setDrawTogether(next)
+                                swap(async () => {
+                                  const r = await setChartTogether(report.id, next)
+                                  if (!r.ok) setDrawTogether(!next)
+                                })
+                              }}>
+                        {drawTogether ? 'Give each its own plot' : 'Put them on one plot'}
+                      </button>
+                    )}
+                  </p>
+                )}
                 <Chart type={drawAs} series={series} height={400} picked={picked}
                        together={drawTogether} />
                 {/* Only when the plot is shared. Split plots each carry their

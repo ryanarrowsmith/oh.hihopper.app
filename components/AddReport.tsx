@@ -8,7 +8,7 @@ import Chart, {
   Legend, CHART_KINDS, KIND_NAME, KIND_ICON, KIND_SAY, measureCap, isSplit, splitWhy,
   type Series, type ChartKind,
 } from '@/components/Chart'
-import { createReport } from '@/app/actions/reports'
+import { createReport, createCategory } from '@/app/actions/reports'
 
 type Org = { id: string; name: string }
 type Dept = { id: string; name: string; entity_id: string }
@@ -31,6 +31,54 @@ const SOURCES = [
  * one that earns its place: a wrong tab, or a header row that is really data,
  * gets caught there instead of after the save.
  */
+/**
+ * Name a category, here, without leaving the report.
+ *
+ * The alternative was a dropdown reading "that department has none yet", which
+ * is a dead end wearing the clothes of a control: it says the answer is
+ * somewhere else and does not say where, and getting there means abandoning a
+ * half-built report.
+ */
+function NewCategory({ dept, deptName, onMade }: {
+  dept: string; deptName: string
+  onMade: (c: { id: string; name: string; department_id: string }) => void
+}) {
+  const [name, setName] = useState('')
+  const [err, setErr] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function add() {
+    const n = name.trim()
+    if (!n || busy) return
+    setBusy(true); setErr(null)
+    const f = new FormData()
+    f.set('department_id', dept); f.set('name', n)
+    const r = await createCategory(null, f)
+    setBusy(false)
+    if (r.ok && r.id) { onMade({ id: r.id, name: n, department_id: dept }); setName('') }
+    else setErr(r.message)
+  }
+
+  return (
+    <>
+      <div className="inline1">
+        <input className="field" id="ar-cat" value={name} disabled={busy}
+               placeholder={`A kind of report ${deptName || 'this department'} runs`}
+               onChange={(e) => { setName(e.target.value); setErr(null) }}
+               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }} />
+        <button className="btn" type="button" disabled={!name.trim() || busy} onClick={add}>
+          {busy ? 'Adding…' : 'Add it'}
+        </button>
+      </div>
+      <p className="hint">
+        {deptName ? `${deptName} has` : 'This department has'} no categories yet — name the
+        first one and this report goes in it.
+      </p>
+      {err && <p className="swhy">{err}</p>}
+    </>
+  )
+}
+
 export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: Dept[]; cats: Cat[] }) {
   const router = useRouter()
   const [step, setStep] = useState(1)
@@ -104,7 +152,11 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
     }).filter((s) => s.points.length > 0)
   }, [cols, dateCol, measures, sample, points])
   const myDepts = useMemo(() => depts.filter((d) => d.entity_id === org), [depts, org])
-  const myCats = useMemo(() => cats.filter((c) => c.department_id === dept), [cats, dept])
+  /** Categories made here, in this form, without leaving it. */
+  const [made, setMade] = useState<Cat[]>([])
+  const myCats = useMemo(
+    () => [...cats, ...made].filter((c) => c.department_id === dept),
+    [cats, made, dept])
 
   async function peek() {
     // Reading and listing go together: pressing Read it is the moment somebody
@@ -469,8 +521,8 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
                     {/* Splitting was the right call and looked like a fault:
                         three plots appear where one was asked for and nothing
                         says why. */}
-                    {!together && splitWhy(preview, chartType) &&
-                      <p className="splitwhy">{splitWhy(preview, chartType)}</p>}
+                    {splitWhy(preview, chartType, together) &&
+                      <p className="splitwhy">{splitWhy(preview, chartType, together)}</p>}
                     <Chart type={chartType} series={preview} height={220} together={together} />
                     {(together || !isSplit(preview, chartType)) && <Legend series={preview} />}
                   </>
@@ -625,10 +677,20 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
           </div>
           <div className="formrow" style={{ marginTop: 12 }}>
             <div><label htmlFor="ar-cat">Category</label>
-              <Choice id="ar-cat" name="category_id" key={dept} defaultValue={cat} required
-                      onPick={setCat}
-                      placeholder={dept ? (myCats.length ? 'Choose one' : 'That department has none yet') : 'Choose a department first'}
-                      options={myCats.map((c) => ({ value: c.id, label: c.name }))} /></div>
+              {/* A dropdown with nothing in it is furniture: it says the answer
+                  is elsewhere and does not say where. When the department has
+                  no categories, the field becomes the place to make one --
+                  because a person is halfway through registering a report and
+                  sending them to an admin page loses the report. */}
+              {dept && myCats.length === 0 ? (
+                <NewCategory dept={dept} deptName={myDepts.find((d) => d.id === dept)?.name ?? ''}
+                             onMade={(c) => { setMade((m) => [...m, c]); setCat(c.id) }} />
+              ) : (
+                <Choice id="ar-cat" name="category_id" key={dept} defaultValue={cat} required
+                        onPick={setCat}
+                        placeholder={dept ? 'Choose one' : 'Choose a department first'}
+                        options={myCats.map((c) => ({ value: c.id, label: c.name }))} />
+              )}</div>
             <div><label htmlFor="ar-name">Report name</label>
               <input className="field" id="ar-name" value={name} onChange={(e) => setName(e.target.value)}
                      placeholder="Truck hours billed" /></div>
