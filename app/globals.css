@@ -491,7 +491,7 @@ a.bub{text-decoration:none}
 .dpop{
   position:absolute; z-index:80; top:calc(100% + 14px); right:-4px;
   width:min(560px, calc(100vw - 40px)); text-align:left;
-  background:var(--surface); border-radius:var(--r);
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
   box-shadow:0 20px 44px -16px rgba(35,31,32,.42), 0 3px 10px -4px rgba(35,31,32,.2);
   transform-origin:calc(100% - 20px) -14px;
   animation:stream .26s cubic-bezier(.18,.74,.3,1) both;
@@ -499,6 +499,7 @@ a.bub{text-decoration:none}
 .dpop::before{
   content:""; position:absolute; top:-6px; right:16px; width:10px; height:10px;
   background:var(--surface); transform:rotate(45deg);
+  border-left:1px solid var(--rule); border-top:1px solid var(--rule);
 }
 /* It grows from the corner nearest the button, so it reads as coming out of
    her rather than as arriving from nowhere. */
@@ -944,9 +945,11 @@ select.field{appearance:none}
    form that describes it -- the preview is drawn from the same quote the
    message carries, so the two cannot disagree. */
 .mailpop{
+  /* Keeps its edge: it opens ON TOP OF Dolly's card, which is the same
+     --surface it is. Shadow alone leaves a white panel on a white panel. */
   position:absolute; top:calc(100% + 10px); right:0; z-index:60; width:360px;
   max-width:calc(100vw - 40px); text-align:left;
-  background:var(--surface); border-radius:var(--r);
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
   box-shadow:0 20px 44px -16px rgba(35,31,32,.42), 0 3px 10px -4px rgba(35,31,32,.2); padding:14px;
 }
 .mailpop__h{
@@ -1610,9 +1613,12 @@ select.field{appearance:none}
 .choice__btn[aria-expanded="true"] .choice__car{transform:rotate(180deg); color:var(--ink)}
 
 .choicepop{
+  /* Keeps its edge for the same reason as .mailpop: it is portalled over
+     whatever raised it, and that is often an add popover -- surface on
+     surface, where only a border says which is which. */
   position:fixed; z-index:200; max-height:min(320px, 60vh);
   display:flex; flex-direction:column; overflow:hidden;
-  background:var(--surface); border-radius:var(--r);
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
   box-shadow:0 20px 44px -16px rgba(35,31,32,.42), 0 3px 10px -4px rgba(35,31,32,.2);
 }
 .choicepop__find{padding:9px; border-bottom:1px solid var(--rule); background:var(--sunken)}
