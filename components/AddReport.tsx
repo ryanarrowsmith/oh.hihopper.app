@@ -542,7 +542,7 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
                 note={measures.length
                   ? `${dateCol || 'no date column'} · ${measures.join(', ')}`
                   : 'Choose a date column and what to measure'}>
-          <div className="formrow">
+          <div className="formrow formrow--lean">
             <div>
               <label htmlFor="ar-date">What dates the rows</label>
               <Choice id="ar-date" name="date_column" defaultValue={dateCol} placeholder="Choose a column"

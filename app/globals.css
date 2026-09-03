@@ -1119,6 +1119,13 @@ select.field{appearance:none}
    line: "Tab" with "Show me the tabs" sitting on top of it. Every label in a
    row is a block, so it does not depend on what follows it. */
 .formrow > div > label{display:block; margin-bottom:6px}
+/* Two questions of very different size. "What dates the rows" is one dropdown
+   and will never be more than one; "what is measured" is every numeric column
+   the sheet has, and at half the width they wrapped to four rows of chips
+   beside a field with nothing under it. Split by how much room each actually
+   needs rather than down the middle. */
+.formrow--lean{grid-template-columns:minmax(0,clamp(180px,27%,290px)) minmax(0,1fr)}
+@media (max-width:640px){ .formrow--lean{grid-template-columns:minmax(0,1fr)} }
 .formgrid__go{display:flex; gap:9px; margin-top:2px}
 .note{padding:10px 12px; font-size:13.5px; border-radius:var(--r)}
 /* Not an error -- nothing has gone wrong. A question that has not been answered
