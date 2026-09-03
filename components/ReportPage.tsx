@@ -178,9 +178,7 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
               "rename this heading", not as "change what this report reads". */}
           {mayEdit && (
             <button className="btn" type="button" onClick={() => setEditing(true)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                   strokeLinecap="round" strokeLinejoin="round"
-                   style={{ width: 15, height: 15, marginRight: 6, verticalAlign: '-2px' }}>
+              <svg viewBox="0 0 24 24">
                 <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
               Edit
             </button>

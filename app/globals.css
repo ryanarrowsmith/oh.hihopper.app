@@ -739,6 +739,16 @@ a.bub{text-decoration:none}
   border-radius:var(--r); border:1px solid var(--rule); background:var(--surface); color:var(--ink);
   text-decoration:none;
 }
+/* A mark in a button had no size, so it took whatever an unsized SVG takes and
+   shoved the label off centre -- which is why the one button in the product
+   that carries an icon does it with an inline style. One rule instead, so the
+   next one does not have to remember. The gap above already spaces it; nothing
+   needs a margin of its own. */
+.btn > svg{
+  width:15px; height:15px; flex:none; display:block;
+  fill:none; stroke:currentColor; stroke-width:1.9;
+  stroke-linecap:round; stroke-linejoin:round;
+}
 .btn:hover{border-color:var(--ink-3); background:var(--sunken)}
 .btn--amber{background:var(--amber); border-color:var(--amber); color:#231F20}
 .btn--amber:hover{background:#E39B29; border-color:#E39B29}
