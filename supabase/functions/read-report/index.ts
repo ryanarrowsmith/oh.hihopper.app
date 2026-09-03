@@ -280,6 +280,10 @@ function cell(c: any, type: Col['type']): string | number | null {
 
 const strip = (s: string) => s.replace(/<[^>]*>/g, '').trim().slice(0, 400)
 
+/** Said in one place, because it is one situation with one way out of it. */
+const TOO_BIG_FOR_TABS =
+  'That workbook is too big for Google to hand over in one piece, which is how Hopper reads a tab list without a key. Type the tab name for now — names are case-sensitive — and the picker comes back as soon as Google is connected to this Hopper.'
+
 /**
  * Every tab in a Google sheet, without a key.
  *
@@ -297,25 +301,90 @@ const strip = (s: string) => s.replace(/<[^>]*>/g, '').trim().slice(0, 400)
  * Names only. Hopper does not want the workbook and must not become a copy of
  * one, so the single entry is inflated and everything else is dropped.
  */
+const G_KEY = Deno.env.get('GOOGLE_API_KEY') ?? ''
+
+/**
+ * Every tab in a Google sheet.
+ *
+ * The form used to ask people to TYPE the tab name, case-sensitive, and said so
+ * in its own hint -- a form asking somebody to be a database. It could not do
+ * better because the visualization endpoint reads one NAMED tab and cannot list
+ * them.
+ *
+ * Two doors, cheapest first.
+ */
 async function googleTabs(url: string): Promise<string[]> {
   const { id } = googleParts(url)
   if (!id) throw new Fail('not_a_sheet', 'That is not a Google Sheets address.')
+  return (G_KEY ? await tabsByKey(id) : null) ?? await tabsByExport(id)
+}
 
-  const res = await fetch(`https://docs.google.com/spreadsheets/d/${id}/export?format=xlsx`, {
-    redirect: 'follow', signal: AbortSignal.timeout(12_000),
-  })
-  // Names only, so a workbook big enough to matter is not worth the download.
-  // The timeout alone is not a size limit -- a fast connection will happily
-  // pull sixty megabytes inside twelve seconds.
-  const declared = Number(res.headers.get('content-length') ?? 0)
-  if (declared > 24 * 1024 * 1024) {
-    throw new Fail('too_big',
-      'That workbook is too large for Hopper to list its tabs. Type the tab name instead.')
+/**
+ * The cheap door: the Sheets API, asked for nothing but the sheet names.
+ *
+ * A few hundred bytes whatever the workbook weighs, which is the whole reason
+ * it exists -- the other door downloads the entire file, and Google will not
+ * export a large one at all. An API KEY, not a sign-in: a key identifies the
+ * caller as Hopper and nothing more, and a link-shared sheet answers it exactly
+ * as it answers anybody. Nobody's credential is involved and none is stored.
+ *
+ * Returns null rather than failing, so a missing or wrong key falls through to
+ * the door that needs no key at all instead of taking the feature down with it.
+ */
+async function tabsByKey(id: string): Promise<string[] | null> {
+  try {
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(id)}`
+      + `?fields=sheets.properties(title,hidden)&key=${encodeURIComponent(G_KEY)}`,
+      { signal: AbortSignal.timeout(12_000) })
+    if (!res.ok) return null
+    const body = await res.json()
+    const all = (body.sheets ?? [])
+      .map((sh: any) => ({
+        name: String(sh?.properties?.title ?? ''),
+        hidden: sh?.properties?.hidden === true,
+      }))
+      .filter((t: { name: string }) => t.name !== '')
+    if (all.length === 0) return null
+    const shown = all.filter((t: { hidden: boolean }) => !t.hidden)
+    return (shown.length ? shown : all).map((t: { name: string }) => t.name)
+  } catch { return null }
+}
+
+/**
+ * The door that needs no key: the workbook itself.
+ *
+ * `export?format=xlsx` answers for any link-shared sheet with no credential --
+ * the same open door gviz uses -- and an xlsx is a zip whose `xl/workbook.xml`
+ * names every sheet in order.
+ *
+ * Its limit is size, and the limit is Google's, not Hopper's: past a few
+ * megabytes Google simply refuses to build the file, and below that it can take
+ * longer to build than anybody will wait. Both used to arrive as a raw
+ * TimeoutError in the form. They now arrive as the sentence they are, with the
+ * way out in them.
+ */
+async function tabsByExport(id: string): Promise<string[]> {
+  let res: Response
+  try {
+    res = await fetch(`https://docs.google.com/spreadsheets/d/${id}/export?format=xlsx`, {
+      redirect: 'follow', signal: AbortSignal.timeout(30_000),
+    })
+  } catch (e) {
+    throw new Fail('tabs_slow', (e as Error)?.name === 'TimeoutError'
+      ? TOO_BIG_FOR_TABS
+      : 'Hopper could not reach Google for that workbook.')
   }
-  // Google answers a sheet you may not read with its SIGN-IN PAGE rather than
-  // a 403, so the content type is what says whether we were let in.
+
+  // Google answers a sheet you may not read with its SIGN-IN PAGE rather than a
+  // 403, and a sheet it will not build with an error page, so the content type
+  // is what says whether we were let in and the body is what says why not.
   const type = res.headers.get('content-type') ?? ''
   if (!res.ok || /text\/html/i.test(type)) {
+    const why = (await res.text().catch(() => '')).slice(0, 4000)
+    if (/too large|exceeds the maximum|cannot be exported/i.test(why)) {
+      throw new Fail('too_big_to_list', TOO_BIG_FOR_TABS)
+    }
     throw new Fail('not_shared',
       'The sheet is not shared. In Google Sheets: Share → General access → Anyone with the link → Viewer.')
   }
