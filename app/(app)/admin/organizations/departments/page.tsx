@@ -91,8 +91,8 @@ export default async function Page() {
                   <span className="rcell">
                     <span className="rcell__lab">Organization</span>
                     <span className="rcell__val">
-                      <a href={`/admin/organizations/${d.entity_id}`}
-                         style={{ fontWeight: 700, color: 'var(--steel-ink)', textDecoration: 'none' }}>
+                      <a className="orgname orgname--sm"
+                         href={`/admin/organizations/${d.entity_id}`}>
                         {byOrg.get(d.entity_id) ?? '—'}
                       </a>
                     </span>

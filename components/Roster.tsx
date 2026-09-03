@@ -1,9 +1,10 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import Choice from '@/components/Choice'
+import { Pencil } from '@/components/Icons'
 import { importPeople, movePeople, setPeopleActive, type Landed } from '@/app/actions/roster'
-import { createPerson } from '@/app/actions/admin'
+import { createPerson, setPersonActive, updatePerson } from '@/app/actions/admin'
 
 export type Row = {
   id: string; name: string; email: string | null; role: string | null; phone: string | null
@@ -53,6 +54,7 @@ export default function Roster({ people, orgs, depts, mayEdit }: {
   const [filter, setFilter] = useState<Filter>('all')
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState<'import' | 'add' | 'move' | null>(null)
+  const [editing, setEditing] = useState<string | null>(null)
   const [paste, setPaste] = useState('')
   const [landed, land] = useFormState(importPeople, null)
   const [flipped, flip] = useFormState(setPeopleActive, null)
@@ -220,7 +222,8 @@ export default function Roster({ people, orgs, depts, mayEdit }: {
             <span>Sign-in</span><span />
           </div>
           {shown.map((p) => (
-            <div className={`rrw${p.active ? '' : ' rrw--off'}`} key={p.id}>
+            <div className={`rrec${editing === p.id ? ' is-open' : ''}`} key={p.id}>
+            <div className={`rrw${p.active ? '' : ' rrw--off'}`}>
               <span>
                 {mayEdit && (
                   <input type="checkbox" checked={picked.has(p.id)} onChange={() => pick(p.id)}
@@ -231,7 +234,9 @@ export default function Roster({ people, orgs, depts, mayEdit }: {
                 {initials(p.name)}
               </span>
               <span className="rrw__n">
-                <b>{p.name}</b>
+                {/* The name is the way deeper. One line each, the quick changes
+                    in the row, everything else on their own page. */}
+                <b><a className="orgname" href={`/people/${p.id}`}>{p.name}</a></b>
                 <small>{p.email ?? p.phone ?? 'No email on file'}</small>
               </span>
               <span className="rrw__c">{p.role ?? '—'}</span>
@@ -239,9 +244,25 @@ export default function Roster({ people, orgs, depts, mayEdit }: {
                 {[p.entity, p.department].filter(Boolean).join(' · ') || '—'}
               </span>
               <span><Sign p={p} /></span>
+              {/* Nothing a person may not do is drawn. Without the right to
+                  edit there is no pencil here, not a dead one. */}
               <span className="rrw__a">
-                <a className="btn" href={`/people/${p.id}`}>Open</a>
+                {mayEdit
+                  ? <button className="rpen" type="button" title={`Edit ${p.name}`}
+                            aria-label={`Edit ${p.name}`} aria-expanded={editing === p.id}
+                            onClick={() => setEditing(editing === p.id ? null : p.id)}>
+                      <Pencil />
+                    </button>
+                  : <a className="btn" href={`/people/${p.id}`}>Open</a>}
               </span>
+            </div>
+            <div className="rrec__drawer"><div className="rrec__clip">
+              <div className="rrec__form">
+                {editing === p.id && (
+                  <QuickEdit p={p} orgs={orgs} depts={depts} onDone={() => setEditing(null)} />
+                )}
+              </div>
+            </div></div>
             </div>
           ))}
         </div>
@@ -252,6 +273,76 @@ export default function Roster({ people, orgs, depts, mayEdit }: {
         everything they wrote — they stop appearing on the roster and stop being pickable.
         Taking a sign-in away is done under Permissions, deliberately.
       </p>
+    </>
+  )
+}
+
+/**
+ * The quick change, in the row.
+ *
+ * The five things that actually go stale on a roster -- a name, an email, a
+ * role, which business, which department -- and nothing else. A screen where
+ * correcting a spelling costs two navigations is a screen where the spelling
+ * stays wrong.
+ */
+function QuickEdit({ p, orgs, depts, onDone }: {
+  p: Row; orgs: Named[]; depts: (Named & { entityId: string })[]; onDone: () => void
+}) {
+  const [saved, save] = useFormState(updatePerson, null)
+  const [flipped, flip] = useFormState(setPersonActive, null)
+  // Closing is a change to the row above, so it happens after the render that
+  // learned the save worked -- not during it.
+  useEffect(() => { if (saved?.ok || flipped?.ok) onDone() }, [saved, flipped, onDone])
+  return (
+    <>
+      <div className="rrec__lab">Editing {p.name}</div>
+      <form action={save}>
+        <input type="hidden" name="id" value={p.id} />
+        <div className="formrow">
+          <div><label htmlFor={`pn-${p.id}`}>Name</label>
+            <input className="field" id={`pn-${p.id}`} name="full_name"
+                   defaultValue={p.name} required autoFocus /></div>
+          <div><label htmlFor={`pe-${p.id}`}>Email</label>
+            <input className="field" id={`pe-${p.id}`} name="email" type="email"
+                   defaultValue={p.email ?? ''} placeholder="None on file" /></div>
+          <div><label htmlFor={`pr-${p.id}`}>Role</label>
+            <input className="field" id={`pr-${p.id}`} name="role_title"
+                   defaultValue={p.role ?? ''} placeholder="Dispatcher" /></div>
+        </div>
+        <div className="formrow" style={{ marginTop: 11 }}>
+          <div><label htmlFor={`po-${p.id}`}>Organization</label>
+            <Choice id={`po-${p.id}`} name="entity_id" defaultValue={p.entityId ?? ''}
+                    placeholder="None"
+                    options={[{ value: '', label: 'None' },
+                              ...orgs.map((o) => ({ value: o.id, label: o.name }))]} /></div>
+          <div><label htmlFor={`pd-${p.id}`}>Department</label>
+            <Choice id={`pd-${p.id}`} name="department_id" placeholder="None"
+                    options={[{ value: '', label: 'None' },
+                              ...depts.map((d) => ({ value: d.id, label: d.name }))]} /></div>
+        </div>
+        {saved && !saved.ok && <p className="note note--err">{saved.message}</p>}
+        <div className="rowacts">
+          <Go label="Save" busy="Saving…" />
+          <button className="lnk" type="button" onClick={onDone}>Cancel</button>
+          <a className="lnk lnk--go" href={`/people/${p.id}`} style={{ color: 'var(--ink-3)' }}>
+            Everything else about them →
+          </a>
+        </div>
+      </form>
+
+      {/* Its own form on purpose: not a field, and not a thing to reach by
+          pressing Enter in a text box. */}
+      <form action={flip} className="oedit__d">
+        <input type="hidden" name="id" value={p.id} />
+        <input type="hidden" name="active" value={p.active ? 'false' : 'true'} />
+        <Go label={p.active ? 'Make them inactive' : 'Bring them back'}
+            busy="Saving…" bad={p.active} />
+        <span className="fine">
+          Nothing is deleted. They keep their history, their notes and everything they
+          wrote — they stop appearing on the roster and stop being pickable.
+        </span>
+      </form>
+      {flipped && !flipped.ok && <p className="note note--err">{flipped.message}</p>}
     </>
   )
 }
@@ -326,7 +417,8 @@ function Report({ landed }: { landed: Landed }) {
 function Go({ label, busy, bad }: { label: string; busy: string; bad?: boolean }) {
   const { pending } = useFormStatus()
   return (
-    <button className={`btn ${bad ? 'btn--bad' : 'btn--amber'}`} type="submit" disabled={pending}>
+    <button className={`btn btn--sm ${bad ? 'btn--bad' : 'btn--amber'}`} type="submit"
+            disabled={pending}>
       {pending ? busy : label}
     </button>
   )

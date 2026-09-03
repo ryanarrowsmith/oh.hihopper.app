@@ -1,19 +1,26 @@
 import { supabaseServer } from '@/lib/supabase/server'
 import { EditableSection, RowForm } from '@/components/RowEdit'
 import Choice from '@/components/Choice'
-import { Caret, Level } from '@/components/Icons'
+import { Caret, Level, Pencil } from '@/components/Icons'
 import LocationMap from '@/components/LocationMap'
+import OrgEdit from '@/components/OrgEdit'
 import { createEntity } from '@/app/actions/admin'
 
 export default async function Organizations() {
   const db = supabaseServer()
   const { data: entities } = await db.schema('hopper')
-    .from('entity').select('id, name, mark, status, parent_id').order('sort_order')
+    .from('entity').select('id, name, mark, status, parent_id, legal_name, logo_url')
+    .order('sort_order')
   const { data: departments } = await db.schema('hopper')
     .from('department').select('id, entity_id')
   // Enough of a location to draw its card. Head office first, then by name --
   // the order the drawer prints them in, decided once here rather than in the
   // markup.
+  // Whether to draw the pencil comes from the same place the write is
+  // permitted, so the row cannot offer an edit the database refuses.
+  const { data: rights } = await db.schema('hopper')
+    .from('entity_rights').select('entity_id, may_edit')
+
   const { data: locations } = await db.schema('hopper')
     .from('location')
     .select('id, entity_id, name, address_line1, city, region, postal_code, latitude, longitude, is_head_office')
@@ -31,6 +38,8 @@ export default async function Organizations() {
    * phone's width.
    */
   const placesOf = (id: string) => (locations ?? []).filter((l: any) => l.entity_id === id)
+  const mayEditOrg = (id: string) =>
+    (rights ?? []).some((r: any) => r.entity_id === id && r.may_edit)
 
   /**
    * An organization's offices, under its own row.
@@ -83,10 +92,10 @@ export default async function Organizations() {
     )
   }
 
-  const Row = ({ e, kid, toggles, places }: {
-    e: any; kid?: boolean; toggles?: string; places?: string
+  const Row = ({ e, kid, toggles, places, edits }: {
+    e: any; kid?: boolean; toggles?: string; places?: string; edits?: string
   }) => (
-    <div className={`tree__row${kid ? ' kid' : ''}`}>
+    <div className={`tree__row${kid ? ' kid' : ''}${e.status === 'inactive' ? ' is-off' : ''}`}>
       <span className="rcell rcell--lead">
         {toggles
           ? <label className="tcar" htmlFor={toggles}
@@ -94,13 +103,16 @@ export default async function Organizations() {
           : <span className="tcar tcar--none" />}
         {kid && <Level className="lv lvm" />}
         <span className="plate">{e.mark ?? '—'}</span>
-        <b style={{ fontSize: 14 }}>{e.name}</b>
+        {/* The name is the way deeper. One line per organization, the quick
+            changes in the row, and everything else on its own page. */}
+        <a className="orgname" href={`/admin/organizations/${e.id}`}>{e.name}</a>
       </span>
       <span className="rcell">
         <span className="rcell__lab">Status</span>
         <span className="rcell__val">
-          <span className={`pill ${e.status === 'active' ? 'pill--good' : 'pill--setup'}`}>
-            {e.status}</span>
+          <span className={`pill ${e.status === 'active' ? 'pill--good'
+            : e.status === 'inactive' ? 'pill--off' : 'pill--setup'}`}>
+            {e.status === 'inactive' ? 'retired' : e.status}</span>
         </span>
       </span>
       <span className="rcell">
@@ -119,9 +131,19 @@ export default async function Organizations() {
               </label>}
         </span>
       </span>
-      <span className="rcell rcell--act">
-        <a className="btn" href={`/admin/organizations/${e.id}`}>Open</a>
-      </span>
+      {/* The name is the way in, so the row's own control is the change you
+          make without leaving the list. Nothing a person may not do is drawn:
+          without edit rights on this organization there is no pencil, not a
+          disabled one. */}
+      {!edits && (
+        <span className="rcell rcell--act">
+          <a className="btn" href={`/admin/organizations/${e.id}`}>Open</a>
+        </span>
+      )}
+      {/* Not in a cell. On a phone the row becomes a card and the pencil pins
+          to its top right, which it can only do as a child of the row itself --
+          the same place the record shell puts it. */}
+      {edits && <label className="rpen" htmlFor={edits} title={`Edit ${e.name}`}><Pencil /></label>}
     </div>
   )
 
@@ -180,9 +202,15 @@ export default async function Organizations() {
                  hides itself on arrival is a portfolio you have to unpack every
                  visit. The locations are shut by default, because nine
                  organizations' worth of open drawers is not a portfolio either.
-                 Two checkboxes, two independent things. */
+                 Three checkboxes now -- what sits under it, its offices, and
+                 the quick edit -- and they are independent of each other. The
+                 tree's CSS reaches its row with sibling selectors, which is why
+                 the edit drawer is a checkbox too rather than a React wrapper
+                 around the row. */
               const id = `t-${r.id}`
               const lid = `l-${r.id}`
+              const eid = `e-${r.id}`
+              const mine = mayEditOrg(r.id)
               return (
                 <div className="tnode" key={r.id}>
                   {kids.length > 0 && (
@@ -191,7 +219,11 @@ export default async function Organizations() {
                   )}
                   <input type="checkbox" id={lid} className="lvis"
                          aria-label={`Show or hide the offices in ${r.name}`} />
-                  <Row e={r} toggles={kids.length ? id : undefined} places={lid} />
+                  {mine && <input type="checkbox" id={eid} className="evis"
+                                  aria-label={`Edit ${r.name}`} />}
+                  <Row e={r} toggles={kids.length ? id : undefined} places={lid}
+                       edits={mine ? eid : undefined} />
+                  {mine && <OrgEdit e={r} boxId={eid} />}
                   <Places e={r} />
                   {kids.length > 0 && (
                     <div className="tree__kids"><div className="tree__clip">
@@ -199,12 +231,17 @@ export default async function Organizations() {
                         /* The child is a card, and its offices open inside that
                            card rather than across the slab underneath it. */
                         const kl = `l-${c.id}`
+                        const ke = `e-${c.id}`
+                        const km = mayEditOrg(c.id)
                         return (
                           <div className="tnode" key={c.id}>
                             <input type="checkbox" id={kl} className="lvis"
                                    aria-label={`Show or hide the offices in ${c.name}`} />
+                            {km && <input type="checkbox" id={ke} className="evis"
+                                          aria-label={`Edit ${c.name}`} />}
                             <div className="okid">
-                              <Row e={c} kid places={kl} />
+                              <Row e={c} kid places={kl} edits={km ? ke : undefined} />
+                              {km && <OrgEdit e={c} boxId={ke} />}
                               <Places e={c} />
                             </div>
                           </div>

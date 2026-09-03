@@ -71,6 +71,56 @@ export async function updateEntity(_prev: Result | null, form: FormData): Promis
   return { ok: true, message: 'Saved.' }
 }
 
+/**
+ * Retire an organization, or bring it back.
+ *
+ * status='inactive' rather than a delete: an organization holds departments,
+ * offices, people, projects, reports and years of audit entries, and removing
+ * the row would orphan every one of them. Retired means it stops being offered
+ * when anything is filed, and stops counting as somewhere work happens.
+ *
+ * Its children go with it. A branch whose parent is retired but whose children
+ * are live is a shape nobody can hold in their head, and it is the shape that
+ * makes somebody file a person into a business that closed last year.
+ */
+export async function setEntityActive(_prev: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const id = str(form, 'id')
+  const active = form.get('active') === 'true'
+  if (!id) return { ok: false, message: 'Nothing to change.' }
+
+  const { data: tree } = await db.schema('hopper').from('entity')
+    .select('id, name, parent_id')
+  const line = new Set<string>([id])
+  for (let pass = 0; pass < 12; pass++) {
+    for (const e of tree ?? []) {
+      if (e.parent_id && line.has(e.parent_id)) line.add(e.id)
+    }
+  }
+
+  // A FOR ALL policy refuses by changing nothing and raising nothing, so the
+  // rows that came back are the only honest count.
+  const { data: hit, error } = await db.schema('hopper').from('entity')
+    .update({ status: active ? 'active' : 'inactive' })
+    .in('id', [...line]).select('id, name')
+  if (error) return { ok: false, message: refused(error.message, 'organization') }
+  if (!hit?.length) return { ok: false, message: 'That is not yours to change.' }
+
+  const me = (hit ?? []).find((e: any) => e.id === id)
+  const others = hit.length - 1
+  await logAudit(db, { account_id: account, kind: 'entity', object: me?.name ?? null,
+    object_id: id,
+    summary: `${active ? 'Brought back' : 'Retired'} ${me?.name ?? 'an organization'}`
+      + (others > 0 ? ` and ${others} beneath it` : '') })
+
+  revalidatePath('/admin/organizations'); revalidatePath('/admin')
+  return { ok: true, message: active
+    ? others > 0 ? `Back in use, with ${others} beneath it.` : 'Back in use.'
+    : others > 0
+      ? `Retired, along with ${others} beneath it. Nothing was deleted.`
+      : 'Retired. Nothing was deleted.' }
+}
+
 export async function createDepartment(_prev: Result | null, form: FormData): Promise<Result> {
   const { db, account } = await ctx()
   const entity_id = str(form, 'entity_id'), name = str(form, 'name')
@@ -404,6 +454,9 @@ export async function createPerson(_prev: Result | null, form: FormData): Promis
     account_id: account, full_name,
     email: nul(form, 'email'), role_title: nul(form, 'role_title'),
     entity_id: nul(form, 'entity_id'),
+    // The add form has always offered a department and this has always thrown
+    // it away, so everybody added by hand landed in none.
+    department_id: nul(form, 'department_id'),
   })
   if (error) return { ok: false, message: refused(error.message, 'person') }
 
@@ -411,6 +464,29 @@ export async function createPerson(_prev: Result | null, form: FormData): Promis
     summary: `Added ${full_name} to the roster` })
   revalidatePath('/admin/people'); revalidatePath('/admin/permissions')
   return { ok: true, message: `${full_name} added.` }
+}
+
+/** The quick change, from the roster row: the four things that actually go
+ *  stale. Everything else about a person is on their own page. */
+export async function updatePerson(_prev: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const id = str(form, 'id'), full_name = str(form, 'full_name')
+  if (!id || !full_name) return { ok: false, message: 'A person needs a name.' }
+
+  const { data: hit, error } = await db.schema('hopper').from('person').update({
+    full_name,
+    email: nul(form, 'email'),
+    role_title: nul(form, 'role_title'),
+    entity_id: nul(form, 'entity_id'),
+    department_id: nul(form, 'department_id'),
+  }).eq('id', id).select('id')
+  if (error) return { ok: false, message: refused(error.message, 'person') }
+  if (!hit?.length) return { ok: false, message: 'That is not yours to change.' }
+
+  await logAudit(db, { account_id: account, kind: 'person', object: full_name,
+    object_id: id, summary: `Edited ${full_name}` })
+  revalidatePath('/admin/people'); revalidatePath('/people'); revalidatePath(`/people/${id}`)
+  return { ok: true, message: 'Saved.' }
 }
 
 export async function setPersonActive(_prev: Result | null, form: FormData): Promise<Result> {
