@@ -6,7 +6,7 @@ export type Needy = {
   id: string; name: string; where: string
   /** How it is wrong, already worded. */
   why: string
-  kind: 'late' | 'bad' | 'never'
+  kind: 'late' | 'bad' | 'never' | 'mine'
   href: string
 }
 export type Org = { id: string; name: string; n: number }
@@ -17,11 +17,15 @@ const I = (d: string, w = '1.7') => (
 )
 const REP = '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'
 const ORG = '<rect x="3" y="8" width="7" height="13"/><rect x="14" y="3" width="7" height="18"/>'
+const TASK = '<path d="M4 6.5 6.5 9 11 4"/><path d="M4 16.5 6.5 19 11 14"/><path d="M14 7h7M14 17h7"/>'
 
 const GROUP: Record<Needy['kind'], string> = {
   late: 'Stopped moving', bad: 'Would not answer', never: 'Never read',
+  mine: 'On you, and due',
 }
-const ORDER: Needy['kind'][] = ['bad', 'late', 'never']
+/* Work with your name on it comes first. A report that stopped moving is a
+   thing to look into; a task that was due yesterday is a thing to do. */
+const ORDER: Needy['kind'][] = ['mine', 'bad', 'late', 'never']
 
 /**
  * What needs you, as a sentence.

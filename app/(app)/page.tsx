@@ -39,6 +39,7 @@ export default async function Home() {
   const [
     cards, { data: ents }, { data: locations }, { data: hearts },
     { data: people }, { data: me }, { data: reach }, { data: seen },
+    { data: myTasks }, { data: projs },
   ] = await Promise.all([
     // Always: the sentence in the hero counts these, and Favorites and
     // Dashboards draw their charts from the same read rather than a second one.
@@ -69,6 +70,15 @@ export default async function Home() {
     // here and no way to read anybody else's.
     db.schema('hopper').from('recent').select('kind, object_id, label, sub, at')
       .order('at', { ascending: false }).limit(10),
+    // What is on you. Open only, dated only -- an undated task is a wish and
+    // the sentence above is about this week.
+    session.personId
+      ? db.schema('hopper').from('task')
+          .select('id, name, due_on, project_id, blocked_by')
+          .eq('assignee_id', session.personId).is('done_at', null)
+          .not('due_on', 'is', null).order('due_on')
+      : Promise.resolve({ data: [] as any[] }),
+    db.schema('hopper').from('project').select('id, name'),
   ])
 
   const all = ents ?? []
@@ -78,11 +88,40 @@ export default async function Home() {
   const heart = hearts ?? []
   const places = locations ?? []
   const byReport = new Map(cards.map((c) => [c.id, c]))
+  const projectName = new Map((projs ?? []).map((p: any) => [p.id, p.name]))
+  // Due inside the next week, or already past. Far enough ahead to be useful,
+  // near enough that everything in the list is actually this week's problem.
+  const soonD = new Date(); soonD.setDate(soonD.getDate() + 7)
+  const soon = `${soonD.getFullYear()}-${String(soonD.getMonth() + 1).padStart(2, '0')}-${String(soonD.getDate()).padStart(2, '0')}`
 
   const address = (l: any) => [l.address_line1, l.address_line2,
     [l.city, l.region].filter(Boolean).join(', '), l.postal_code].filter(Boolean).join('\n')
 
   /* ── what wants a person ────────────────────────────────────────── */
+
+  /**
+   * Work with your name on it, due or overdue.
+   *
+   * The same sentence already says what is wrong with the reports, and a second
+   * band underneath saying what is wrong with your week would be two places to
+   * look for one answer. Only what is DUE -- something due in October is not
+   * something that needs you this morning, and a list that says otherwise stops
+   * being read.
+   */
+  const onMe: Needy[] = (myTasks ?? [])
+    .filter((t: any) => t.due_on && t.due_on <= soon)
+    .map((t: any) => {
+      const over = Math.floor((Date.now() - new Date(`${t.due_on}T00:00:00`).getTime()) / 86_400_000)
+      return {
+        id: t.id, name: t.name,
+        where: projectName.get(t.project_id) ?? 'Project',
+        why: t.blocked_by ? 'Blocked'
+          : over > 0 ? `${over} day${over === 1 ? '' : 's'} late`
+          : over === 0 ? 'Due today' : 'Due soon',
+        kind: 'mine' as const,
+        href: `/projects/${t.project_id}`,
+      }
+    })
 
   const needy: Needy[] = cards
     .map((c) => ({ c, k: attentionOf(c) }))
@@ -96,6 +135,8 @@ export default async function Home() {
       kind: k,
       href: `/reporting/${c.id}`,
     }))
+
+  needy.unshift(...onMe)
 
   // Counted by organization NAME back to an id, because a card carries the name
   // it was drawn with. Anything whose organization has gone is left out of the

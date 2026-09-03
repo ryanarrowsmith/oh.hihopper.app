@@ -2,7 +2,7 @@ import 'server-only'
 import { supabaseServer } from '@/lib/supabase/server'
 import { allowedFor } from '@/lib/freshness'
 
-export type CalKind = 'sched' | 'late' | 'birthday' | 'anniversary' | 'feed' | 'event'
+export type CalKind = 'sched' | 'late' | 'birthday' | 'anniversary' | 'feed' | 'event' | 'project'
 
 export type Ev = {
   id: string; kind: CalKind; title: string; sub: string | null
@@ -21,10 +21,15 @@ const iso = (d: Date) =>
 /* Four palette colours are already as many as separate reliably for every kind
    of colour vision, so the fifth kind does not get a fifth colour. It gets ink
    -- which is also the honest signal: everything else on this calendar is
-   worked out, and an event is the one thing a person typed. */
+   worked out, and an event is the one thing a person typed.
+
+   Project dates are one colour and one switch for the same reason, even though
+   a milestone and a task are different things: which it is goes in the line
+   under the name, where a word can say it, rather than into a sixth colour
+   nobody can name. */
 const COLOUR: Record<CalKind, string> = {
   sched: '--s1', late: '--amber', birthday: '--amber',
-  anniversary: '--s2', feed: '--s3', event: '--ink-2',
+  anniversary: '--s2', feed: '--s3', event: '--ink-2', project: '--steel',
 }
 
 /**
@@ -36,10 +41,11 @@ const COLOUR: Record<CalKind, string> = {
  * anywhere, and inventing rows for them would mean a table that has to be
  * regenerated every time somebody scrolls to next March.
  */
-export async function loadCalendar(from: Date, to: Date) {
+export async function loadCalendar(from: Date, to: Date, mePersonId?: string | null) {
   const db = supabaseServer()
 
-  const [{ data: reps }, { data: people }, { data: feeds }, { data: events }, { data: mine }] =
+  const [{ data: reps }, { data: people }, { data: feeds }, { data: events }, { data: mine },
+         { data: miles }, { data: tasks }, { data: projs }] =
     await Promise.all([
     db.schema('hopper').from('report_state')
       .select('report_id, name, refresh, last_look, value_on, snapshot_at, last_look_ok, entity_id'),
@@ -54,6 +60,18 @@ export async function loadCalendar(from: Date, to: Date) {
     db.schema('hopper').from('event')
       .select('id, title, day, start_min, end_min, location, notes')
       .gte('day', iso(from)).lte('day', iso(to)).order('day'),
+    // Milestones you can see -- they are few, and a milestone is a date the
+    // whole company is working towards, which is exactly what a calendar is
+    // for. RLS decides "can see".
+    db.schema('hopper').from('milestone')
+      .select('id, name, due_on, done_at, project_id')
+      .gte('due_on', iso(from)).lte('due_on', iso(to)),
+    // Tasks, but only YOURS. Everybody's tasks on one calendar is not a
+    // calendar, it is a wall.
+    db.schema('hopper').from('task')
+      .select('id, name, due_on, done_at, project_id, assignee_id')
+      .gte('due_on', iso(from)).lte('due_on', iso(to)).is('done_at', null),
+    db.schema('hopper').from('project').select('id, name'),
   ])
 
   const evs: Ev[] = []
@@ -155,6 +173,29 @@ export async function loadCalendar(from: Date, to: Date) {
       at: e.start_min == null ? null : `${e.day}T${hhmm(e.start_min)}:00`,
       mins: e.start_min == null || e.end_min == null ? null : e.end_min - e.start_min,
       href: null, colour: COLOUR.event,
+    })
+  }
+
+  /* ── project dates ── */
+  const projName = new Map((projs ?? []).map((p: any) => [p.id, p.name]))
+  for (const m of miles ?? []) {
+    evs.push({
+      id: `ms-${m.id}`, kind: 'project', title: m.name,
+      sub: `${projName.get(m.project_id) ?? 'Project'} · milestone`,
+      day: m.due_on, at: null, mins: null,
+      href: `/projects/${m.project_id}`, colour: COLOUR.project,
+    })
+  }
+  // Only the ones that are actually mine. loadCalendar has no person to compare
+  // against, so the caller passes one -- and passing none means no tasks rather
+  // than everybody's, which is the safe way round for a mistake to fall.
+  for (const t of tasks ?? []) {
+    if (!mePersonId || t.assignee_id !== mePersonId) continue
+    evs.push({
+      id: `tk-${t.id}`, kind: 'project', title: t.name,
+      sub: projName.get(t.project_id) ?? 'Project',
+      day: t.due_on, at: null, mins: null,
+      href: `/projects/${t.project_id}`, colour: COLOUR.project,
     })
   }
 

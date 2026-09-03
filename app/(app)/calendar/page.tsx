@@ -25,7 +25,7 @@ export default async function Page() {
 
   const db = supabaseServer()
   const [{ events, feeds }, { data: people }, { data: token }, { data: orgs }] = await Promise.all([
-    loadCalendar(from, to),
+    loadCalendar(from, to, session.personId),
     db.schema('hopper').from('directory')
       .select('id, full_name, entity_name, department_name, birth_month, birth_day, start_month, start_year')
       .eq('active', true),
