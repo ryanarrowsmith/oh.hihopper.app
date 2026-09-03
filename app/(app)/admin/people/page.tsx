@@ -50,9 +50,11 @@ export default async function Page() {
         location: name(locs ?? [], p.location_id),
         manager: p.manager_id ? byId.get(p.manager_id) ?? null : null,
         canSignIn: !!p.profile_id && signedUp.has(p.profile_id),
-        // Asked, but not yet arrived. Worth its own state: "never invited" is a
-        // job somebody has to do, and it is invisible if it looks the same as
-        // "on the roster on purpose".
+        // An address to invite, and no login against it. Worth its own state:
+        // somebody who could be given a login and has not been is a job to do,
+        // and it is invisible if it looks the same as "on the roster on
+        // purpose". It does NOT mean an invitation was sent -- nothing in
+        // Hopper sends one yet.
         invited: !!p.email && !p.profile_id,
         active: p.active,
       }))}

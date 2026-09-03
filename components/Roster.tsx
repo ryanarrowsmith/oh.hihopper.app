@@ -28,12 +28,25 @@ const UP     = '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>'
 const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2)
   .map((w) => w[0]?.toUpperCase() ?? '').join('') || '—'
 
-/** Roster only, invited, signs in — three states, and the difference between
- *  them is the whole reason People and Users used to be two screens. */
+/**
+ * Signs in, could be invited, has no address to invite — three states, and the
+ * difference between them is the whole reason People and Users used to be two
+ * screens.
+ *
+ * The middle one used to say "Invited", which was a claim nothing in Hopper
+ * could have made true: there is no invite anywhere in the product, so the
+ * chip appeared the moment somebody had an email address and read as "we sent
+ * them one". A screen that reports work nobody did is worse than a screen that
+ * reports nothing.
+ */
 function Sign({ p }: { p: Row }) {
   if (p.canSignIn) return <span className="sign sign--in">{I(TICK, '2.4')}Signs in</span>
-  if (p.invited) return <span className="sign sign--wait">{I(MAIL, '2')}Invited</span>
-  return <span className="sign sign--no">{I(MINUS, '2.4')}Roster only</span>
+  if (p.invited) {
+    return <span className="sign sign--wait" data-tip="Has an email address — nobody has been invited yet">
+      {I(MAIL, '2')}No login yet</span>
+  }
+  return <span className="sign sign--no" data-tip="No email address on file to invite">
+    {I(MINUS, '2.4')}Roster only</span>
 }
 
 type Filter = 'all' | 'signin' | 'never' | 'off'
@@ -151,7 +164,7 @@ export default function Roster({ people, orgs, depts, mayEdit }: {
         </span>
         <span className="chipbar">
           {([['all', 'Everyone'], ['signin', 'Can sign in'],
-             ['never', 'Never invited'], ['off', 'Inactive']] as [Filter, string][])
+             ['never', 'No email'], ['off', 'Inactive']] as [Filter, string][])
             .map(([k, label]) => (
               <button key={k} type="button" className={`chip2${filter === k ? ' is-on' : ''}`}
                       onClick={() => { setFilter(k); setPicked(new Set()) }}>
