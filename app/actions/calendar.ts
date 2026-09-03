@@ -112,6 +112,7 @@ export async function addEvent(_p: Result | null, form: FormData): Promise<Resul
     account_id: session.accountId, entity_id: entityId, title, day,
     start_min: startMin, end_min: endMin,
     location: str('location') || null, notes: str('notes') || null,
+    is_public: str('is_public') === 'on',
     created_by: session.personId,
   })
   if (error) {

@@ -67,7 +67,7 @@ const json = (body: unknown, status = 200) =>
 // ---------------------------------------------------------------- the source
 
 type Col = { key: string; label: string; type: 'text' | 'number' | 'date' }
-type Sheet = { columns: Col[]; rows: (string | number | null)[][] }
+type Sheet = { columns: Col[]; rows: (string | number | null)[][]; capped?: boolean }
 
 /**
  * Pull the spreadsheet id and the tab's gid out of whatever was pasted.
@@ -90,32 +90,81 @@ function googleParts(url: string) {
  * wrapped JSON, and that is the tell: the wrapper is missing, so we say "not
  * shared" rather than "couldn't reach Google".
  */
-async function readGoogle(url: string, tab: string | null): Promise<Sheet> {
-  const { id, gid } = googleParts(url)
-  if (!id) throw new Fail('bad_url', 'That does not look like a Google Sheets address.')
+/**
+ * How many rows a look ever asks Google for.
+ *
+ * The reader used to ask for the tab and get the tab: a 5.8 MB spreadsheet
+ * comes back as tens of megabytes of JSON, which is more than an edge worker
+ * has, and the worker was killed for it -- a 546 with no message in it, which
+ * arrived in the form as "Hopper could not read that." The size of somebody's
+ * spreadsheet is not something Hopper gets to have an opinion about; how much
+ * of it Hopper drags across the internet is.
+ */
+const ASK = KEEP
+const PEEK_ROWS = 200
 
-  // headers=1 rather than letting Google guess where the header row is. The
-  // whole model assumes one — the column names ARE the header row — and a guess
-  // that changes when somebody types a number into row 1 is a report that
-  // renames its own columns.
-  const q = new URLSearchParams({ tqx: 'out:json', headers: '1' })
+/** Bytes of gviz JSON we will hold. Well past ASK rows of anything sane, and
+ *  a wall rather than a worker dying without saying why. */
+const GVIZ_MAX = 12 * 1024 * 1024
+
+/** Read a body, and stop reading it if it will not fit. */
+async function capped(res: Response, max: number): Promise<string> {
+  if (!res.body) return await res.text()
+  const reader = res.body.getReader()
+  const dec = new TextDecoder()
+  let out = '', n = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    n += value.byteLength
+    if (n > max) {
+      await reader.cancel().catch(() => {})
+      throw new Fail('too_big',
+        'That tab is bigger than Hopper will read in one go. Give the report a date column and Hopper will ask Google for the most recent rows instead of all of them.')
+    }
+    out += dec.decode(value, { stream: true })
+  }
+  return out + dec.decode()
+}
+
+/**
+ * One request to the visualization endpoint, bounded in time and in bytes.
+ *
+ * `tq` is the Google Visualization query -- the reason this is worth having:
+ * the endpoint will do `order by` and `limit` at Google's end, so Hopper can
+ * ask for five hundred rows out of forty thousand instead of receiving forty
+ * thousand and throwing most of them away.
+ */
+async function gviz(id: string, tab: string | null, gid: string | null, tq: string) {
+  const q = new URLSearchParams({ tqx: 'out:json', headers: '1', tq })
   if (tab) q.set('sheet', tab)
   else if (gid) q.set('gid', gid)
 
-  const res = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?${q}`, {
-    redirect: 'follow',
-    headers: { 'User-Agent': 'Hopper/1.0 (+https://oh.hihopper.app)' },
-  })
-  const text = await res.text()
+  let res: Response
+  try {
+    res = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?${q}`, {
+      redirect: 'follow',
+      headers: { 'User-Agent': 'Hopper/1.0 (+https://oh.hihopper.app)' },
+      signal: AbortSignal.timeout(25_000),
+    })
+  } catch (e) {
+    if (e instanceof Fail) throw e
+    throw new Fail('unreachable', (e as Error)?.name === 'TimeoutError'
+      ? 'Google took more than twenty-five seconds to answer for that tab.'
+      : 'Hopper could not reach Google.')
+  }
+  return { text: await capped(res, GVIZ_MAX), status: res.status }
+}
 
+/** The wrapped JSON turned into columns and rows, or a sentence about why not. */
+function fromGviz(answer: { text: string; status: number }, tab: string | null): Sheet {
+  const { text, status } = answer
   const open = text.indexOf('{')
   const close = text.lastIndexOf('}')
   if (!text.startsWith('/*O_o*/') || open < 0 || close < 0) {
     // Two different problems that both arrive as HTML, told apart so the person
     // reading the message knows whether to fix the address or the sharing.
-    if (res.status === 404) {
-      throw new Fail('no_sheet', 'There is no sheet at that address.')
-    }
+    if (status === 404) throw new Fail('no_sheet', 'There is no sheet at that address.')
     throw new Fail('not_shared',
       'The sheet is not shared. In Google Sheets: Share → General access → Anyone with the link → Viewer.')
   }
@@ -149,6 +198,61 @@ async function readGoogle(url: string, tab: string | null): Promise<Sheet> {
     columns.map((_, i) => cell(r.c?.[i], columns[i].type)))
 
   return { columns, rows }
+}
+
+/**
+ * The free door: the visualization endpoint. It answers for any link-shared
+ * sheet with no credential at all, which is why it is tried first and why a key
+ * is never the price of admission to a public sheet — the mistake the first
+ * version made.
+ *
+ * Two hops, not one, and the first is the cheap one.
+ *
+ *   1. `limit 1` — a few hundred bytes whatever the sheet weighs. It comes back
+ *      with every column: its letter, its heading and its type. That is what
+ *      makes the second hop askable.
+ *   2. the rows. When the report already knows which column dates it, Google is
+ *      asked to sort by that column DESCENDING and hand back the newest five
+ *      hundred, which are then flipped back into reading order. Hopper keeps
+ *      five hundred rows either way; the difference is whether they are the
+ *      five hundred that matter or the five hundred at the top of the sheet.
+ *
+ * headers=1 rather than letting Google guess where the header row is. The whole
+ * model assumes one — the column names ARE the header row — and a guess that
+ * changes when somebody types a number into row 1 is a report that renames its
+ * own columns.
+ */
+async function readGoogle(
+  url: string, tab: string | null,
+  opts: { limit?: number; dateKey?: string | null } = {},
+): Promise<Sheet> {
+  const { id, gid } = googleParts(url)
+  if (!id) throw new Fail('bad_url', 'That does not look like a Google Sheets address.')
+
+  const limit = opts.limit ?? ASK
+  const head = fromGviz(await gviz(id, tab, gid, 'limit 1'), tab)
+
+  // Only a real column letter is ever interpolated into the query. gviz names
+  // columns A, B, C -- anything else is not a reference this endpoint knows,
+  // and pasting an unknown string into a query language is how a query language
+  // becomes an injection.
+  const found = opts.dateKey
+    ? head.columns.find((c) => c.key === opts.dateKey || c.label === opts.dateKey)?.key
+    : undefined
+  const dateId = found && /^[A-Z]{1,3}$/.test(found) ? found : null
+
+  const answer = fromGviz(
+    await gviz(id, tab, gid,
+      dateId ? `select * order by ${dateId} desc limit ${limit}` : `limit ${limit}`),
+    tab)
+
+  const rows = dateId ? answer.rows.slice().reverse() : answer.rows
+  return {
+    columns: answer.columns.length ? answer.columns : head.columns,
+    rows,
+    // Exactly as many as we asked for almost certainly means there were more.
+    capped: rows.length >= limit,
+  }
 }
 
 /**
@@ -691,7 +795,7 @@ async function store(admin: any, rep: any, sheet: Sheet) {
     columns: sheet.columns,
     rows: kept,
     row_count: sheet.rows.length,
-    truncated: sheet.rows.length > kept.length,
+    truncated: sheet.capped === true || sheet.rows.length > kept.length,
     fetched_at: new Date().toISOString(),
   }, { onConflict: 'report_id' })
 
@@ -760,7 +864,8 @@ async function look(admin: any, rep: any) {
     const sheet = rep.google_file_id
       ? await readGooglePrivate(admin, rep.account_id, rep.google_file_id, rep.source_tab)
       : rep.source_kind === 'google_sheet'
-      ? await readGoogle(rep.source_url, rep.source_tab)
+      ? await readGoogle(rep.source_url, rep.source_tab,
+          { limit: ASK, dateKey: rep.date_column ?? null })
       : await readLink(rep.source_url, rep.source_tab)
     const { readings } = await store(admin, rep, sheet)
 
@@ -963,7 +1068,10 @@ Deno.serve(async (req) => {
         sheet = await readGooglePrivate(admin, account, fileId, body.peek.tab ?? null)
       } else {
         sheet = kind === 'google_sheet'
-          ? await readGoogle(url, body.peek.tab ?? null)
+          // A look, not a read: enough rows to show what the columns hold and
+        // let somebody pick the two that matter. The scheduled read asks for
+        // the recent ones once it knows which column dates them.
+        ? await readGoogle(url, body.peek.tab ?? null, { limit: PEEK_ROWS })
           : await readLink(url, body.peek.tab ?? null)
       }
       return json({
@@ -971,6 +1079,7 @@ Deno.serve(async (req) => {
         columns: sheet.columns,
         rows: sheet.rows.slice(0, 8),
         row_count: sheet.rows.length,
+        capped: sheet.capped === true,
       })
     } catch (err) {
       return json({ ok: false, failure: err instanceof Fail ? err.message : String(err) })

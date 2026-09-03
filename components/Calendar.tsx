@@ -64,6 +64,11 @@ export default function Calendar({ events, feeds, bdays, annis, address, orgs = 
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setAdding(false) }
     const away = (e: MouseEvent) => {
       const t = e.target as Node
+      // A Choice renders its list into <body>, deliberately, so that nothing
+      // that clips or scrolls can eat it. That also puts it outside this
+      // panel -- so picking an organization read as a click somewhere else
+      // and shut the form on the way to answering its own question.
+      if ((t as HTMLElement).closest?.('.choicepop')) return
       if (!pop.current?.contains(t) && !plus.current?.contains(t)) setAdding(false)
     }
     document.addEventListener('keydown', esc)
@@ -298,6 +303,7 @@ function NewEvent({ day, orgs, onDone }: {
 }) {
   const [state, action] = useFormState(addEvent, null)
   const [allDay, setAllDay] = useState(false)
+  const [pub, setPub] = useState(false)
   useEffect(() => { if (state?.ok) onDone() }, [state, onDone])
 
   return (
@@ -367,6 +373,27 @@ function NewEvent({ day, orgs, onDone }: {
           <label htmlFor="ev-notes">Notes</label>
           <textarea className="field" id="ev-notes" name="notes" rows={2} maxLength={2000}
                     placeholder="Optional" />
+        </div>
+      </div>
+
+      {/* Off by default, and that is the point: a calendar you can put your own
+          days on is only useful if putting one there is not an announcement.
+          Sharing is a decision somebody makes, not a state they have to
+          remember to undo. */}
+      <div className="formrow formrow--one" style={{ marginTop: 12 }}>
+        <div>
+          <label htmlFor="ev-public">Who can see it</label>
+          <div className="togline">
+            <span className="tog">
+              <input id="ev-public" name="is_public" type="checkbox" checked={pub}
+                     aria-label="Shared" onChange={(e) => setPub(e.target.checked)} />
+              <span className="tog__track" /><span className="tog__knob" />
+            </span>
+            <span className="togstate">{pub ? 'On' : 'Off'}</span>
+            <span className="togsay">{pub
+              ? 'Everyone who can open it will see this on their calendar.'
+              : 'Only you. Nobody else sees it until you turn this on.'}</span>
+          </div>
         </div>
       </div>
 
