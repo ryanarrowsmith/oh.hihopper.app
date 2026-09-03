@@ -18,7 +18,11 @@ const I = (d: string) => (
 
 export const FRAME: Item[] = [
   { href: '/', label: 'Home', icon: I('<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>') },
-  { href: '/admin/organizations', label: 'Organizations',
+  /* The portfolio, not the management list. Admin > Organizations is where an
+     organization is added, renamed or retired; this is where you look at the
+     group and its offices. They used to be the same href, which is why the two
+     entries went to the same place. */
+  { href: '/organizations', label: 'Organizations',
     icon: I('<rect x="3" y="8" width="7" height="13"/><rect x="14" y="3" width="7" height="18"/>'),
     kids: [
       { href: '/admin/organizations/departments', label: 'Departments' },

@@ -332,7 +332,7 @@ function QuickEdit({ p, orgs, depts, onDone }: {
 
       {/* Its own form on purpose: not a field, and not a thing to reach by
           pressing Enter in a text box. */}
-      <form action={flip} className="oedit__d">
+      <form action={flip} className="rrec__danger">
         <input type="hidden" name="id" value={p.id} />
         <input type="hidden" name="active" value={p.active ? 'false' : 'true'} />
         <Go label={p.active ? 'Make them inactive' : 'Bring them back'}

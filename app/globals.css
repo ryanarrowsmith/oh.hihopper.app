@@ -1499,6 +1499,14 @@ select.field{appearance:none}
 }
 .rrec__form .field, .addbox .field{font-size:15px; padding:10px 12px}
 .rowacts{display:flex; align-items:center; gap:10px; margin-top:14px; flex-wrap:wrap}
+
+/* Making something inactive is its own form under a rule: it is not a field,
+   and the sentence beside it -- nothing is deleted -- is the half that matters. */
+.rrec__danger{display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  margin-top:15px; padding-top:13px; border-top:1px solid var(--rule)}
+.rrec__danger .btn{flex:none}
+.rrec__form .fine, .rrec__danger .fine{
+  flex:1 1 240px; font-size:11.5px; color:var(--ink-3); line-height:1.5; margin:0}
 .lnk{
   font-size:12.5px; font-weight:700; color:var(--ink-3); background:none;
   border:0; padding:6px 4px; cursor:pointer; text-decoration:none;
@@ -1678,8 +1686,7 @@ select.field{appearance:none}
     padding:10px 14px; border-top:1px solid var(--rule-soft);
   }
   .rcell--lead{padding:12px 14px; border-top:0; justify-content:flex-start; gap:10px}
-  .rrec .rcell--lead,
-  .tree__row .rcell--lead{padding-right:56px}     /* room for the pencil */
+  .rrec .rcell--lead{padding-right:56px}          /* room for the pencil */
   .rcell__lab{display:block; flex:none; font-family:var(--mono); font-size:10px;
     letter-spacing:.11em; text-transform:uppercase; color:var(--ink-3)}
   .rcell__val{text-align:right}
@@ -1698,12 +1705,6 @@ select.field{appearance:none}
   .rrec:last-child{margin-bottom:0; border-bottom-width:1px}
   .rrec.is-open .rrec__face{box-shadow:inset 3px 0 0 var(--amber)}
   .tnode:last-child > .tree__row:last-child{margin-bottom:0}
-  /* An open row and the drawer under it are one card, not two slabs
-     with a gap between them. */
-  .evis:checked ~ .tree__row,
-  .evis:checked ~ .okid > .tree__row{margin-bottom:0; border-bottom:0}
-  .oedit__in{border:1px solid var(--rule); border-top:0; margin-bottom:10px}
-  .okid .oedit__in{border:0; margin-bottom:0}
 
   /* A child. The indent has to be small here -- the card is most of the screen
      -- so the level arrow does the saying, in the deeper shade of the canvas
@@ -5502,51 +5503,17 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
 .orgname:hover{color:var(--steel-ink); border-bottom-color:var(--canvas-3)}
 .orgname:focus-visible{outline:none; box-shadow:var(--focus); border-radius:var(--r)}
 
+/* Which organization this one sits under, in the management list's own column
+   -- the same level arrow the tree draws, because it is the same relationship
+   said in a narrower space. */
+.under{display:inline-flex; align-items:center; gap:6px; min-width:0}
+.under .lv{flex:none}
+
 /* Retired is kept and shown, never hidden and never deleted -- but it should
    not read as loudly as a business that is still trading. */
 .pill--off{color:var(--ink-3); background:var(--stripe); border-color:var(--rule)}
-.tree__row.is-off .orgname{color:var(--ink-3)}
+.orgname--off, .tree__row.is-off .orgname{color:var(--ink-3)}
 .tree__row.is-off .plate{opacity:.6}
-
-/* Hidden, like .tvis and .lvis. The tree's rules reach its row with sibling
-   selectors, so the drawer opens with a third checkbox rather than a wrapper
-   element that would take five of them down with it. */
-.evis{position:absolute; width:1px; height:1px; opacity:0; pointer-events:none}
-
-/* The pencil lives in the row's action cell, where the Open button used to be
-   -- the name is the way in now, so the row's own control is the change you
-   make without going anywhere. It carries its outline here rather than waiting
-   for a hover: it is the only control on the line. */
-.tree__row .rpen{margin-left:0; width:30px; height:30px;
-  border-color:var(--rule); background:var(--surface)}
-.evis:checked ~ .tree__row .rpen,
-.evis:checked ~ .okid .tree__row .rpen{
-  background:var(--amber); border-color:var(--amber); color:#231F20; transform:none}
-.evis:checked ~ .tree__row .rpen svg,
-.evis:checked ~ .okid .tree__row .rpen svg{transform:rotate(0)}
-.evis:checked ~ .tree__row,
-.evis:checked ~ .okid > .tree__row{background:var(--sunken); box-shadow:inset 3px 0 0 var(--amber)}
-
-/* The same 0fr/1fr grid as the branch and the locations, so every drawer in
-   this list opens with one motion. */
-.oedit{display:grid; grid-template-rows:0fr; transition:grid-template-rows .26s ease}
-.evis:checked ~ .oedit,
-.evis:checked ~ .okid .oedit{grid-template-rows:1fr}
-.oedit > div{overflow:hidden; min-height:0}
-@media (prefers-reduced-motion:reduce){ .oedit{transition:none} }
-.oedit__in{background:var(--sunken); padding:12px 14px 16px;
-  border-top:1px solid var(--rule-soft); box-shadow:inset 3px 0 0 var(--amber)}
-.oedit__in label{display:block; font-size:12px; font-weight:700; color:var(--ink-2);
-  margin-bottom:5px}
-.oedit__in .field{font-size:15px; padding:10px 12px}
-
-/* Retiring is its own form, below a rule: it is not a field, and the sentence
-   next to it is the part that matters -- nothing is deleted. */
-.oedit__d{display:flex; align-items:center; gap:12px; flex-wrap:wrap;
-  margin-top:15px; padding-top:13px; border-top:1px solid var(--rule)}
-.oedit__d .btn{flex:none}
-.oedit__in .fine, .oedit__d .fine, .rrec__form .fine{
-  flex:1 1 240px; font-size:11.5px; color:var(--ink-3); line-height:1.5; margin:0}
 
 /* A child organization is a card, and its locations belong INSIDE that card: a
    drawer that opens across the whole slab belongs to the slab rather than to
