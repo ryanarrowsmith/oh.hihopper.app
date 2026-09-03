@@ -104,6 +104,11 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
   const myCats = useMemo(() => cats.filter((c) => c.department_id === dept), [cats, dept])
 
   async function peek() {
+    // Reading and listing go together: pressing Read it is the moment somebody
+    // has committed to this workbook, and the next question is which tab. If
+    // the debounce has not fired yet, this is what makes sure the answer is
+    // waiting when they press Next.
+    if (kind === 'google_sheet' && tabs === null && !tabbing) findTabs()
     setLooking(true); setFailure(null)
     try {
       const res = await fetch('/api/report/peek', {
@@ -122,7 +127,7 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
         const m = out.columns.find((c: Col) => c.type === 'number')
         if (d) setDateCol(d.label)
         if (m) setMeasures([m.label])
-        // Deliberately NOT setStep(2). Reading a sheet used to carry you
+        // Deliberately does not move the step. Reading a sheet used to carry you
         // straight to what came back -- past the tab picker, which is on this
         // step -- so if you had read the wrong tab you had to go back to
         // discover it, and if you had never asked for the tab list at all you
@@ -153,13 +158,7 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
     if (out.ok) router.push('/reporting')
   }
 
-  /**
-   * A workbook with one tab asks nothing -- reading it IS reading that tab. A
-   * workbook with several asks the whole question, and Hopper must not answer
-   * it by defaulting to the first one and saying nothing.
-   */
-  const mustPickTab = kind === 'google_sheet' && (tabs?.length ?? 0) > 1 && !tab
-  const canLeave1 = snapshot || (url.trim().length > 0 && cols !== null && !mustPickTab)
+  const canLeave1 = snapshot || (url.trim().length > 0 && cols !== null)
   /**
    * Ask the sheet what is in it.
    *
@@ -203,14 +202,31 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
   const canLeave3 = snapshot || (dateCol !== '' && measures.length > 0)
   const canSave = name.trim() && org && dept && cat && note.trim()
 
-  const STEPS = ['Source', 'What came back', 'The chart', 'Where it hangs']
+  const STEPS = ['Source', 'Which tab', 'What came back', 'The chart', 'Where it hangs']
+
+  /**
+   * Whether the tab step is a question at all.
+   *
+   * A link has no tabs to enumerate and a snapshot is already the data. A
+   * workbook with exactly ONE tab asks nothing either -- reading it IS reading
+   * that tab -- and that is the only case that gets stepped over rather than
+   * shown empty with a Next on it. A workbook that would not give up its list
+   * still gets the step, because typing the name by hand is the fallback and it
+   * has to live somewhere.
+   */
+  const needTab = kind === 'google_sheet' && (tabs === null || tabs.length !== 1)
+  const afterSource = needTab ? 2 : 3
 
   return (
     <>
       <div className="steps" role="tablist">
         {STEPS.map((label, i) => {
           const n = i + 1
-          const reachable = n === 1 || (n === 2 && cols) || (n >= 3 && (cols || snapshot))
+          // The tab step is only on the road when there is a tab to choose.
+          const reachable = n === 1
+            || (n === 2 && needTab && cols)
+            || (n === 3 && cols)
+            || (n >= 4 && (cols || snapshot))
           return (
             <button key={label} className="step" type="button" disabled={!reachable}
               aria-current={step === n ? 'step' : undefined}
@@ -248,7 +264,7 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
           </div>
 
           {!snapshot && (
-            <div className="formrow" style={{ marginTop: 18 }}>
+            <div className="formrow formrow--one" style={{ marginTop: 18 }}>
               <div>
                 <label htmlFor="ar-url">Where does the data live?</label>
                 <input className="field" id="ar-url" value={url} onChange={(e) => { setUrl(e.target.value); setCols(null) }}
@@ -288,62 +304,6 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
                   </div>
                 )}
               </div>
-              {/* A sheet has tabs and Hopper can ask it what they are, so
-                  this is a list you pick from. A link has no such list --
-                  nothing on the other end will enumerate itself -- so there it
-                  stays a box you type a key into, which is honest for a JSON
-                  body and dishonest for a workbook. */}
-              <div>
-                <label htmlFor="ar-tab">{kind === 'link' ? 'Which list' : 'Tab'}</label>
-                {kind === 'link' ? (
-                  <>
-                    <input className="field" id="ar-tab" value={tab}
-                           onChange={(e) => { setTab(e.target.value); setCols(null) }}
-                           placeholder="Leave empty for a CSV" />
-                    <p className="hint">
-                      Only for JSON, and only when the rows sit under a name Hopper cannot guess.
-                      CSV ignores it.
-                    </p>
-                  </>
-                ) : tabs === null ? (
-                  <>
-                    <button className="btn" type="button" disabled={!url.trim() || tabbing}
-                            onClick={findTabs}>
-                      {tabbing ? 'Asking the sheet…' : 'Show me the tabs'}
-                    </button>
-                    <p className="hint">
-                      Hopper reads the tab list straight out of the workbook. No key, and nothing
-                      to spell correctly.
-                    </p>
-                  </>
-                ) : tabs.length === 0 ? (
-                  <>
-                    <input className="field" id="ar-tab" value={tab}
-                           onChange={(e) => { setTab(e.target.value); setCols(null) }}
-                           placeholder="The one the link points at" />
-                    <p className="hint">
-                      That workbook would not give up its tab list, so this one is by hand.
-                      Names are case-sensitive.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <div className="tabs" role="group" aria-label="Which tab">
-                      {tabs.map((t) => (
-                        <button key={t} type="button" className="tabpick"
-                                aria-pressed={tab === t}
-                                onClick={() => { setTab(t); setCols(null) }}>
-                          {t}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="hint">
-                      {tabs.length} {tabs.length === 1 ? 'tab' : 'tabs'} in that workbook.
-                      One report reads one tab; add another report for another tab.
-                    </p>
-                  </>
-                )}
-              </div>
             </div>
           )}
 
@@ -351,33 +311,93 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
           {snapshot && <p className="note note--err" style={{ marginTop: 14 }}>
             Uploads and pasted data are not built yet — point Hopper at a sheet or a link for now.</p>}
 
-          {mustPickTab && (
-            <p className="note note--warn" style={{ marginTop: 14 }}>
-              That workbook has {tabs!.length} tabs. Choose the one this report reads.
-            </p>
-          )}
-
           <div className="formgrid__go" style={{ marginTop: 18 }}>
             <button className="btn btn--amber" type="button"
-                    disabled={looking || !url.trim() || snapshot || mustPickTab}
+                    disabled={looking || !url.trim() || snapshot}
                     onClick={peek}>{looking ? 'Looking…' : cols ? 'Read it again' : 'Read it'}</button>
-            {cols && !mustPickTab && (
-              <button className="btn" type="button" onClick={() => setStep(2)}>Next</button>
+            {cols && (
+              <button className="btn" type="button" disabled={tabbing}
+                      onClick={() => setStep(afterSource)}>
+                {tabbing ? 'Reading the tabs…' : 'Next'}
+              </button>
             )}
-            {/* What came back, said here, so that changing the tab and reading
-                again is a two-click loop on this step rather than a trip
-                forward and back. */}
             {cols && (
               <span className="readsaid">
                 <b>{cols.length}</b> columns, <b>{rowCount.toLocaleString()}{capped && '+'}</b> rows
-                {tab && <> from <b>{tab}</b></>}
+                {tabbing && <> · looking for tabs…</>}
               </span>
             )}
           </div>
         </>
       )}
 
-      {step === 2 && cols && (
+      {/* ── Which tab ──
+          Its own step, and only when there is a question. It used to sit beside
+          the address on the first step, where it read as a second thing to fill
+          in before pressing Read it -- and being told off for not answering a
+          question you had not been asked yet is the worst kind of form. Now the
+          order is the order: paste the address, read it, and THEN choose from
+          the tabs that came back. */}
+      {step === 2 && (
+        <>
+          <p className="srchead">Which tab</p>
+          {tabbing ? (
+            <p className="empty">Asking the workbook what is in it…</p>
+          ) : (tabs?.length ?? 0) === 0 ? (
+            <>
+              <p className="empty" style={{ marginBottom: 12 }}>
+                That workbook would not give up its tab list, so this one is by hand.
+                Names are case-sensitive.
+              </p>
+              <div className="formrow formrow--one">
+                <div>
+                  <label htmlFor="ar-tab">Tab</label>
+                  <input className="field" id="ar-tab" value={tab}
+                         onChange={(e) => { setTab(e.target.value); setCols(null) }}
+                         placeholder="The one the link points at" />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="tabs" role="group" aria-label="Which tab">
+                {tabs!.map((t) => (
+                  <button key={t} type="button" className="tabpick" aria-pressed={tab === t}
+                          onClick={() => { setTab(t); setCols(null) }}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <p className="hint">
+                {tabs!.length} tabs in that workbook. One report reads one tab; add another
+                report for another tab.
+              </p>
+            </>
+          )}
+
+          {failure && <p className="note note--err" style={{ marginTop: 14 }}>{failure}</p>}
+
+          <div className="formgrid__go" style={{ marginTop: 18 }}>
+            <button className="btn" type="button" onClick={() => setStep(1)}>Back</button>
+            {/* Choosing a tab clears what came back, because what came back was
+                a different tab. Reading again is the only honest way forward. */}
+            <button className="btn btn--amber" type="button"
+                    disabled={!tab || looking}
+                    onClick={() => { cols ? setStep(3) : peek() }}>
+              {looking ? 'Reading…' : cols ? 'Next' : 'Read this tab'}
+            </button>
+            {tab && (
+              <span className="readsaid">
+                {cols
+                  ? <><b>{cols.length}</b> columns, <b>{rowCount.toLocaleString()}{capped && '+'}</b> rows from <b>{tab}</b></>
+                  : <>Reading <b>{tab}</b> is the next thing.</>}
+              </span>
+            )}
+          </div>
+        </>
+      )}
+
+      {step === 3 && cols && (
         <>
           <div className="came">
             <div className="came__h">
@@ -408,13 +428,14 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
             </p>
           </div>
           <div className="formgrid__go" style={{ marginTop: 18 }}>
-            <button className="btn" type="button" onClick={() => setStep(1)}>Back</button>
-            <button className="btn btn--amber" type="button" onClick={() => setStep(3)}>This is right</button>
+            <button className="btn" type="button"
+                    onClick={() => setStep(needTab ? 2 : 1)}>Back</button>
+            <button className="btn btn--amber" type="button" onClick={() => setStep(4)}>This is right</button>
           </div>
         </>
       )}
 
-      {step === 3 && (
+      {step === 4 && (
         <>
           {/* The preview leads the screen. It used to sit under the controls,
               which put the thing you are deciding about below the thing you are
@@ -518,13 +539,13 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
               will still be stored and shown.</p>}
 
           <div className="formgrid__go" style={{ marginTop: 18 }}>
-            <button className="btn" type="button" onClick={() => setStep(2)}>Back</button>
-            <button className="btn btn--amber" type="button" onClick={() => setStep(4)}>Next</button>
+            <button className="btn" type="button" onClick={() => setStep(3)}>Back</button>
+            <button className="btn btn--amber" type="button" onClick={() => setStep(5)}>Next</button>
           </div>
         </>
       )}
 
-      {step === 4 && (
+      {step === 5 && (
         <>
           <div className="formrow">
             <div><label htmlFor="ar-org">Organization</label>
@@ -586,7 +607,7 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
           {said && <p className="note note--err" style={{ marginTop: 14 }}>{said}</p>}
 
           <div className="formgrid__go" style={{ marginTop: 18 }}>
-            <button className="btn" type="button" onClick={() => setStep(3)}>Back</button>
+            <button className="btn" type="button" onClick={() => setStep(4)}>Back</button>
             <button className="btn btn--amber" type="button" disabled={saving || !canSave} onClick={save}>
               {saving ? 'Saving…' : 'Register it'}
             </button>
