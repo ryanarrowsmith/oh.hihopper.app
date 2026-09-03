@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import { liveToken } from '@/lib/supabase/token'
 import { currentSession } from '@/lib/tenant'
@@ -225,7 +226,16 @@ export async function updateReport(_p: Result | null, form: FormData): Promise<R
   })
 
   revalidatePath('/reporting'); revalidatePath(`/reporting/${id}`)
-  return { ok: true, message: 'Saved.' }
+
+  /**
+   * Back to the record, not to a word about it.
+   *
+   * "Saved." under a form you are still looking at asks you to read a message
+   * and then work out for yourself that you are done. A redirect answers both:
+   * the form is gone, the record is in front of you with the change in it, and
+   * whether it took is a thing you can see rather than a thing you are told.
+   */
+  redirect(`/reporting/${id}`)
 }
 
 // ------------------------------------------------------------------ refresh

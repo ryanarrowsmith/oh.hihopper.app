@@ -31,7 +31,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
  */
 export type AuditKind =
   | 'entity' | 'department' | 'location' | 'person' | 'module' | 'access' | 'report'
-  | 'calendar' | 'system'
+  | 'calendar' | 'project' | 'system'
 
 /** What the platform calls the thing, where its word differs from Hopper's. */
 const SUBJECT: Record<AuditKind, string | null> = {
@@ -46,6 +46,7 @@ const SUBJECT: Record<AuditKind, string | null> = {
   // structural decision about what Hopper reads -- so it belongs in the ledger
   // beside the report sources, not in the activity stream.
   calendar: 'calendar',
+  project: 'project',
   system: null,
 }
 

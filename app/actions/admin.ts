@@ -183,8 +183,22 @@ export async function updateLocation(_prev: Result | null, form: FormData): Prom
     note: addressMoved ? 'The address changed.' : null })
   revalidatePath(`/admin/organizations/${was.entity_id}`)
   revalidatePath(`/admin/organizations/${was.entity_id}/locations/${id}`)
-  return { ok: true, message: latitude == null
-    ? `Saved, without a map pin. ${why ?? ''}`.trim() : 'Saved.' }
+
+  /**
+   * Back to the record, not to a word about it.
+   *
+   * "Saved." under a form you are still looking at asks you to read a message
+   * and then work out for yourself that you are done. A redirect answers both:
+   * the form is gone, the record is in front of you with the change in it, and
+   * whether it took is a thing you can see rather than a thing you are told.
+   */
+  // The one thing worth saying out loud is a pin that could NOT be worked out,
+  // because that is a result rather than a confirmation -- so it goes back as a
+  // message and the redirect waits.
+  if (latitude == null) {
+    return { ok: true, message: `Saved, without a map pin. ${why ?? ''}`.trim() }
+  }
+  redirect(`/admin/organizations/${was.entity_id}/locations/${id}`)
 }
 
 /**

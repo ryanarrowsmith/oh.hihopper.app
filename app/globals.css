@@ -1415,9 +1415,13 @@ select.field{appearance:none}
 .sec__h{align-items:center}
 @media (max-width:640px){
   /* Bubbles are already thumb-sized; stretching them the way text buttons
-     stretch would make two enormous circles. */
-  .sec__a{width:auto; margin-left:auto; margin-top:0}
-  .sec__h{flex-wrap:nowrap}
+     stretch would make two enormous circles. So this exemption is scoped to the
+     header that actually holds bubbles. Written unscoped it cancelled the
+     system-wide rule -- a header stacks and goes full width on a phone -- for
+     every section in Hopper, which is how the Projects headers ended up
+     squeezing their own description into a column three words wide. */
+  .sec__h:has(.sec__a .cbub){flex-wrap:nowrap}
+  .sec__h:has(.sec__a .cbub) .sec__a{width:auto; margin-left:auto; margin-top:0}
 }
 
 /* ============ A ROW'S CELLS ============
@@ -1617,8 +1621,16 @@ select.field{appearance:none}
   margin-top:18px; padding-top:15px; border-top:1px solid var(--rule)}
 .delloc .lnk--go{margin-left:0; font-weight:700}
 .delloc .swhy{flex:1 0 100%; margin-top:9px}
-.delloc .confpop{top:calc(100% + 10px); left:0; right:auto}
-.delloc .confpop::before{left:16px; right:auto}
+/* Above the control, not below it. This one is always the LAST thing on the
+   page -- it is the foot of the form by design -- so a panel hanging under it
+   hangs off the end of the page, which is where it went. Nothing below it to
+   hang into, so it opens upward and the beak turns over to point back down at
+   the link that raised it. */
+.delloc .confpop{
+  top:auto; bottom:calc(100% + 10px); left:0; right:auto;
+  max-height:min(70vh, 460px); overflow-y:auto;
+}
+.delloc .confpop::before{top:auto; bottom:-5px; left:16px; right:auto}
 .confpop__acts .btn--danger{border-color:var(--bad)}
 .confpop__acts .btn{flex:1}
 
@@ -5230,4 +5242,197 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
   .rlist--roster .rrow{grid-template-columns:1fr; gap:3px; padding:12px 14px}
   .rlist--roster.rlist--pick .rrow{grid-template-columns:26px 1fr}
   .rlist--roster.rlist--pick .rrow > :nth-child(n+3){grid-column:2}
+}
+
+/* ============================================================ PROJECTS ====
+   Projects, milestones and tasks. The names here start prj/p/mile/tk rather
+   than reusing .plist/.prow -- those are the PEOPLE list, and a project row is
+   a different shape entirely. Two lists sharing a class name is a bug waiting
+   for whichever page loads second. */
+
+/* ---- the portfolio ----
+   One table rather than a grid of cards: you are scanning rows for the one
+   that is slipping, and cards make that a hunt. */
+.prjs{display:flex; flex-direction:column; border:1px solid var(--rule);
+  border-radius:var(--r); background:var(--surface); margin-top:16px;
+  overflow:hidden}
+.prj{display:grid; grid-template-columns:46px minmax(0,2.2fr) minmax(0,1.6fr) 150px 104px;
+  gap:0 14px; align-items:center; border-top:1px solid var(--rule-soft);
+  text-decoration:none; color:inherit}
+.prj > :not(.pk){padding:13px 0}
+.prj > :last-child{padding-right:15px}
+.prj:first-child{border-top:0}
+.prj:hover{background:var(--sunken)}
+.prj--h{background:var(--sunken); border-top:0; font-family:var(--mono); font-size:9.5px;
+  font-weight:800; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3);
+  border-bottom:1px solid var(--rule)}
+.prj--h > *{padding:9px 0}
+.prj--h > :first-child{padding-left:15px}
+.prj--h:hover{background:var(--sunken)}
+
+/* The status is the head of the row rather than a column in the middle of it:
+   a filled cell you read before the name, in the colour the status already
+   means, with a mark for anybody the colour does not reach. */
+.pk{align-self:stretch; display:grid; place-items:center; color:var(--ink-3)}
+.pk svg{width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:2;
+  stroke-linecap:round; stroke-linejoin:round}
+.pk--on{background:rgba(46,139,87,.14); color:#256F46}
+.pk--risk{background:var(--warmbg); color:#96631A}
+.pk--block{background:rgba(217,58,43,.13); color:var(--bad)}
+.pk--done{background:var(--steelwash); color:var(--steel-ink)}
+
+.pname{font-size:14.5px; font-weight:800; letter-spacing:-.015em; color:var(--ink)}
+.pname small{display:block; font-size:11.5px; font-weight:500; color:var(--ink-3);
+  margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pnext{font-size:12.5px; color:var(--ink-2); min-width:0; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap}
+.pnext b{color:var(--ink); font-weight:700}
+.pwho{display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-2);
+  min-width:0}
+.pav{width:22px; height:22px; border-radius:50%; flex:none; display:grid; place-items:center;
+  background:var(--steel); color:#FBF9F5; font-size:9.5px; font-weight:800;
+  letter-spacing:-.02em}
+
+/* Progress as a bar, in the status colour, so the row reads as one thing
+   rather than a coloured cell arguing with a neutral bar. */
+.pbar{display:block; height:7px; border-radius:var(--r); background:var(--canvas-2);
+  position:relative; overflow:hidden}
+.pbar i{position:absolute; inset:0 auto 0 0; background:var(--steel)}
+.pbar--done i{background:var(--good)}
+.pbar--risk i{background:var(--amber)}
+.pbar--block i{background:var(--bad)}
+.pnum{font-family:var(--mono); font-size:10px; color:var(--ink-3); margin-top:5px;
+  display:flex; justify-content:space-between; gap:8px}
+.pnum b{color:var(--ink-2); font-weight:700}
+
+/* ---- where the project stands, on the project page ---- */
+.pstate .came__h{display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  font-size:12.5px; color:var(--ink-2); margin-bottom:11px}
+.pstate .came__h b{color:var(--ink); font-weight:700}
+.pstate__pick{display:flex; align-items:center; gap:9px}
+.pstate__pick .pk{width:28px; height:28px; border-radius:var(--r); align-self:center; flex:none}
+.pstate .pbar{height:9px}
+
+/* ---- the milestone spine ---- */
+.mile{position:relative; padding-left:28px; margin-top:2px}
+.mile::before{content:""; position:absolute; left:8px; top:20px; bottom:-2px; width:1px;
+  background:var(--rule)}
+.mile:last-child::before{display:none}
+.mile__k{position:absolute; left:1px; top:11px; width:15px; height:15px; border-radius:50%;
+  background:var(--surface); border:2px solid var(--canvas-3)}
+.mile--done .mile__k{background:var(--good); border-color:var(--good)}
+.mile--now .mile__k{border-color:var(--amber); box-shadow:0 0 0 4px var(--warmbg)}
+.mile--late .mile__k{border-color:var(--bad); box-shadow:0 0 0 4px rgba(217,58,43,.12)}
+.mile--block .mile__k{border-color:var(--bad)}
+.mile--loose .mile__k{border-style:dashed}
+.mile__h{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:8px 0 9px}
+.mile__t{font-size:15px; font-weight:800; letter-spacing:-.02em; color:var(--ink)}
+.mile--done .mile__t{color:var(--ink-3)}
+.mile__d{font-family:var(--mono); font-size:11px; color:var(--ink-3)}
+.mile__d b{color:var(--ink-2)}
+.mile__moved{font-size:11px; color:var(--warn); font-weight:700}
+.mile__s{font-size:12.5px; color:var(--ink-3); margin:0 0 10px; max-width:62ch;
+  line-height:1.5}
+.mile__s--block{color:var(--bad)}
+.mile__s--block b{font-weight:800}
+/* The two verbs sit at the far end of the header line, so the name and the date
+   stay together and the actions do not push them apart. */
+.mile__a{margin-left:auto; display:flex; align-items:center; gap:12px; flex:none}
+
+/* The reason a date moved is asked for at the only moment anybody knows it. */
+.movebox{border:1px solid var(--rule); border-radius:var(--r);
+  background:var(--sunken); padding:14px; margin:0 0 12px}
+
+/* ---- tasks ---- */
+.tks{border:1px solid var(--rule); border-radius:var(--r); background:var(--surface);
+  margin-bottom:16px; overflow:hidden}
+.tk{display:grid; grid-template-columns:22px minmax(0,1fr) auto auto auto auto; gap:11px;
+  align-items:center; padding:10px 13px; border-top:1px solid var(--rule-soft)}
+.tk:first-child{border-top:0}
+.tk:hover{background:var(--sunken)}
+.tkbox{width:17px; height:17px; border:1.5px solid var(--canvas-3); border-radius:var(--r);
+  background:var(--surface); cursor:pointer; display:grid; place-items:center; padding:0;
+  flex:none}
+.tkbox svg{width:11px; height:11px; fill:none; stroke:#fff; stroke-width:3;
+  stroke-linecap:round; stroke-linejoin:round}
+.tkbox:disabled{cursor:not-allowed}
+.tk--done .tkbox{background:var(--good); border-color:var(--good)}
+.tk--block .tkbox{border-color:var(--bad); border-style:dashed}
+.tkt{font-size:13.5px; font-weight:600; color:var(--ink); min-width:0}
+.tk--done .tkt{color:var(--ink-3); text-decoration:line-through}
+.tkt small{display:block; font-size:11.5px; font-weight:500; color:var(--bad);
+  margin-top:2px}
+.tkt small b{font-weight:800}
+.tkt small svg{width:11px; height:11px; vertical-align:-1px; margin-right:4px; fill:none;
+  stroke:currentColor; stroke-width:2; display:inline-block}
+.tkt__why{color:var(--bad)}
+.tktag{font-size:10.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--ink-3); background:var(--canvas-2); padding:2px 7px; border-radius:var(--r);
+  white-space:nowrap}
+.tkdue{font-family:var(--mono); font-size:11px; color:var(--ink-3); white-space:nowrap}
+.tkdue.is-late{color:var(--bad); font-weight:700}
+/* "Waits on" is a quiet control until it holds something. One bordered field on
+   every row, saying nothing, would shout louder than the tasks it sits beside --
+   so until a dependency is set it is grey text, and it takes a border when you
+   reach for it or when it actually holds a name. */
+.tkhold{flex:none; min-width:0; max-width:190px}
+.tkhold .choice__btn{font-size:11.5px; padding:4px 7px; height:auto; min-height:0;
+  background:none; border-color:transparent; color:var(--ink-3); font-weight:600;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; width:100%}
+.tk:hover .tkhold .choice__btn,
+.tkhold .choice__btn:hover,
+.tkhold .choice__btn:focus-visible{border-color:var(--canvas-3); background:var(--surface)}
+.tkhold--set .choice__btn{border-color:var(--canvas-3); background:var(--surface);
+  color:var(--ink-2)}
+
+/* ---- the log ---- */
+.log{border-left:2px solid var(--rule); padding-left:15px; display:flex;
+  flex-direction:column; gap:15px; margin-top:14px}
+.log__e{position:relative}
+.log__e::before{content:""; position:absolute; left:-20px; top:5px; width:7px; height:7px;
+  border-radius:50%; background:var(--canvas-3)}
+.log__m{display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; margin:0}
+.log__m b{font-size:12.5px; font-weight:800; color:var(--ink)}
+.log__m span{font-family:var(--mono); font-size:10.5px; color:var(--ink-3)}
+.log__b{font-size:12.5px; line-height:1.55; color:var(--ink-2); margin:4px 0 0;
+  max-width:70ch}
+.log__b em{font-style:normal; background:var(--warmbg); padding:0 4px; font-weight:700;
+  color:var(--ink)}
+
+@media (max-width:860px){
+  /* The row becomes a card: the status wash runs the full height down the left
+     edge and everything else stacks beside it. The wash is the card's spine, so
+     the vertical padding goes on the stacked blocks rather than on the row --
+     padding the row would leave the colour short at both ends. */
+  .prj{grid-template-columns:46px minmax(0,1fr); gap:9px 12px}
+  .prj--h{display:none}
+  .prj > :not(.pk){padding:0 14px 0 0}
+  .prj > .pk{grid-row:1 / span 4}
+  .prj > :nth-child(2){padding-top:13px}
+  .prj > :nth-child(3), .prj > :nth-child(4), .prj > :nth-child(5){grid-column:2}
+  .prj > :last-child{padding-bottom:13px}
+  /* There is room for a second line here, and the summary is worth reading. */
+  .pname small{white-space:normal; overflow:visible}
+  .pnext{white-space:normal; overflow:visible}
+  /* A task on a phone is the box, the name, and then everything about it on one
+     wrapped line underneath -- not four stacked lines. The box comes out of the
+     flow so the second line stays lined up under the first. */
+  .tk{display:flex; flex-wrap:wrap; align-items:center; gap:7px 10px; position:relative;
+    padding:11px 13px 11px 44px}
+  .tkbox{position:absolute; left:13px; top:12px}
+  .tkt{flex:1 1 100%}
+  .tkdue{margin-left:auto}
+  .tkhold{max-width:none; flex:1 1 100%}
+  /* An empty dependency picker is not worth a line of a phone screen. */
+  .tkhold:not(.tkhold--set){display:none}
+  .mile__a{margin-left:0; width:100%}
+}
+
+/* Print is the PDF. Everything that is a control disappears and the board
+   becomes the document it was already describing. */
+@media print{
+  .pstate__pick .choice, .mile__a, .tkhold, .hi__go, .sec__a, .movebox{display:none}
+  .tk:hover, .prj:hover{background:none}
+  .tks, .prjs{break-inside:avoid}
+  .mile{break-inside:avoid}
 }
