@@ -5,6 +5,7 @@ import Rail from '@/components/Rail'
 import TopBar from '@/components/TopBar'
 import Footer from '@/components/Footer'
 import Crumbs from '@/components/Crumbs'
+import { CrumbTailProvider } from '@/components/CrumbTail'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await currentSession()
@@ -29,12 +30,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="app">
-      <TopBar initials={session.initials} entities={entities ?? []} />
+      <TopBar initials={session.initials} entities={entities ?? []}
+              personId={session.personId} displayName={session.displayName}
+              accountName={session.accountName} />
       <div className="shell">
         <Rail modules={modules} />
         <main className="main">
-          <Crumbs entities={entities ?? []} places={places ?? []} />
-          {children}
+          {/* The provider has to sit above both, because the trail is drawn
+              here and the name is known one level down. */}
+          <CrumbTailProvider>
+            <Crumbs entities={entities ?? []} places={places ?? []} />
+            {children}
+          </CrumbTailProvider>
         </main>
       </div>
       <Footer />

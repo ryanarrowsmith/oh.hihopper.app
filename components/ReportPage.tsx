@@ -9,6 +9,7 @@ import RawTable from '@/components/RawTable'
 import RangeBar from '@/components/RangeBar'
 import { useRange, inWindow } from '@/components/useRange'
 import { refreshReport } from '@/app/actions/reports'
+import CrumbTail from '@/components/CrumbTail'
 
 const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
 
@@ -111,6 +112,8 @@ export default function ReportPage({ report, state, series: all, notes, checks, 
 
   return (
     <>
+      <CrumbTail>{report.name}</CrumbTail>
+
       <div className="hi">
         <div className="hi__t">
           <h1>{report.name}</h1>

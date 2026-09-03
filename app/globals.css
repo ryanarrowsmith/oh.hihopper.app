@@ -214,6 +214,28 @@ p{margin:0}
   display:grid; place-items:center; font-size:12px; font-weight:800; cursor:pointer;
   border:1px solid rgba(251,249,245,.3);
 }
+.avatar--lg{width:38px; height:38px; font-size:14px; cursor:default; flex:none}
+.avaw{position:relative; display:inline-flex}
+
+/* ---- you: the same panel again, hung off your own face ---- */
+.mepop{
+  position:absolute; top:calc(100% + 9px); right:0; z-index:60;
+  min-width:216px; max-width:calc(100vw - 24px);
+  background:var(--topbar); border:1px solid rgba(251,249,245,.2);
+  border-radius:var(--r); box-shadow:0 18px 44px -14px rgba(0,0,0,.6);
+  display:flex; flex-direction:column; text-align:left; overflow:hidden;
+}
+.mehead{
+  display:flex; align-items:center; gap:10px; padding:12px 14px;
+  border-bottom:1px solid rgba(251,249,245,.22);
+}
+.mewho{min-width:0; display:flex; flex-direction:column; gap:2px}
+.mewho b{font-size:13.5px; font-weight:700; color:#FBF9F5; line-height:1.25;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.mewho small{font-size:11.5px; color:rgba(251,249,245,.55);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.meic{width:15px; height:15px; flex:none; opacity:.72}
+.mepop form{display:contents}   /* the form must not sit between the popover and its row */
 
 /* ============ BODY: rail + main ============ */
 .shell{display:grid; grid-template-columns:214px minmax(0,1fr)}
@@ -485,13 +507,18 @@ a.bub{text-decoration:none}
 .dpop .dolly{
   margin:0; border:0; box-shadow:none; background:transparent;
   padding:18px 96px 18px 18px; align-items:flex-start;
-  /* Her longest quote is 398 characters. It fits on a desk and on a tall
-     phone, and it does not on a short one -- so the card scrolls inside
-     rather than growing past the top of the screen. The cap is on .dolly and
-     not on .dpop because the beak lives outside .dpop's box and an
-     overflow there would cut it off. */
-  max-height:min(72vh, 560px); overflow-y:auto;
 }
+/* Her longest quote is 398 characters. It fits on a desk and on a tall phone,
+   and it does not on a short one, so it scrolls rather than growing past the
+   top of the screen.
+   The cap is on the quote and not on the card. It was on the card, and
+   overflow-y:auto is a clip whichever axis you name it on -- so the email
+   popover, which hangs off a button inside that card, was trapped in the
+   scroller with the quote. That is the second time a clip put there for one
+   reason has swallowed the send window; the rule is that the thing being
+   scrolled must not be the thing containing a popover, so the buttons and
+   their popover now sit outside the scroller entirely. */
+.dpop .dolly__say{min-width:0; max-height:min(64vh, 460px); overflow-y:auto}
 .dpop .dolly:hover{background:transparent; border-color:transparent; box-shadow:none}
 .dolly__p{margin-top:2px}
 
@@ -3148,3 +3175,52 @@ a.crow:hover svg{stroke:var(--steel-ink)}
   background:var(--sunken); border:1px solid var(--rule); border-radius:var(--r)}
 .candypic img{max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain;
   display:block}
+
+/* ==========================================================================
+   YOUR PHOTO
+   The hero avatar is the control, because that is the thing you want to
+   change and pointing at it with a button beside it would be a second target
+   for the same idea. The veil only appears under the pointer or focus, so the
+   page at rest is somebody's face and not a piece of software.
+   ========================================================================== */
+.phw{position:relative; flex:none}
+.phbtn{
+  position:relative; display:block; padding:0; border:0; background:none;
+  cursor:pointer; border-radius:50%; line-height:0;
+}
+.phbtn__veil{
+  position:absolute; inset:0; border-radius:50%; display:flex;
+  flex-direction:column; align-items:center; justify-content:center; gap:4px;
+  background:rgba(35,31,32,.62); color:#FBF9F5; font-size:11.5px; font-weight:700;
+  opacity:0; transition:opacity .16s;
+}
+.phbtn__veil svg{width:20px; height:20px}
+.phbtn:hover .phbtn__veil, .phbtn:focus-visible .phbtn__veil{opacity:1}
+.phbtn:focus-visible{outline:2px solid var(--amber); outline-offset:3px}
+
+/* Hung off the avatar, so it opens to the right of the face it is about. */
+.phpop{left:0; right:auto; width:min(320px, calc(100vw - 40px))}
+.phpop::before{left:44px; right:auto}
+.phhint{font-size:12.5px; color:var(--ink-2); line-height:1.5; margin-bottom:12px}
+.phpick{display:block; text-align:center; cursor:pointer}
+.phpick input{position:absolute; width:1px; height:1px; opacity:0; pointer-events:none}
+.phrm{display:block; width:100%; margin-top:9px; color:var(--bad)}
+.phwhy{margin-top:11px; font-size:12.5px; color:var(--bad); line-height:1.45}
+
+.phstage{
+  position:relative; overflow:hidden; margin:0 auto; border-radius:var(--r);
+  background:var(--sunken); border:1px solid var(--rule); touch-action:none;
+  cursor:grab; user-select:none;
+}
+.phstage:active{cursor:grabbing}
+.phstage img{position:absolute; max-width:none; pointer-events:none}
+/* Where the circle will fall, drawn over the square that is actually saved --
+   both are true and people need to see both. */
+.phstage__ring{
+  position:absolute; inset:0; border-radius:50%; pointer-events:none;
+  box-shadow:0 0 0 9999px rgba(35,31,32,.34);
+  border:1px solid rgba(251,249,245,.55);
+}
+.phzoom{display:flex; align-items:center; gap:10px; margin-top:13px}
+.phzoom span{font-size:12px; font-weight:700; color:var(--ink-2); flex:none}
+.phzoom input{flex:1; accent-color:var(--amber)}

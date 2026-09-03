@@ -1,9 +1,10 @@
 import { notFound } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
-import Avatar from '@/components/Avatar'
+import PhotoUpload from '@/components/PhotoUpload'
 import Favorites, { type Profile } from '@/components/Favorites'
 import GetToKnowEdit, { type Answers } from '@/components/GetToKnowEdit'
 import { OrgMark, PlaceMark } from '@/components/Icons'
+import CrumbTail from '@/components/CrumbTail'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,16 +36,17 @@ export default async function PersonPage({ params }: { params: { id: string } })
 
   return (
     <>
+      {/* The trail now ends on this person, so "Back to People" was the same
+          link twice on the same screen, six inches apart. */}
+      <CrumbTail>{d.full_name}</CrumbTail>
+
       <div className="hi"><div className="hi__t">
         <h1>{d.full_name}</h1>
-        <p className="scopeline">
-          <span>{d.entity_name}</span>
-          <a href="/people">Back to People</a>
-        </p>
+        <p className="scopeline"><span>{d.entity_name}</span></p>
       </div></div>
 
       <div className="phero">
-        <Avatar name={d.full_name} src={d.photo_url} size={132} />
+        <PhotoUpload personId={d.id} name={d.full_name} src={d.photo_url} mine={!!d.is_me} />
         <div className="phero__b">
           <h2>{d.full_name}</h2>
           <p className="phero__role">{d.role_name ?? 'No role yet'}</p>

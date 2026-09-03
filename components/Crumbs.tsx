@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useCrumbTail } from '@/components/CrumbTail'
 
 type Entity = { id: string; name: string; parent_id: string | null }
 type Named = { id: string; name: string }
@@ -46,6 +47,7 @@ export default function Crumbs(
   { entities, places = [] }: { entities: Entity[]; places?: Named[] },
 ) {
   const path = usePathname()
+  const tail = useCrumbTail()
   const parts = path.split('/').filter(Boolean)
   if (parts.length === 0) return null          // Home needs no trail to itself
 
@@ -78,9 +80,14 @@ export default function Crumbs(
     const place = placeById.get(part)
     if (place) { afterId = true; crumbs.push({ href, label: place.name }); continue }
 
-    // An id we cannot name is a page we should not pretend to label. Drop the
-    // crumb rather than printing a uuid at somebody.
-    if (/^[0-9a-f-]{36}$/i.test(part)) { afterId = true; continue }
+    // An id we cannot name is a page we should not pretend to label. If the
+    // page below has told us what it is looking at, that is the name; if it
+    // has not, drop the crumb rather than printing a uuid at somebody.
+    if (/^[0-9a-f-]{36}$/i.test(part)) {
+      afterId = true
+      if (part === parts[parts.length - 1] && tail) crumbs.push({ href: null, label: tail })
+      continue
+    }
 
     const container = afterId && !INDEXED_UNDER_RECORD.has(part)
     crumbs.push({ href: container ? null : href, label: NAMES[part] ?? part.replace(/-/g, ' ') })

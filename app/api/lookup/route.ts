@@ -82,31 +82,122 @@ async function grab(url: string, label: string, ms = 8000): Promise<{ j: any } |
 const bigArt = (u?: string | null) =>
   u ? u.replace(/\/\d+x\d+bb\.(jpg|png)$/, '/600x600bb.$1') : null
 
-const itunes = (kind: 'song' | 'movie') => async (q: string) => {
-  // media AND entity, not entity alone. Searching for a film with entity=movie
-  // and the default media=all answered 200 with an empty list every time --
-  // no error, just nothing, which is the hardest kind of wrong to notice. The
-  // documented pairing is media plus the entity inside it.
+const itunes = (kind: 'song') => async (q: string) => {
   const url = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}`
-    + `&media=${kind === 'song' ? 'music' : 'movie'}`
-    + `&entity=${kind === 'song' ? 'song' : 'movie'}&limit=8`
+    + `&media=music&entity=song&limit=8`
   const r = await grab(url, 'iTunes')
   if ('why' in r) return r
-  const all = r.j?.results
-  if (!Array.isArray(all)) return { why: 'iTunes answered, but without a results list.' }
-  const rows = kind === 'movie'
-    ? all.filter((x: any) => x?.kind === 'feature-movie').slice(0, 8)
-    : all
+  const rows = r.j?.results
+  if (!Array.isArray(rows)) return { why: 'iTunes answered, but without a results list.' }
   return {
     hits: rows.map((x: any): Hit => ({
       id: String(x.trackId ?? x.collectionId ?? x.trackViewUrl ?? Math.random()),
       title: x.trackName ?? x.collectionName ?? 'Untitled',
-      sub: kind === 'song' ? (x.artistName ?? null) : null,
+      sub: x.artistName ?? null,
       img: bigArt(x.artworkUrl100),
       url: x.trackViewUrl ?? x.collectionViewUrl ?? null,
       year: x.releaseDate ? Number(String(x.releaseDate).slice(0, 4)) : null,
     })),
   }
+}
+
+/**
+ * Films come from Wikidata, because a shop is a bad encyclopedia.
+ *
+ * iTunes was asked directly rather than read about. `entity=movie` -- with
+ * media=movie beside it and without -- answers 200 with an empty list for
+ * every title tried: wizard of oz, top gun, the godfather, amelie. Zero, no
+ * error, which is the hardest kind of wrong to notice, and it is why this
+ * field has been quietly broken. Drop the entity and iTunes does return films,
+ * but only the ones the US store has a licence for and ranked by whatever
+ * sells: "top gun" brings back The Real Top Guns and Top Gunner, no Maverick
+ * and no Tony Scott; "the godfather" brings back The Godfathers of Hardcore.
+ *
+ * Wikidata's search restricted to things that ARE a film (P31 = Q11424)
+ * answers with the film you meant, first, every time -- Top Gun 1986, The
+ * Godfather 1972, Amelie 2001, and both Wizards of Oz. It is free, it needs no
+ * key, and it is not trying to sell anybody a rental.
+ *
+ * Two calls: the search ranks, and wbgetentities names. Labels and
+ * descriptions only -- asking for claims as well returns every statement on
+ * the film, which for a famous one is a hundred kilobytes to read a year off.
+ * The year is in the description already, because that is how Wikidata writes
+ * them: "1986 film directed by Tony Scott".
+ *
+ * No posters. Wikidata does not have them and would not be allowed to give
+ * them away if it did, so the artwork is asked of iTunes afterwards and
+ * matched on title. That call is allowed to fail: when it does, or when the
+ * store has never heard of the film, the card has no picture and the answer
+ * is still right, which is the correct way round.
+ */
+const WD = 'https://www.wikidata.org/w/api.php'
+const FILM = 'Q11424'
+
+const norm = (s: string) =>
+  s.toLowerCase().replace(/^(the|a|an)\s+/, '').replace(/[^a-z0-9]+/g, ' ').trim()
+
+/** Somebody's favorite film, on a wall at work. */
+const NOT_AT_WORK = /\bxxx\b|pornograph|adult film/i
+
+async function movie(q: string) {
+  const found = await grab(
+    `${WD}?action=query&format=json&formatversion=2&list=search&srlimit=12`
+    + `&srsearch=${encodeURIComponent(`${q} haswbstatement:P31=${FILM}`)}`,
+    'Wikidata')
+  if ('why' in found) return found
+
+  const ids: string[] = (found.j?.query?.search ?? [])
+    .map((s: any) => s?.title).filter((t: any) => typeof t === 'string' && /^Q\d+$/.test(t))
+  if (!ids.length) return { hits: [] }
+
+  const named = await grab(
+    `${WD}?action=wbgetentities&format=json&props=labels|descriptions&ids=${ids.join('|')}`,
+    'Wikidata')
+  if ('why' in named) return named
+  const ents = named.j?.entities
+  if (!ents) return { why: 'Wikidata answered, but without any entities.' }
+
+  const seen = new Set<string>()
+  const hits: Hit[] = []
+  for (const id of ids) {                       // the search's order is the ranking
+    const e = ents[id]
+    if (!e) continue
+    const title = e.labels?.en?.value ?? e.labels?.mul?.value
+    if (!title) continue
+    const desc: string = e.descriptions?.en?.value ?? ''
+    if (NOT_AT_WORK.test(title) || NOT_AT_WORK.test(desc)) continue
+    const year = Number(desc.match(/\b(1[89]\d{2}|20\d{2})\b/)?.[1]) || null
+    const key = `${norm(title)}|${year ?? ''}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    hits.push({
+      id, title, year,
+      sub: desc ? desc.replace(/^\d{4}\s+/, '').replace(/^./, (c) => c.toUpperCase()) : null,
+      img: null,
+      url: `https://www.wikidata.org/wiki/${id}`,
+    })
+    if (hits.length === 8) break
+  }
+
+  // The poster, if a shop happens to have one. Best effort by design: a failure
+  // here costs a picture, never an answer.
+  const art = await grab(
+    `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&limit=40&country=US`,
+    'iTunes', 4000)
+  if (!('why' in art)) {
+    const by = new Map<string, string>()
+    for (const x of art.j?.results ?? []) {
+      if (x?.kind !== 'feature-movie') continue
+      const t = x.trackName ?? x.collectionName
+      const a = bigArt(x.artworkUrl100)
+      if (!t || !a) continue
+      const bare = norm(String(t).replace(/\s*\(\d{4}\)\s*$/, ''))
+      if (!by.has(bare)) by.set(bare, a)
+    }
+    for (const h of hits) h.img = by.get(norm(h.title)) ?? null
+  }
+
+  return { hits }
 }
 
 /**
@@ -226,7 +317,7 @@ async function restaurant(q: string) {
 
 const KINDS: Record<string, (q: string) => Promise<{ hits: Hit[] } | { why: string }>> = {
   song: itunes('song'),
-  movie: itunes('movie'),
+  movie,
   book,
   candy,
   restaurant,

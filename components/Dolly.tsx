@@ -211,7 +211,9 @@ export default function Dolly() {
           <span className="mote mote--gold" style={{ left: '93.7%', ['--sz' as any]: '4px', ['--peak' as any]: '0.62', ['--sway' as any]: '4.41s', ['--tw' as any]: '4.0s', ['--sx' as any]: '9px', ['--dur' as any]: '3.72s', ['--dly' as any]: '-6.6s' }}><i /></span>
         </span>
         <img className="dolly__p" src={PORTRAIT} alt="" width={58} height={58} />
-        <div>
+        {/* What she said gets its own box so it can be the thing that scrolls.
+            The card cannot be: the send button lives in it. */}
+        <div className="dolly__say">
           <span className="dolly__q">{line}</span>
           {/* Her name in her own hand. The <cite> stays for anything that is
               reading rather than looking. */}

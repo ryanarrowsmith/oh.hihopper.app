@@ -3,8 +3,12 @@ import { useEffect, useRef, useState } from 'react'
 
 type Entity = { id: string; name: string; parent_id: string | null }
 
-export default function TopBar({ initials, entities }: { initials: string; entities: Entity[] }) {
-  const [open, setOpen] = useState<'scope' | 'noti' | null>(null)
+export default function TopBar(
+  { initials, entities, personId, displayName, accountName }:
+  { initials: string; entities: Entity[]
+    personId: string | null; displayName: string; accountName: string },
+) {
+  const [open, setOpen] = useState<'scope' | 'noti' | 'me' | null>(null)
   const [scope, setScope] = useState('All organizations')
   const wrap = useRef<HTMLDivElement>(null)
 
@@ -85,9 +89,49 @@ export default function TopBar({ initials, entities }: { initials: string; entit
             </div>
           )}
         </span>
-        <form action="/auth/sign-out" method="post">
-          <button className="avatar" type="submit" title="Sign out">{initials}</button>
-        </form>
+        {/* The avatar is a menu, not a button that logs you out.
+            It was a bare submit -- one stray click on your own face and you
+            were on the sign-in page, which is a trap rather than a control.
+            A destructive action should never be the whole of a target you are
+            invited to click, and it should never be the only thing behind it. */}
+        <span className="avaw">
+          <button className="avatar" type="button" aria-label="You"
+                  aria-haspopup="menu" aria-expanded={open === 'me'}
+                  onClick={(e) => { e.stopPropagation(); setOpen(open === 'me' ? null : 'me') }}>
+            {initials}
+          </button>
+
+          {open === 'me' && (
+            <div className="mepop" role="menu">
+              <p className="mehead">
+                <span className="avatar avatar--lg" aria-hidden="true">{initials}</span>
+                <span className="mewho"><b>{displayName}</b><small>{accountName}</small></span>
+              </p>
+              {personId && (
+                <a className="orow" role="menuitem" href={`/people/${personId}`}>
+                  <svg className="meic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                       strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="8" r="3.6" /><path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+                  </svg>
+                  Your profile
+                </a>
+              )}
+              {/* Sign out is a POST, so it stays a form. It is the last row and
+                  the only one wearing the footer treatment, which is how every
+                  other popover in Hopper marks the row you meant to reach for. */}
+              <form action="/auth/sign-out" method="post">
+                <button className="orow orow--foot" role="menuitem" type="submit">
+                  <svg className="meic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                       strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M15 17v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v2" />
+                    <path d="M19 12H9" /><path d="m16 8 4 4-4 4" />
+                  </svg>
+                  Sign out
+                </button>
+              </form>
+            </div>
+          )}
+        </span>
       </div>
     </header>
   )
