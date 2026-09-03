@@ -2893,7 +2893,14 @@ a.gcard:hover{border-color:var(--canvas-3); box-shadow:var(--lift)}
 }
 
 /* An action in the page heading, pushed to the right of the title block. */
-.hi__go{flex:none; display:flex; gap:8px; align-items:center}
+.hi__go{flex:none; display:flex; gap:8px; align-items:center;
+  flex-wrap:wrap; justify-content:flex-end}
+/* A button's label is a label, not a paragraph. Left to itself, a flex item
+   shrinks below its content and the text inside breaks -- which is how "Add a
+   task" became three lines of one word each the moment a fourth button joined
+   the row. It wraps to a second ROW of buttons instead, which is a thing a
+   header can do and a word is not. */
+.hi__go .btn{white-space:nowrap; flex:none}
 
 /* ---- and on a phone, it goes under the title instead ----
    Beside a title, a column of buttons on a 390px screen leaves the title about
