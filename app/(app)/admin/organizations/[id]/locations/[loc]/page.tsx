@@ -38,10 +38,7 @@ export default async function Location({ params }: { params: { id: string; loc: 
           <HeadOffice on={!!l.is_head_office} big />
           {l.name}
         </h1>
-        <p className="scopeline">
-          <span>{org.name}</span>
-          <a href={`/admin/organizations/${org.id}`}>Back to {org.name}</a>
-        </p>
+        {/* The trail carries the organization, linked, one line above. */}
       </div>
 
       <div className="desk">

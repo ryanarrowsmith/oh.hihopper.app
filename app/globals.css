@@ -118,13 +118,25 @@ p{margin:0}
   width:95%; max-width:1240px; margin-inline:auto;
   background:var(--paper); border:1px solid var(--rule); border-radius:var(--r);
   box-shadow:var(--lift);
-  /* clip, not hidden. Both keep a child inside the frame; only `hidden` makes
-     this a scroll container, and a scroll container is what position:sticky
-     sticks to -- so a sticky preview inside here was measuring itself against a
-     box as tall as the whole page and never stuck to anything. `clip` clips and
-     stays out of the way. The `hidden` first is for a browser that does not
-     know `clip`: it keeps the clipping and simply does not get the stickiness. */
-  overflow:hidden; overflow:clip;
+  /* Clipped sideways, open downwards.
+   *
+   * Sideways is the axis that needs containing: a wide table or a long
+   * unbroken string inside here must not push the page into a horizontal
+   * scroll. Downwards is the axis that must NOT be contained -- standing rule,
+   * a box that clips is not a box that may contain a popover, and this box
+   * contains every popover in Hopper. Clipping both axes is what ate the
+   * bottom of the add-a-location form.
+   *
+   * `clip` rather than `hidden` because only `hidden` makes this a scroll
+   * container, and a scroll container is what position:sticky sticks to -- a
+   * sticky preview in here was measuring itself against a box as tall as the
+   * whole page and never stuck to anything. overflow-x:clip with
+   * overflow-y:visible is a legal pair (visible + hidden is not, which is why
+   * this could not be written the obvious way before). The plain `overflow`
+   * line first is for a browser that knows neither: it keeps the old
+   * behaviour rather than losing the containment. */
+  overflow:hidden;
+  overflow-x:clip; overflow-y:visible;
 }
 
 /* ---- wordmark ---- */

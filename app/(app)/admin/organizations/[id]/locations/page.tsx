@@ -27,11 +27,11 @@ export default async function Page({ params }: { params: { id: string } }) {
     <>
       <div className="hi">
         <div className="hi__t">
+          {/* No scopeline. The trail above reads
+              ... / On Call Services and Rentals / Locations, so naming the
+              organization again and then linking back to it put the same word
+              on the screen three times, twice as a link. */}
           <h1>Locations</h1>
-          <p className="scopeline">
-            <span>{org.name}</span>
-            <a href={`/admin/organizations/${org.id}`}>Back to {org.name}</a>
-          </p>
         </div>
       </div>
 

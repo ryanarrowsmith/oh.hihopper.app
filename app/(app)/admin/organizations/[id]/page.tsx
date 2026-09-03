@@ -93,8 +93,10 @@ export default async function Entity({ params }: { params: { id: string } }) {
         <div className="hi__t">
           <h1>{e.name}</h1>
           <p className="scopeline">
+            {/* The legal name and the status are facts about this record and
+                belong here. "Back to the portfolio" was the Organizations crumb
+                again, six inches lower. */}
             <span>{e.legal_name ?? 'No legal name on file'} · {e.status}</span>
-            <a href="/admin/organizations">Back to the portfolio</a>
           </p>
         </div>
         <OrgLogo name={e.name} mark={e.mark} src={e.logo_url} />

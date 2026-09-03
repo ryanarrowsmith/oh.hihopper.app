@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
 import { EditableSection, RecordRow, RowForm, RowDanger } from '@/components/RowEdit'
 import Choice from '@/components/Choice'
@@ -60,7 +59,7 @@ export default async function Categories() {
       <div className="hi"><div className="hi__t">
         <h1>Report categories</h1>
         <p className="scopeline">
-          <span>A kind of report a department runs. <Link href="/reporting">Back to reporting</Link></span>
+          <span>A kind of report a department runs.</span>
         </p>
       </div></div>
 

@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import { currentSession } from '@/lib/tenant'
 import { supabaseServer } from '@/lib/supabase/server'
 import SubscribeList from '@/components/SubscribeList'
@@ -25,7 +24,6 @@ export default async function Page() {
           <span>Any calendar that publishes an .ics address can appear in Hopper.</span>
         </p>
       </div>
-      <div className="hi__go"><Link className="btn" href="/calendar">Back to the calendar</Link></div>
       </div>
 
       <SubscribeList feeds={(feeds ?? []) as any}
