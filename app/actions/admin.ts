@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import { currentSession } from '@/lib/tenant'
 import { logAudit } from '@/lib/audit'
@@ -184,6 +185,65 @@ export async function updateLocation(_prev: Result | null, form: FormData): Prom
   revalidatePath(`/admin/organizations/${was.entity_id}/locations/${id}`)
   return { ok: true, message: latitude == null
     ? `Saved, without a map pin. ${why ?? ''}`.trim() : 'Saved.' }
+}
+
+/**
+ * Remove a location.
+ *
+ * The database will refuse this on its own -- hopper.person carries a
+ * location_id with no ON DELETE on it, so the foreign key stops the delete --
+ * but a foreign key violation is a sentence about a constraint, and the person
+ * pressing the button asked a question about an office. So the people are
+ * counted first and the answer names them: how many, and that they have to be
+ * moved before the office can go.
+ *
+ * RLS decides whether they were allowed to ask at all. The button is only
+ * rendered for an administrator of the organization, and that is a courtesy --
+ * this is where it is actually enforced.
+ */
+export async function deleteLocation(_prev: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const id = str(form, 'id')
+  if (!id) return { ok: false, message: 'Nothing to remove.' }
+
+  const { data: loc } = await db.schema('hopper').from('location')
+    .select('name, entity_id, is_head_office').eq('id', id).maybeSingle()
+  if (!loc) return { ok: false, message: 'That location is not there.' }
+
+  const { count } = await db.schema('hopper').from('person')
+    .select('id', { count: 'exact', head: true })
+    .eq('location_id', id).eq('active', true)
+  if (count && count > 0) {
+    return { ok: false, message:
+      `${count} ${count === 1 ? 'person is' : 'people are'} still based at ${loc.name}. `
+      + 'Move them to another office first — removing this one would leave them nowhere.' }
+  }
+
+  /**
+   * .select() on the delete, and the count is checked.
+   *
+   * RLS on hopper.location is a policy on ALL, so somebody who may READ this
+   * office but not edit it deletes ZERO rows and gets no error back -- a
+   * refusal that looks exactly like a success. The rows actually removed are
+   * the only honest answer to "did that work".
+   */
+  const { data: gone, error } = await db.schema('hopper').from('location')
+    .delete().eq('id', id).select('id')
+  if (error) return { ok: false, message: refused(error.message, 'location') }
+  if (!gone || gone.length === 0) {
+    return { ok: false, message:
+      'Removing an office is limited to the people who administer this organization.' }
+  }
+
+  await logAudit(db, { account_id: account, kind: 'location', object: loc.name,
+    object_id: loc.entity_id,
+    summary: `Removed the location ${loc.name}`
+      + (loc.is_head_office ? ' — it was the head office' : '') })
+
+  revalidatePath(`/admin/organizations/${loc.entity_id}`)
+  revalidatePath('/admin/organizations/locations')
+  revalidatePath('/')
+  redirect(`/admin/organizations/${loc.entity_id}`)
 }
 
 /** Re-resolve a pin from the address on demand. */

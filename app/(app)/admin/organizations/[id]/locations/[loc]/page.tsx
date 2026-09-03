@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import Section from '@/components/Section'
 import ActionForm from '@/components/ActionForm'
+import DeleteLocation from '@/components/DeleteLocation'
 import LocationMap from '@/components/LocationMap'
 import { updateLocation, repinLocation, toggleFavorite } from '@/app/actions/admin'
 import FavoriteButton from '@/components/CardActions'
@@ -169,6 +170,14 @@ export default async function Location({ params }: { params: { id: string; loc: 
                     are yours — nothing will overwrite them afterwards.
                   </p>
                 </ActionForm>
+
+                {/* Outside the form on purpose: it is not a field, and a
+                    destructive control inside a form somebody is halfway
+                    through filling in is a control they can hit by pressing
+                    Enter. Only an administrator of this organization sees it --
+                    mayEdit is the same answer the delete itself is checked
+                    against. */}
+                <DeleteLocation id={l.id} name={l.name} />
               </div>
             </section>
           ) : (

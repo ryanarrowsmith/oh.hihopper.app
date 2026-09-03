@@ -1572,6 +1572,22 @@ select.field{appearance:none}
 .confpop__acts{display:flex; gap:9px; margin-top:15px}
 .confpop__acts .btn{background:var(--surface); border-color:var(--warmrule)}
 .confpop__acts .btn:hover{border-color:var(--ink-3)}
+/* The one button in here that destroys something wears the colour Hopper uses
+   for "this went wrong" -- because agreeing to it is the moment to be sure, and
+   amber is what Hopper says yes with everywhere else. */
+.btn--bad{background:var(--bad); border-color:var(--bad); color:#FBF9F5}
+.btn--bad:hover{background:#B92F22; border-color:#B92F22; color:#FBF9F5}
+.confpop__acts .btn--bad{background:var(--bad); border-color:var(--bad); color:#FBF9F5}
+.confpop__acts .btn--bad:hover{background:#B92F22; border-color:#B92F22}
+
+/* Removing an office lives at the foot of the form that edits it, under a rule,
+   away from Save -- the two are not a pair and should not look like one. */
+.delloc{position:relative; display:flex; align-items:center; flex-wrap:wrap;
+  margin-top:18px; padding-top:15px; border-top:1px solid var(--rule)}
+.delloc .lnk--go{margin-left:0; font-weight:700}
+.delloc .swhy{flex:1 0 100%; margin-top:9px}
+.delloc .confpop{top:calc(100% + 10px); left:0; right:auto}
+.delloc .confpop::before{left:16px; right:auto}
 .confpop__acts .btn--danger{border-color:var(--bad)}
 .confpop__acts .btn{flex:1}
 
