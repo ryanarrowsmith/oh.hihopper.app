@@ -42,5 +42,9 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|webp|ico)$).*)'],
+  // `cal` is out because a calendar client signs in to nothing: Google and
+  // Apple fetch the .ics with no cookie at all, so sending them to /sign-in
+  // would make every subscription fail silently. The secret in the path is
+  // what stands in for a session there.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|cal/|.*\\.(?:svg|png|jpg|webp|ico)$).*)'],
 }

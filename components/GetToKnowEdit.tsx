@@ -26,6 +26,9 @@ type Hit = {
 
 export type Answers = {
   birth_month: number | null
+  birth_day: number | null
+  start_month: number | null
+  start_year: number | null
   favorite_color: string | null
   candy: string | null; candy_img_url: string | null; candy_url: string | null
   restaurant_name: string | null; restaurant_address: string | null
@@ -88,7 +91,19 @@ export default function GetToKnowEdit({ personId, mine, answers, title }:
                         defaultValue={a.birth_month ? String(a.birth_month) : ''}
                         options={[{ value: '', label: 'Rather not say' },
                           ...MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))]} />
-                <p className="fine">The month. Never the date, never the year.</p>
+                <p className="fine">
+                  The month and the day, so a birthday lands on its own square.
+                  Never the year &mdash; Hopper has no use for anybody&rsquo;s age.
+                </p>
+              </div>
+              <div>
+                <label htmlFor="gk-day">Birthday day</label>
+                <Choice id="gk-day" name="birth_day"
+                        defaultValue={a.birth_day ? String(a.birth_day) : ''}
+                        options={[{ value: '', label: 'Rather not say' },
+                          ...Array.from({ length: 31 }, (_, i) => ({
+                            value: String(i + 1), label: String(i + 1) }))]} />
+                <p className="fine">Leave it empty and your birthday stays a month rather than a date.</p>
               </div>
               <div>
                 <label>Favorite color</label>

@@ -30,7 +30,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
  * through would be a worse product.
  */
 export type AuditKind =
-  | 'entity' | 'department' | 'location' | 'person' | 'module' | 'access' | 'report' | 'system'
+  | 'entity' | 'department' | 'location' | 'person' | 'module' | 'access' | 'report'
+  | 'calendar' | 'system'
 
 /** What the platform calls the thing, where its word differs from Hopper's. */
 const SUBJECT: Record<AuditKind, string | null> = {
@@ -41,6 +42,10 @@ const SUBJECT: Record<AuditKind, string | null> = {
   module: 'module',
   access: 'access',
   report: 'report',
+  // Subscribing points this server at an address somebody chose, which is a
+  // structural decision about what Hopper reads -- so it belongs in the ledger
+  // beside the report sources, not in the activity stream.
+  calendar: 'calendar',
   system: null,
 }
 

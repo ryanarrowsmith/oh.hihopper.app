@@ -58,10 +58,10 @@ export default async function Page({ params }: { params: { id: string } }) {
       db.schema('hopper').from('report_state').select('*').neq('report_id', params.id),
       // Who a note may name. RLS decides which people come back, which is also
       // the access check: a mention cannot light up somebody you cannot see.
-      db.schema('hopper').from('directory').select('id, full_name, email').eq('active', true),
+      db.schema('hopper').from('directory').select('id, full_name').eq('active', true),
     ])
 
-  const roster = (people ?? []).map((p: any) => ({ id: p.id, name: p.full_name, email: p.email }))
+  const roster = (people ?? []).map((p: any) => ({ id: p.id, name: p.full_name }))
 
   const entName = new Map((ents ?? []).map((e: any) => [e.id, e.name]))
   const deptName = new Map((depts ?? []).map((d: any) => [d.id, d.name]))

@@ -36,11 +36,14 @@ export async function tellMentioned(text: string, about: {
 }) {
   if (!text.includes('@')) return []
   const db = supabaseServer()
+  // Names only. The directory deliberately carries no email -- everyone signed
+  // in may see the top half of anybody, and contact details live behind the
+  // roster grant -- and asking for a column a view does not have makes the
+  // whole read come back null rather than raising, which is how a mention
+  // quietly stops notifying anyone.
   const { data } = await db.schema('hopper').from('directory')
-    .select('id, full_name, email').eq('active', true)
-  const roster: Named[] = (data ?? []).map((p: any) => ({
-    id: p.id, name: p.full_name, email: p.email,
-  }))
+    .select('id, full_name').eq('active', true)
+  const roster: Named[] = (data ?? []).map((p: any) => ({ id: p.id, name: p.full_name }))
 
   const named = findMentions(text, roster)
   await Promise.all(named.map((p) => tell(p.id, 'mention', about.title, about.href, {

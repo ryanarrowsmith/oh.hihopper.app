@@ -47,11 +47,32 @@ export async function saveProfile(_prev: Result | null, form: FormData): Promise
   if (month !== null && (month < 1 || month > 12)) {
     return { ok: false, message: 'A birthday month is 1 to 12.' }
   }
+  const day = num(form, 'birth_day')
+  if (day !== null && (day < 1 || day > 31)) {
+    return { ok: false, message: 'A birthday day is 1 to 31.' }
+  }
+  // A day with no month is a day of nothing, and the database says so too.
+  if (day !== null && month === null) {
+    return { ok: false, message: 'Pick the month as well as the day.' }
+  }
+
+  const startMonth = num(form, 'start_month')
+  const startYear = num(form, 'start_year')
+  if (startYear !== null && (startYear < 1900 || startYear > 2200)) {
+    return { ok: false, message: 'That start year does not look right.' }
+  }
+  if ((startMonth === null) !== (startYear === null)) {
+    return { ok: false, message: 'A start needs both a month and a year, or neither.' }
+  }
 
   const row = {
     person_id,
     account_id: session.accountId,
     birth_month: month,
+    // Cleared with the month, so a day can never outlive the month it belonged to.
+    birth_day: month === null ? null : day,
+    start_month: startMonth,
+    start_year: startYear,
     favorite_color: one(form, 'favorite_color'),
 
     candy: one(form, 'candy'),

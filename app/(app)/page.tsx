@@ -38,7 +38,7 @@ export default async function Home() {
 
   const [
     cards, { data: ents }, { data: locations }, { data: hearts },
-    { data: people }, { data: me }, { data: seen },
+    { data: people }, { data: me }, { data: reach }, { data: seen },
   ] = await Promise.all([
     // Always: the sentence in the hero counts these, and Favorites and
     // Dashboards draw their charts from the same read rather than a second one.
@@ -52,10 +52,19 @@ export default async function Home() {
       : Promise.resolve({ data: [] as any[] }),
     want('favs') || want('cont') || want('team')
       ? db.schema('hopper').from('directory')
-          .select('id, full_name, photo_url, role_name, entity_name, department_name, manager_id, email, phone')
+          // Only what the view actually has. manager_id, email and phone live
+          // on hopper.person and are read alongside -- asking the view for them
+          // makes the whole read come back null, which is a Contacts section
+          // that is simply always empty and never says why.
+          .select('id, full_name, photo_url, role_name, entity_name, department_name')
       : Promise.resolve({ data: [] as any[] }),
     db.schema('hopper').from('person').select('photo_url, location_id')
       .eq('id', session.personId ?? '').maybeSingle(),
+    // The half the directory does not carry, from the table that does. Its own
+    // policy decides which rows come back.
+    want('cont') || want('team')
+      ? db.schema('hopper').from('person').select('id, manager_id, email, phone').eq('active', true)
+      : Promise.resolve({ data: [] as any[] }),
     // Yours alone -- the policy is what scopes it, so there is no person_id
     // here and no way to read anybody else's.
     db.schema('hopper').from('recent').select('kind, object_id, label, sub, at')
@@ -65,6 +74,7 @@ export default async function Home() {
   const all = ents ?? []
   const entName = new Map(all.map((e: any) => [e.id, e.name]))
   const dir = people ?? []
+  const contact = new Map((reach ?? []).map((p: any) => [p.id, p]))
   const heart = hearts ?? []
   const places = locations ?? []
   const byReport = new Map(cards.map((c) => [c.id, c]))
@@ -135,7 +145,7 @@ export default async function Home() {
       photo: p.photo_url ? `/api/photo/${p.id}` : null,
       email: p.email ?? null, phone: p.phone ?? null }))
 
-  const team = dir.filter((p: any) => p.manager_id && p.manager_id === session.personId)
+  const team = dir.filter((p: any) => contact.get(p.id)?.manager_id === session.personId)
     .map((p: any) => ({ id: p.id, name: p.full_name, role: p.role_name,
       photo: p.photo_url ? `/api/photo/${p.id}` : null }))
 
