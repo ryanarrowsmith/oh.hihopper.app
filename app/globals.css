@@ -5448,3 +5448,93 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
   .tks, .prjs{break-inside:avoid}
   .mile{break-inside:avoid}
 }
+
+/* ============================== AN ORGANIZATION'S LOCATIONS, IN PLACE =====
+   The portfolio used to say "2 locations" and make you open the organization
+   to find out which two. The count is the drawer now. */
+
+/* Hidden, like .tvis: a checkbox nobody sees does the opening, so the row's own
+   Open button stays clickable and none of this needs script. */
+.lvis{position:absolute; width:1px; height:1px; opacity:0; pointer-events:none}
+
+/* The count in the Contains cell stops being a fact you read and becomes the
+   thing you press -- it is the only affordance anyone was ever going to look
+   for here. A count of nothing is not a control and is not dressed as one. */
+.lcount{font:inherit; color:var(--steel-ink); background:none; border:0; padding:0;
+  cursor:pointer; text-decoration:underline; text-decoration-color:var(--canvas-3);
+  text-underline-offset:3px; display:inline-flex; align-items:center; gap:5px}
+.lcount:hover{text-decoration-color:var(--steel-ink)}
+.lcount svg{width:11px; height:11px; fill:none; stroke:currentColor; stroke-width:2.6;
+  stroke-linecap:round; stroke-linejoin:round; transition:transform .2s ease}
+.lvis:checked ~ .tree__row .lcount svg,
+.lvis:checked ~ .okid .tree__row .lcount svg{transform:rotate(90deg)}
+.lcount--none{color:var(--ink-2); text-decoration:none; cursor:default}
+
+/* A child organization is a card, and its locations belong INSIDE that card: a
+   drawer that opens across the whole slab belongs to the slab rather than to
+   the business it is describing. So the tile moves off the row and onto a
+   wrapper holding the row and its drawer together, and the two close as one. */
+.okid{margin:7px 8px 7px 26px; border:1px solid var(--rule); border-radius:var(--r);
+  background:var(--surface); overflow:hidden}
+.tree__kids .okid > .tree__row.kid{margin:0; border:0; border-radius:0; background:none}
+.tree__kids .okid:last-child > .tree__row.kid{border-bottom:0}
+
+/* The same 0fr/1fr grid the branch uses, so a location list and a child
+   organization open with one motion rather than two different ones. */
+.locwrap{display:grid; grid-template-rows:0fr; transition:grid-template-rows .26s ease}
+.lvis:checked ~ .locwrap,
+.lvis:checked ~ .okid .locwrap{grid-template-rows:1fr}
+.locwrap > div{overflow:hidden; min-height:0}
+@media (prefers-reduced-motion:reduce){ .locwrap{transition:none} }
+
+.locs{background:var(--sunken); padding:4px 14px 12px;
+  border-top:1px solid var(--rule-soft)}
+/* Only the root's drawer rules off at the bottom, because the root IS the
+   frame. A child's drawer is inside its own card and ends where the card does. */
+.tree > .tnode > .locwrap .locs{border-bottom:1px solid var(--rule)}
+
+/* A location as a business card: the map is the photograph, the name and the
+   address are the print under it. The same .lmap the location page uses, so a
+   place looks like itself wherever you meet it. */
+.loccards{display:grid; grid-template-columns:repeat(auto-fill,minmax(212px,1fr));
+  gap:12px; padding:10px 11px 0}
+.loccard{text-decoration:none; color:inherit; display:block;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  padding:8px; transition:border-color .15s ease}
+.loccard:hover{border-color:var(--ink-3)}
+.loccard .lmap{display:block; height:84px; border-radius:var(--r)}
+.loccard__n{display:block; margin-top:9px; font-size:13.5px; font-weight:800;
+  letter-spacing:-.01em; color:var(--ink); line-height:1.25;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.loccard:hover .loccard__n{color:var(--sea)}
+/* Two lines whether the address needs two or one, so a row of cards has one
+   bottom edge instead of a ragged one. */
+.loccard__a{display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  overflow:hidden; margin-top:3px; font-size:12px; color:var(--ink-3);
+  line-height:1.4; min-height:2.8em}
+
+/* The head-office star sits on the map, bottom right -- a stamp on the picture
+   rather than a word in the list. It carries its own dark disc because a map is
+   whatever colour the terrain is, and a bare amber mark would vanish over sand
+   and shout over water. */
+.lochq{position:absolute; right:6px; bottom:6px; width:22px; height:22px;
+  display:grid; place-items:center; border-radius:50%;
+  background:rgba(35,31,32,.62)}
+.lochq svg{width:13px; height:13px; display:block; fill:var(--amber);
+  stroke:var(--amber); stroke-width:1.4; stroke-linejoin:round}
+
+.locfoot{display:flex; gap:14px; align-items:center; padding:10px 11px 0; font-size:12px}
+.locfoot a{color:var(--steel-ink)}
+.locnone{padding:12px; font-size:12.5px; color:var(--ink-3); background:var(--surface);
+  border:1px dashed var(--rule); text-align:center; margin-top:10px}
+
+@media (max-width:860px){
+  /* Two up on a phone would make the map a postage stamp, so they go single
+     file and the map gets the width to be a map. */
+  .loccards{grid-template-columns:1fr; padding:10px 0 0}
+  .loccard .lmap{height:104px}
+  .locs{padding:4px 12px 12px}
+}
+@media (max-width:640px){
+  .okid{margin:0 0 10px 14px}
+}

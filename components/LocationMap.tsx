@@ -9,8 +9,9 @@
  * photograph of a map.
  */
 export default function LocationMap({
-  lat, lng, label, height = 190, zoom,
-}: { lat: number; lng: number; label?: string; height?: number; zoom?: number }) {
+  lat, lng, label, height = 190, zoom, hq = false,
+}: { lat: number; lng: number; label?: string; height?: number; zoom?: number
+     hq?: boolean }) {
   const q = (theme: 'light' | 'dark') =>
     `/api/map?lat=${lat}&lng=${lng}&w=760&h=${height * 2}`
     + (zoom ? `&z=${zoom}` : '') + (theme === 'dark' ? '&theme=dark' : '')
@@ -30,6 +31,14 @@ export default function LocationMap({
                 fill="#F2A93B" />
         </svg>
       </span>
+      {/* The head office wears its star on the picture, bottom right. In the
+          name it pushed one name in a column of names sideways and gave the
+          column two left edges. */}
+      {hq && <span className="lochq" title="Head office">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3.5 14.6 9l6 .9-4.3 4.2 1 6-5.3-2.8L6.7 20l1-6L3.4 9.9l6-.9z" />
+        </svg>
+      </span>}
     </figure>
   )
 }
