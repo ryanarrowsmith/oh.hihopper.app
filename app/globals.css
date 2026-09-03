@@ -4482,6 +4482,20 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
 
 /* ── a card carrying a map ─────────────────────────────────────────── */
 .hx .hxcard--map{padding:0; overflow:hidden}
+/* An office card is the same card as the rest of them. It used to sit in a
+   wider grid with a 16:9 map, which made it half again as tall as everything
+   beside it -- and a row of cards where one is a different size does not read
+   as "this one matters more", it reads as a mistake. Same grid, and the map
+   becomes the same 76px band the charts, logos and faces use.
+
+   The address plate stays, because it is the whole reason to look at an office
+   card, but it shrinks to fit the band it is now in: the street on one line,
+   the town under it, and the same mono it always was. */
+.hx .hxcard--map .map{aspect-ratio:auto; height:76px}
+.hx .hxcard--map .map .mapaddr{
+  top:6px; left:6px; max-width:calc(100% - 12px);
+  padding:3px 6px; font-size:9px; line-height:1.35;
+}
 .hx .hxcard--map .hxcard__h{padding:13px 14px 10px}
 .hx .hxcard--map .hxrows{padding:4px 14px}
 .hx .hxcard--map .hxcard__f{padding:10px 14px 13px; align-items:center}

@@ -208,7 +208,7 @@ export function LocsWidget({ places }: { places: any[] }) {
          to="/admin/organizations/locations" tip="All of your locations">
       {places.length === 0
         ? <p className="empty">No addresses on file yet.</p>
-        : <div className="hxgrid hxgrid--wide">
+        : <div className="hxgrid">
             {places.slice(0, 4).map((l) => (
               <article className="hxcard hxcard--map" key={l.id}>
                 <span className="hxcard__h">
