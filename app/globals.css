@@ -4047,6 +4047,14 @@ a.idc__org:hover{background:var(--steel)}
   width:min(400px, calc(100vw - 40px)); text-align:left;
   background:var(--surface); border-radius:var(--r);
   box-shadow:0 20px 44px -16px rgba(35,31,32,.42), 0 3px 10px -4px rgba(35,31,32,.2);
+  /* The button that raises this lives INSIDE an h1, so everything in here was
+     inheriting the heading: 800 weight, -.035em tracking, a 1.05 line height.
+     Which is why a panel of explanatory prose read as five more headings. A
+     popover is its own document, not a continuation of whatever it is anchored
+     to, so it says what it is rather than taking what it is given. */
+  font-family:var(--sans); font-weight:400; font-style:normal;
+  letter-spacing:normal; line-height:1.55; text-transform:none; text-align:left;
+  color:var(--ink-2);
 }
 .helppop::before{
   content:""; position:absolute; top:-5px; left:14px; width:10px; height:10px;
@@ -4062,10 +4070,12 @@ a.idc__org:hover{background:var(--steel)}
 .helppop__x{margin-left:auto; background:none; border:0; cursor:pointer;
   font-size:19px; line-height:1; padding:0 2px; color:var(--ink-3)}
 .helppop__x:hover{color:var(--ink)}
-.helppop__l{margin:0; padding:14px 15px 0; font-size:13.5px; line-height:1.6; color:var(--ink-2)}
+.helppop__l{margin:0; padding:14px 15px 0; font-size:13.5px; line-height:1.6;
+  font-weight:400; color:var(--ink-2)}
 .helppop__d{margin:0; padding:12px 15px 4px; display:flex; flex-direction:column; gap:11px}
 .helppop__d dt{font-size:13px; font-weight:800; color:var(--ink); letter-spacing:-.01em}
-.helppop__d dd{margin:3px 0 0; font-size:12.5px; line-height:1.55; color:var(--ink-2)}
+.helppop__d dd{margin:3px 0 0; font-size:12.5px; line-height:1.55;
+  font-weight:400; color:var(--ink-2)}
 .helppop__go{
   display:block; padding:11px 15px; border-top:1px solid var(--rule); margin-top:8px;
   background:var(--sunken); border-radius:0 0 var(--r) var(--r);
