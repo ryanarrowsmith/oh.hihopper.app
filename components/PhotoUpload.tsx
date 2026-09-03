@@ -5,7 +5,7 @@ import Avatar from '@/components/Avatar'
 import { savePhoto, clearPhoto } from '@/app/actions/photo'
 
 /**
- * Your own face, cropped by you.
+ * A face, cropped by whoever is allowed to.
  *
  * One square file per person, 1024 across, and every size in the product is a
  * scale of it -- 30 in a table row, 38 in a list, 72 on a card, 132 here. That
@@ -28,8 +28,16 @@ const STAGE = 264
 const OUT = 1024
 
 export default function PhotoUpload(
-  { personId, name, src, mine, size = 132 }:
-  { personId: string; name: string; src: string | null; mine: boolean; size?: number },
+  { personId, name, src, may, mine, size = 132 }:
+  { personId: string; name: string; src: string | null
+    /** Whether this viewer may change it -- the person themselves, or anybody
+     *  who may edit the roster. The storage policy asks the same question and
+     *  is the one that decides; this only stops Hopper offering a control that
+     *  would be refused. */
+    may: boolean
+    /** Whether it is their own face, which changes only what the panel says. */
+    mine: boolean
+    size?: number },
 ) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -153,7 +161,7 @@ export default function PhotoUpload(
     router.refresh()
   }
 
-  if (!mine) return <Avatar name={name} src={src} size={size} />
+  if (!may) return <Avatar name={name} src={src} size={size} />
 
   return (
     <div className="phw">
@@ -171,9 +179,10 @@ export default function PhotoUpload(
       </button>
 
       {open && (
-        <div className="addpop phpop" ref={pop} role="dialog" aria-label="Your photo">
+        <div className="addpop phpop" ref={pop} role="dialog"
+             aria-label={mine ? 'Your photo' : `${name}'s photo`}>
           <div className="addpop__h">
-            <b>Your photo</b>
+            <b>{mine ? 'Your photo' : `${name.split(' ')[0]}’s photo`}</b>
             <button className="addpop__x" type="button" aria-label="Close" onClick={close}>&times;</button>
           </div>
 
@@ -182,7 +191,7 @@ export default function PhotoUpload(
               <>
                 <p className="phhint">
                   A square picture, cropped here. It is used as a circle in lists and
-                  full-width on cards, so put the face where you want it.
+                  full-width on cards, so put the face where {mine ? 'you want' : 'it belongs'}.
                 </p>
                 <label className="btn btn--amber phpick">
                   {src ? 'Choose a new picture' : 'Choose a picture'}

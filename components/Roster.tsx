@@ -359,6 +359,9 @@ function QuickEdit({ p, orgs, depts, onDone }: {
           <div><label htmlFor={`pr-${p.id}`}>Role</label>
             <input className="field" id={`pr-${p.id}`} name="role_title"
                    defaultValue={p.role ?? ''} placeholder="Dispatcher" /></div>
+          <div><label htmlFor={`pp-${p.id}`}>Phone</label>
+            <input className="field" id={`pp-${p.id}`} name="phone" type="tel"
+                   defaultValue={p.phone ?? ''} placeholder="None on file" /></div>
         </div>
         <div className="formrow" style={{ marginTop: 11 }}>
           <div><label htmlFor={`po-${p.id}`}>Organization</label>

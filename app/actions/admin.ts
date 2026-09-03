@@ -466,8 +466,9 @@ export async function createPerson(_prev: Result | null, form: FormData): Promis
   return { ok: true, message: `${full_name} added.` }
 }
 
-/** The quick change, from the roster row: the four things that actually go
- *  stale. Everything else about a person is on their own page. */
+/** The quick change, from the roster row: the handful of things that actually
+ *  go stale. Everything else about a person -- where they sit, who they report
+ *  to, their photograph, their answers -- is on their own page. */
 export async function updatePerson(_prev: Result | null, form: FormData): Promise<Result> {
   const { db, account } = await ctx()
   const id = str(form, 'id'), full_name = str(form, 'full_name')
@@ -476,6 +477,7 @@ export async function updatePerson(_prev: Result | null, form: FormData): Promis
   const { data: hit, error } = await db.schema('hopper').from('person').update({
     full_name,
     email: nul(form, 'email'),
+    phone: nul(form, 'phone'),
     role_title: nul(form, 'role_title'),
     entity_id: nul(form, 'entity_id'),
     department_id: nul(form, 'department_id'),

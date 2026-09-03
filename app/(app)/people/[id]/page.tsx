@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import PersonBadge from '@/components/PersonBadge'
-import Favorites, { type Profile } from '@/components/Favorites'
-import GetToKnowEdit, { type Answers } from '@/components/GetToKnowEdit'
+import PersonEdit, { type Named } from '@/components/PersonEdit'
+import { type Profile } from '@/components/Favorites'
+import { type Answers } from '@/components/GetToKnowFields'
 import CrumbTail from '@/components/CrumbTail'
 import Remember from '@/components/Remember'
 
@@ -16,13 +17,18 @@ export const dynamic = 'force-dynamic'
  * roster grant -- and when that read comes back empty they are simply not
  * drawn. A greyed-out field still tells you the field is there and invites
  * somebody to go looking for it.
+ *
+ * Editing is one pencil for the whole page -- the details beside the badge and
+ * the Get to know me answers below it, in one form. The lists the form needs
+ * are only fetched when somebody may actually open it.
  */
 export default async function PersonPage({ params }: { params: { id: string } }) {
   const db = supabaseServer()
 
   const [{ data: d }, { data: contact }] = await Promise.all([
     db.schema('hopper').from('directory').select('*').eq('id', params.id).maybeSingle(),
-    db.schema('hopper').from('person').select('email, phone, manager_id, profile_id').eq('id', params.id).maybeSingle(),
+    db.schema('hopper').from('person')
+      .select('email, phone, manager_id, profile_id, role_title').eq('id', params.id).maybeSingle(),
   ])
   if (!d) notFound()
 
@@ -46,6 +52,23 @@ export default async function PersonPage({ params }: { params: { id: string } })
         .select('id, full_name').eq('id', contact.manager_id).maybeSingle()
     : { data: null }
 
+  // Only what the form needs, and only when there is a form. Four reads on
+  // every visit to a page most people only look at is four reads too many.
+  const may = !!d.may_edit
+  const [{ data: orgs }, { data: depts }, { data: locs }, { data: roster }] = may
+    ? await Promise.all([
+        db.schema('hopper').from('entity').select('id, name').order('sort_order'),
+        db.schema('hopper').from('department').select('id, name, entity_id')
+          .eq('active', true).order('name'),
+        db.schema('hopper').from('location').select('id, name, entity_id').order('name'),
+        db.schema('hopper').from('directory').select('id, full_name')
+          .eq('active', true).order('full_name'),
+      ])
+    : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }]
+
+  const named = (rows: any[] | null, key = 'name'): Named[] =>
+    (rows ?? []).map((r: any) => ({ id: r.id, name: r[key], entityId: r.entity_id ?? null }))
+
   // The pinned restaurant, drawn by the same proxy the location maps use, so
   // the token never reaches the browser.
   const mapSrc = d.restaurant_lat != null && d.restaurant_lng != null
@@ -62,18 +85,33 @@ export default async function PersonPage({ params }: { params: { id: string } })
           link twice on the same screen, six inches apart. */}
       <CrumbTail>{d.full_name}</CrumbTail>
 
-      <PersonBadge d={d as any} email={email}
-                   phone={contact?.phone ?? null} manager={manager as any} />
-
-      <div className="gtkm">
-        {d.may_edit ? (
-          <GetToKnowEdit personId={d.id} mine={!!d.is_me} title={heading}
-                         answers={d as unknown as Answers} />
-        ) : (
-          <div className="gtkm__h"><h3>{heading}</h3><span className="rule" /></div>
-        )}
-        <Favorites p={d as unknown as Profile} mapSrc={mapSrc} />
-      </div>
+      <PersonEdit
+        badge={<PersonBadge d={d as any} mayEdit={may} />}
+        personId={d.id}
+        mine={!!d.is_me}
+        mayEdit={may}
+        hasLogin={!!d.has_login}
+        heading={heading}
+        name={d.full_name}
+        role={contact?.role_title ?? d.role_name ?? null}
+        phone={contact?.phone ?? null}
+        email={email}
+        entityId={d.entity_id}
+        departmentId={d.department_id}
+        locationId={d.location_id}
+        managerId={contact?.manager_id ?? null}
+        departmentName={d.department_name}
+        locationName={d.location_name}
+        managerName={(manager as any)?.full_name ?? null}
+        entityName={d.entity_name}
+        orgs={named(orgs)}
+        departments={named(depts)}
+        locations={named(locs)}
+        people={named(roster, 'full_name')}
+        answers={d as unknown as Answers}
+        profile={d as unknown as Profile}
+        mapSrc={mapSrc}
+      />
     </>
   )
 }

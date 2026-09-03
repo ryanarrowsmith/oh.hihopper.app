@@ -3612,7 +3612,11 @@ a.idc__org:hover{background:var(--steel)}
 }
 
 /* Beside the card, on the canvas. A badge carrying working controls would be
-   pretending to be furniture and a button at once. */
+   pretending to be furniture and a button at once -- so the column beside it
+   holds the facts, the pencil, and the form the facts become. */
+.idcol{flex:1 1 240px; min-width:220px; max-width:420px}
+.idacts{display:flex; justify-content:flex-end; margin-bottom:6px}
+.idcol .idfacts{max-width:none; min-width:0}
 .idfacts{flex:1 1 240px; min-width:220px; max-width:420px; margin:0; display:flex; flex-direction:column}
 .idfacts > div{
   display:grid; grid-template-columns:110px minmax(0,1fr); align-items:baseline;
@@ -3632,10 +3636,32 @@ a.idc__org:hover{background:var(--steel)}
 .idfacts dd a:hover{border-bottom-color:currentColor}
 .idfacts dd svg{width:14px; height:14px; flex:none; opacity:.55}
 
+/* Editing in place: the same two columns, the same rows, the label staying
+   exactly where it was. Nothing moves, so you keep your eye on the thing you
+   are changing rather than finding it again in a form. */
+.idfacts--edit > div{align-items:center; padding:9px 0}
+.idfacts--edit dt label{font:inherit; color:inherit; letter-spacing:inherit; margin:0}
+.idfacts--edit dd{font-weight:400; overflow:visible}
+.idfacts--edit .field{width:100%; font-size:14px; padding:8px 11px}
+
+/* The sentence under the fields sits in the value column with them, not at a
+   left edge of its own -- the same grid, so the two line up. */
+.idfoot{display:grid; grid-template-columns:110px minmax(0,1fr); gap:14px; margin-top:14px}
+.idfoot > :first-child{grid-column:2}
+.idsay{font-size:11.5px; color:var(--ink-3); line-height:1.5; margin:0}
+
+/* One form spans the badge, the details and the answers, so the panel below
+   is always open while it is: there is one Save and it is at the foot of it. */
+.idform .gedit{display:block}
+.idform .gedit__clip{overflow:visible}
+
 @media (max-width:560px){
   .idw{gap:20px}
   .idc{width:100%; max-width:300px; margin:0 auto}
   .idfacts > div{grid-template-columns:1fr; gap:2px}
+  .idfacts--edit > div{grid-template-columns:1fr; gap:5px; align-items:stretch}
+  .idfoot{grid-template-columns:1fr}
+  .idfoot > :first-child{grid-column:1}
 }
 
 /* ==========================================================================

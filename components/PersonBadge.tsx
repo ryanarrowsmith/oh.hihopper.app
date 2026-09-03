@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import PhotoUpload from '@/components/PhotoUpload'
-import { OrgMark, PlaceMark, PersonMark } from '@/components/Icons'
+import { OrgMark } from '@/components/Icons'
 
 /**
  * A person's badge.
@@ -23,7 +23,13 @@ import { OrgMark, PlaceMark, PersonMark } from '@/components/Icons'
  * and an issue line at the foot. Department, office and the two things you
  * came here to do sit beside the card rather than on it, because a badge that
  * carried working controls would be pretending to be furniture and a button at
- * the same time.
+ * the same time -- see PersonEdit, which owns that column and the form it
+ * becomes.
+ *
+ * The photograph is the one exception, and it always was: it is ON the card,
+ * so it is changed on the card. Who may change it is the same question the
+ * storage policy answers -- the person themselves, or anybody who may edit the
+ * roster.
  */
 type Person = {
   id: string
@@ -39,14 +45,9 @@ type Person = {
 }
 
 export default function PersonBadge(
-  { d, email, phone, manager }:
-  { d: Person; email: string | null; phone: string | null
-    manager: { id: string; full_name: string } | null },
+  { d, mayEdit }: { d: Person; mayEdit: boolean },
 ) {
-  const tel = phone ? phone.replace(/[^\d+]/g, '') : null
-
   return (
-    <div className="idw">
       <div className="idc">
         {/* The slot, and the clip through it. A badge without one is a
             business card standing on its end. */}
@@ -63,7 +64,7 @@ export default function PersonBadge(
 
         <div className="idc__face">
           <PhotoUpload personId={d.id} name={d.full_name} src={d.photo_url}
-                       mine={!!d.is_me} size={148} />
+                       may={mayEdit} mine={!!d.is_me} size={148} />
         </div>
 
         <h1 className="idc__n">{d.full_name}</h1>
@@ -77,54 +78,5 @@ export default function PersonBadge(
           <span className="idc__no">NO. {d.id.slice(0, 8).toUpperCase()}</span>
         </div>
       </div>
-
-      <dl className="idfacts">
-        <div>
-          <dt>Department</dt>
-          <dd>{d.department_name ?? <span className="muted">None</span>}</dd>
-        </div>
-        <div>
-          <dt>Office</dt>
-          <dd>
-            {d.location_name
-              ? (d.location_id && d.entity_id
-                  ? <Link href={`/admin/organizations/${d.entity_id}/locations/${d.location_id}`}>
-                      <PlaceMark />{d.location_name}
-                    </Link>
-                  : <><PlaceMark />{d.location_name}</>)
-              : <span className="muted">None</span>}
-          </dd>
-        </div>
-        {/* The manager is fetched through the directory rather than joined into
-            it, so RLS answers: somebody whose manager this viewer may not see
-            gets no row at all, not a name they were not meant to have. */}
-        <div>
-          <dt>Manager</dt>
-          <dd>
-            {manager
-              ? <Link href={`/people/${manager.id}`}><PersonMark />{manager.full_name}</Link>
-              : <span className="muted">None</span>}
-          </dd>
-        </div>
-
-        {/* An address is not worth reading -- it is worth clicking, and a long
-            one wrecks a narrow column. So the label says what it is and the
-            link says what to do with it. A telephone number is different: it
-            is short, and it is the one contact detail people still copy down
-            or say out loud, so it shows itself. */}
-        {email && (
-          <div>
-            <dt>Email</dt>
-            <dd><a href={`mailto:${email}`} title={email}>Click here</a></dd>
-          </div>
-        )}
-        {tel && (
-          <div>
-            <dt>Phone</dt>
-            <dd><a href={`tel:${tel}`}>{phone}</a></dd>
-          </div>
-        )}
-      </dl>
-    </div>
   )
 }

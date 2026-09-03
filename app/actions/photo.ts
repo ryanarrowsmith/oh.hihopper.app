@@ -18,9 +18,10 @@ import type { Result } from '@/app/actions/admin'
  *
  * The path is <account>/<person>.jpg and it is overwritten, which is what the
  * storage policies were written around: people_photo_write proves the folder
- * is your account and the file is your own person row, and the same clause
- * guards the replacement. Nothing here re-checks it -- the database is the one
- * that says no.
+ * is your account, that the person in the filename belongs to that account,
+ * and that you are either that person or somebody who may edit the roster. The
+ * same clause guards the replacement and the removal. Nothing here re-checks
+ * it -- the database is the one that says no.
  *
  * photo_url is stored as this app's own route rather than a storage URL,
  * because the bucket is private and a signed URL expires. Every consumer
@@ -52,7 +53,7 @@ export async function savePhoto(_prev: Result | null, form: FormData): Promise<R
     return {
       ok: false,
       message: /row-level security|permission|Unauthorized/i.test(up.message)
-        ? 'Only this person may change their own picture.'
+        ? 'Only this person, or somebody who may edit the roster, can change this picture.'
         : up.message,
     }
   }
@@ -88,7 +89,7 @@ export async function clearPhoto(_prev: Result | null, form: FormData): Promise<
     return {
       ok: false,
       message: /row-level security|permission/i.test(error.message)
-        ? 'Only this person may change their own picture.'
+        ? 'Only this person, or somebody who may edit the roster, can change this picture.'
         : error.message,
     }
   }
