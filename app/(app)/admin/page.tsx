@@ -3,6 +3,8 @@ import Section from '@/components/Section'
 const AREAS = [
   { href: '/admin/organizations', title: 'Organizations',
     blurb: 'The tree, its departments and its office locations.' },
+  { href: '/admin/people', title: 'People',
+    blurb: 'The roster: everyone the business employs, importable in bulk. Signing in is decided under Users.' },
   { href: '/admin/users', title: 'Users',
     blurb: 'Who can sign in, who is only on the roster, and where each one sits.' },
   { href: '/admin/permissions', title: 'Permissions',

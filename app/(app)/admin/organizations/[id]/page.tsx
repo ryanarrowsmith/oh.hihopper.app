@@ -15,6 +15,7 @@ import {
   toggleFavorite,
 } from '@/app/actions/admin'
 import Remember from '@/components/Remember'
+import Link from 'next/link'
 
 export default async function Entity({ params }: { params: { id: string } }) {
   const db = supabaseServer()
@@ -31,7 +32,8 @@ export default async function Entity({ params }: { params: { id: string } }) {
       db.schema('hopper').from('entity_module')
         .select('module_key, enabled').eq('entity_id', params.id),
       db.schema('hopper').from('person')
-        .select('id, full_name, role_title, photo_url, profile_id').eq('active', true).order('full_name'),
+        .select('id, full_name, role_title, photo_url, profile_id, email, phone, entity_id, department_id, location_id, manager_id')
+        .eq('active', true).order('full_name'),
       db.schema('hopper').from('access_grant')
         .select('person_id, may_edit').eq('object', 'entity').eq('scope_id', params.id),
       db.schema('hopper').from('entity_rights').select('may_edit').eq('entity_id', params.id).maybeSingle(),
@@ -45,6 +47,15 @@ export default async function Entity({ params }: { params: { id: string } }) {
   const mayEdit = rights?.may_edit === true
   const on = new Set((mods ?? []).filter((m: any) => m.enabled).map((m: any) => m.module_key))
   const roster = people ?? []
+
+  /* Who works here, and the names to draw beside them. Departments and
+     locations are already loaded for this organization; managers are looked up
+     across the whole roster, because somebody's manager is often in a
+     different part of the tree. */
+  const here = roster.filter((p: any) => p.entity_id === params.id)
+  const deptName = new Map((departments ?? []).map((d: any) => [d.id, d.name]))
+  const locName = new Map((locations ?? []).map((l: any) => [l.id, l.name]))
+  const personName = new Map(roster.map((p: any) => [p.id, p.full_name]))
   const byPerson = new Map(roster.map((p: any) => [p.id, p]))
   const adminIds = new Set((grants ?? []).filter((g: any) => g.may_edit).map((g: any) => g.person_id))
   const admins = roster.filter((p: any) => adminIds.has(p.id))
@@ -229,6 +240,47 @@ export default async function Entity({ params }: { params: { id: string } }) {
           </div>
         )}
       </EditableSection>
+
+      {/* ---------------------------------------------- the people ---------
+          Administrators are the handful who may CHANGE this organization;
+          this is everybody who works in it. Two different questions about the
+          same word, which is why they are two sections and not one list with a
+          column in it. */}
+      <section className="sec">
+        <div className="sec__h">
+          <div className="sec__t">
+            <h2>People</h2>
+            <p>
+              Everyone on the roster in this organization. Adding somebody happens under
+              Admin · People, where a whole roster can arrive at once.
+            </p>
+          </div>
+          <div className="sec__a">
+            <Link className="btn" href="/admin/people">Manage the roster</Link>
+          </div>
+        </div>
+
+        {here.length === 0
+          ? <p className="empty">Nobody is placed in this organization yet.</p>
+          : <div className="rlist2 rlist--roster">
+              <div className="rhead">
+                <span>Name</span><span>Role</span><span>Department</span>
+                <span>Location</span><span>Manager</span><span>Contact</span>
+              </div>
+              {here.map((p: any) => (
+                <Link className="rrow" key={p.id} href={`/people/${p.id}` as any}>
+                  <span className="rrow__n">{p.full_name}
+                    {p.profile_id && <em className="pill" style={{ marginLeft: 7 }}>Can sign in</em>}
+                  </span>
+                  <span>{p.role_title ?? '—'}</span>
+                  <span>{deptName.get(p.department_id) ?? '—'}</span>
+                  <span>{locName.get(p.location_id) ?? '—'}</span>
+                  <span>{p.manager_id ? (personName.get(p.manager_id) ?? '—') : '—'}</span>
+                  <span className="rcell--thin">{p.email ?? p.phone ?? '—'}</span>
+                </Link>
+              ))}
+            </div>}
+      </section>
 
       {/* ---------------------------------------------- departments --------- */}
       <EditableSection
