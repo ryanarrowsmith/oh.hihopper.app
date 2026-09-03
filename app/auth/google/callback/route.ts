@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { supabaseServer } from '@/lib/supabase/server'
+import { liveToken } from '@/lib/supabase/token'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,14 +27,13 @@ export async function GET(req: Request) {
   const code = url.searchParams.get('code')
   if (!code) return back('nocode')
 
-  const db = supabaseServer()
-  const { data: { session } } = await db.auth.getSession()
-  if (!session) return NextResponse.redirect(new URL('/sign-in', req.url))
+  const token = await liveToken()
+  if (!token) return NextResponse.redirect(new URL('/sign-in', req.url))
 
   try {
     const r = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/read-report`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ google: { code } }),
       cache: 'no-store',
     }).then((x) => x.json())

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseServer } from '@/lib/supabase/server'
+import { liveToken } from '@/lib/supabase/token'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,9 +15,8 @@ export const dynamic = 'force-dynamic'
  * not signed in.
  */
 export async function POST(req: Request) {
-  const db = supabaseServer()
-  const { data: { session } } = await db.auth.getSession()
-  if (!session) return NextResponse.json({ ok: false, failure: 'Sign in again.' }, { status: 401 })
+  const token = await liveToken()
+  if (!token) return NextResponse.json({ ok: false, failure: 'Sign in again.' }, { status: 401 })
 
   const { url, tab, kind } = await req.json().catch(() => ({ url: null, tab: null, kind: null }))
   if (!url) return NextResponse.json({ ok: false, failure: 'Where does the data live?' })
@@ -27,12 +26,19 @@ export async function POST(req: Request) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ peek: { url, tab: tab || null, kind: kind || null } }),
       cache: 'no-store',
     })
-    return NextResponse.json(await res.json())
+    // Whatever comes back, it comes back saying something. The function answers
+    // some refusals with `error` rather than `failure`, and the form only reads
+    // `failure` -- so those arrived as a blank, and a blank became the generic
+    // "Hopper could not read that." for a problem that had nothing to do with
+    // the sheet. Every reply now carries a sentence.
+    const out = await res.json()
+    if (out?.ok) return NextResponse.json(out)
+    return NextResponse.json({ ok: false, failure: out?.failure ?? out?.error ?? `The reader answered ${res.status}.` })
   } catch {
     return NextResponse.json({ ok: false, failure: 'Hopper could not reach the reader.' })
   }

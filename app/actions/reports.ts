@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { supabaseServer } from '@/lib/supabase/server'
+import { liveToken } from '@/lib/supabase/token'
 import { currentSession } from '@/lib/tenant'
 import { logAudit } from '@/lib/audit'
 import { tellMentioned } from '@/lib/notify'
@@ -225,8 +226,8 @@ export async function refreshReport(_p: Result | null, form: FormData): Promise<
   const id = str(form, 'id')
   if (!id) return { ok: false, message: 'Which report?' }
 
-  const { data: { session } } = await db.auth.getSession()
-  if (!session) return { ok: false, message: 'Sign in again — your session has expired.' }
+  const token = await liveToken()
+  if (!token) return { ok: false, message: 'Sign in again — your session has expired.' }
 
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL
   let res: Response
@@ -235,7 +236,7 @@ export async function refreshReport(_p: Result | null, form: FormData): Promise<
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ report_id: id }),
       cache: 'no-store',
