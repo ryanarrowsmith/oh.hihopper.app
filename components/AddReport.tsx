@@ -48,6 +48,8 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
   const [cols, setCols] = useState<Col[] | null>(null)
   const [sample, setSample] = useState<(string | number | null)[][]>([])
   const [rowCount, setRowCount] = useState(0)
+  // Whether the look stopped early. A big sheet is looked at, not swallowed.
+  const [capped, setCapped] = useState(false)
   const [looking, setLooking] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
 
@@ -111,6 +113,7 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
       const out = await res.json()
       if (out.ok) {
         setCols(out.columns); setSample(out.rows ?? []); setRowCount(out.row_count ?? 0)
+        setCapped(out.capped === true)
         // Hopper's guess at the two that matter, from what is actually in the
         // columns rather than from what their headings hope. It is a guess and
         // the person can move it -- but a form that opens already right is a
@@ -331,7 +334,12 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
         <>
           <div className="came">
             <div className="came__h">
-              <b>{cols.length}</b> columns, <b>{rowCount.toLocaleString()}</b> rows
+              <b>{cols.length}</b> columns, <b>{rowCount.toLocaleString()}{capped && '+'}</b> rows
+              {/* A look at a big sheet is the first few hundred rows, so that
+                  the columns can be picked without dragging the whole file
+                  across. Once a date column is chosen, every real read asks
+                  Google for the most recent rows instead. */}
+              {capped && <em className="came__cut">the first {rowCount.toLocaleString()}, so you can pick your columns</em>}
               <span className="ok">Read</span>
             </div>
             <div className="cols">
