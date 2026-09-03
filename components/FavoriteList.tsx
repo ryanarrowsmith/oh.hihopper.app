@@ -17,13 +17,10 @@ import Unheart from '@/components/Unheart'
  * Call Holdings" are the same shape otherwise -- so the kind moves onto the
  * card as a mark and a word.
  */
-export type Fav = {
-  kind: 'report' | 'entity' | 'person' | 'location'
-  id: string
-  label: string
-  sub: string | null
-  href: string
-}
+/** Defined in lib/favorites, where the list is built. Re-exported so nothing
+ *  that already imported it from here had to change. */
+export type { Fav } from '@/lib/favorites'
+import type { Fav } from '@/lib/favorites'
 
 const KIND: Record<Fav['kind'], { one: string; many: string; mark: () => JSX.Element }> = {
   report:   { one: 'Report',       many: 'Reports',       mark: () => <ChartMark /> },

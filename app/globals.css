@@ -216,6 +216,16 @@ p{margin:0}
   position:sticky; bottom:0; background:var(--topbar);   /* always reachable */
 }
 .nrow--foot:hover{background:rgba(242,169,59,.14)}
+/* The kind, as a mark, in the same column the bell uses for its unread dot --
+   so the two panels beside each other line up rather than nearly lining up. */
+.favk{
+  width:15px; height:15px; flex:none; margin-top:2px;
+  color:rgba(251,249,245,.5); display:inline-flex;
+}
+.favk svg{width:100%; height:100%; fill:none; stroke:currentColor;
+  stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round}
+.nrow:hover .favk{color:var(--amber)}
+
 .scope__t{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0}
 .tbar__sp{margin-left:auto}
 .tbar__act{display:flex; align-items:center; gap:8px}
@@ -4895,7 +4905,8 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
 
 .nfoot{margin:0; padding:10px 14px; border-top:1px solid var(--topbar-rule);
   font-size:11px; line-height:1.5; color:rgba(251,249,245,.45)}
-.nempty{padding:18px 14px; font-size:12.5px; line-height:1.6; color:rgba(251,249,245,.55)}
+.nempty{margin:0; padding:18px 14px; font-size:12.5px; line-height:1.6;
+  color:rgba(251,249,245,.55)}
 
 
 /* A name somebody typed, lit and clickable. Being named is usually the start

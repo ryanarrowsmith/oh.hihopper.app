@@ -1,18 +1,39 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useScope } from '@/components/useScope'
+import type { Fav } from '@/lib/favorites'
+import { OrgMark, PlaceMark, PersonMark } from '@/components/Icons'
 import { NotiList, type Note } from '@/components/Notifications'
 import { supabaseBrowser } from '@/lib/supabase/client'
 
 type Entity = { id: string; name: string; parent_id: string | null }
 
+/** The kind, said in a mark and a word -- "Head Office" and "On Call Holdings"
+ *  are the same shape on a row otherwise. */
+const FAV_MARK: Record<Fav['kind'], JSX.Element> = {
+  report: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
+         strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>
+  ),
+  entity: <OrgMark />,
+  location: <PlaceMark />,
+  person: <PersonMark />,
+}
+const FAV_WORD: Record<Fav['kind'], string> = {
+  report: 'Report', entity: 'Organization', location: 'Office', person: 'Person',
+}
+
 export default function TopBar(
-  { initials, entities, personId, displayName, accountName, email, notes = [] }:
+  { initials, entities, personId, displayName, accountName, email, notes = [],
+    favorites = [] }:
   { initials: string; entities: Entity[]
     personId: string | null; displayName: string; accountName: string
-    email: string | null; notes?: Note[] },
+    email: string | null; notes?: Note[]
+    /** The few most recent, newest first. The whole list has its own page. */
+    favorites?: Fav[] },
 ) {
-  const [open, setOpen] = useState<'scope' | 'noti' | 'me' | null>(null)
+  const [open, setOpen] = useState<'scope' | 'noti' | 'me' | 'fav' | null>(null)
   // The choice lives outside this component now. It used to be local state
   // holding a NAME, which is why the switcher moved and nothing happened: no
   // page could see it, and a name is not something you can filter rows by.
@@ -135,11 +156,46 @@ export default function TopBar(
             rather than under it. */}
         {/* The heart sits with the bell because both are yours rather than the
             page's: one is what wants you, the other is what you wanted. */}
-        <a className="ibtn" href="/favorites" aria-label="Your favorites" title="Favorites">
-          <svg viewBox="0 0 24 24">
-            <path d="M12 20.2S4 15 4 9.6a4.4 4.4 0 0 1 8-2.5 4.4 4.4 0 0 1 8 2.5c0 5.4-8 10.6-8 10.6z" />
-          </svg>
-        </a>
+        {/* It used to go straight to the page, which is a whole navigation to
+            answer "what did I heart" -- and the answer is nearly always one of
+            the last few. The list comes to you; the page is still one click
+            further for when it is not. */}
+        <span className="bellw">
+          <button className="ibtn" type="button" aria-label="Your favorites"
+                  aria-expanded={open === 'fav'} aria-haspopup="dialog"
+                  onClick={(e) => { e.stopPropagation(); setOpen(open === 'fav' ? null : 'fav') }}>
+            <svg viewBox="0 0 24 24">
+              <path d="M12 20.2S4 15 4 9.6a4.4 4.4 0 0 1 8-2.5 4.4 4.4 0 0 1 8 2.5c0 5.4-8 10.6-8 10.6z" />
+            </svg>
+          </button>
+
+          {open === 'fav' && (
+            <div className="notipop" role="dialog" aria-label="Your favorites">
+              <p className="nhead2">
+                Favorites
+                {favorites.length > 0 && <em>yours alone</em>}
+              </p>
+              {favorites.length === 0 ? (
+                <p className="nempty">
+                  Nothing hearted yet. The heart on a report, an organization, an office or
+                  somebody&rsquo;s page puts it here — and nobody else can see what you hearted.
+                </p>
+              ) : favorites.map((f) => (
+                <Link className="nrow" key={`${f.kind}-${f.id}`} href={f.href as any}
+                      onClick={() => setOpen(null)}>
+                  <span className="favk" aria-hidden="true">{FAV_MARK[f.kind]}</span>
+                  <span className="ntxt">
+                    <b>{f.label}</b>
+                    <small>{f.sub ? `${FAV_WORD[f.kind]} · ${f.sub}` : FAV_WORD[f.kind]}</small>
+                  </span>
+                </Link>
+              ))}
+              <Link className="nrow nrow--foot" href="/favorites" onClick={() => setOpen(null)}>
+                All favorites
+              </Link>
+            </div>
+          )}
+        </span>
 
         <span className="bellw">
           <button className="ibtn is-lit" type="button" aria-label="Notifications"

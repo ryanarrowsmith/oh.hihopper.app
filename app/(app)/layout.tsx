@@ -6,6 +6,7 @@ import TopBar from '@/components/TopBar'
 import Footer from '@/components/Footer'
 import Notifications, { type Note } from '@/components/Notifications'
 import Crumbs from '@/components/Crumbs'
+import { loadFavorites } from '@/lib/favorites'
 import { CrumbTailProvider } from '@/components/CrumbTail'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -35,6 +36,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: places } = await db.schema('hopper')
     .from('location').select('id, name')
 
+  // The few most recent, for the heart. The whole list has a page; this is the
+  // shortcut to the ones you are actually using this week.
+  const favorites = await loadFavorites(8)
+
   return (
     <div className="app">
       {/* Before anything paints, so a folded rail does not flash open on every
@@ -45,7 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <TopBar initials={session.initials} entities={entities ?? []}
               personId={session.personId} displayName={session.displayName}
               accountName={session.accountName} email={session.email}
-              notes={(notes ?? []) as Note[]} />
+              notes={(notes ?? []) as Note[]} favorites={favorites} />
       {/* Above the shell, so a box survives navigating between pages -- and so
           one subscription feeds both the boxes and the bell. */}
       <Notifications personId={session.personId} initial={(notes ?? []) as Note[]} />
