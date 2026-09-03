@@ -111,15 +111,24 @@ export function RecordRow({
  */
 export function EditableSection({
   title, blurb, actions, addForm, editForm, addLabel = 'Add', editLabel = 'Edit', children,
+  editOpen, onEditOpen,
 }: {
   title: string; blurb?: string
   actions?: React.ReactNode
   addForm?: React.ReactNode; editForm?: React.ReactNode
+  /** So a control OUTSIDE this section can open the same form. Left alone the
+   *  section keeps its own answer, which is what every other caller wants. */
+  editOpen?: boolean; onEditOpen?: (v: boolean) => void
   addLabel?: string; editLabel?: string
   children: React.ReactNode
 }) {
   const [adding, setAdding] = useState(false)
-  const [editing, setEditing] = useState(false)
+  const [ownEditing, setOwnEditing] = useState(false)
+  const editing = editOpen ?? ownEditing
+  const setEditing = (v: boolean | ((o: boolean) => boolean)) => {
+    const next = typeof v === 'function' ? v(editing) : v
+    onEditOpen ? onEditOpen(next) : setOwnEditing(next)
+  }
   const editClip = useInert(editing)
   const addPop = useRef<HTMLDivElement>(null)
   const plus = useRef<HTMLButtonElement>(null)

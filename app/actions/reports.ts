@@ -13,6 +13,16 @@ async function ctx() {
   return { db: supabaseServer(), account: session.accountId, person: session.personId }
 }
 
+/**
+ * The cap the database enforces, said once here too.
+ *
+ * It was 3 in both writers and stayed 3 when the chart kit went to ten -- so a
+ * form offering ten measures would have written three and dropped the rest
+ * without a word. The check constraint would not have caught it either: fewer
+ * measures than allowed is always valid.
+ */
+const MEASURE_MAX = 10
+
 const str = (f: FormData, k: string) => (f.get(k) ?? '').toString().trim()
 const nul = (f: FormData, k: string) => str(f, k) || null
 
@@ -97,7 +107,7 @@ export async function createReport(_p: Result | null, form: FormData): Promise<R
   const snapshot = source_kind === 'upload' || source_kind === 'paste'
   if (!snapshot && !source_url) return { ok: false, message: 'Where does the data live?' }
 
-  const measures = form.getAll('measure').map((m) => m.toString().trim()).filter(Boolean).slice(0, 3)
+  const measures = form.getAll('measure').map((m) => m.toString().trim()).filter(Boolean).slice(0, MEASURE_MAX)
 
   const { data, error } = await db.schema('hopper').from('report').insert({
     account_id: account, entity_id, department_id, category_id, name,
@@ -111,12 +121,12 @@ export async function createReport(_p: Result | null, form: FormData): Promise<R
     chart_type: str(form, 'chart_type') || 'line',
     chart_x: nul(form, 'chart_x'),
     chart_measures: measures.length ? measures : null,
-    // How many of the most recent readings the chart draws. Empty means every
-    // reading the date range holds, which is what every report meant before
-    // this existed -- so an untouched form changes nothing.
     // A picked file, when the sheet is private. Null keeps the open door, which
     // is still the one to prefer: no credential is involved in it at all.
     google_file_id: nul(form, 'google_file_id'),
+    // How many of the most recent readings the chart draws. Empty means every
+    // reading the date range holds, which is what every report meant before
+    // this existed -- so an untouched form changes nothing.
     chart_points: (() => {
       const n = Number(str(form, 'chart_points'))
       return Number.isFinite(n) && n >= 2 && n <= 500 ? Math.round(n) : null
@@ -145,7 +155,7 @@ export async function updateReport(_p: Result | null, form: FormData): Promise<R
   if (!id || !name) return { ok: false, message: 'Nothing to save.' }
   if (!note) return { ok: false, message: 'Say what changed before saving it.' }
 
-  const measures = form.getAll('measure').map((m) => m.toString().trim()).filter(Boolean).slice(0, 3)
+  const measures = form.getAll('measure').map((m) => m.toString().trim()).filter(Boolean).slice(0, MEASURE_MAX)
 
   const { error } = await db.schema('hopper').from('report').update({
     name,
@@ -159,12 +169,12 @@ export async function updateReport(_p: Result | null, form: FormData): Promise<R
     // the edit form -- which has no chart_x field -- silently cleared it.
     chart_x: nul(form, 'chart_x') ?? nul(form, 'date_column'),
     chart_measures: measures.length ? measures : null,
-    // How many of the most recent readings the chart draws. Empty means every
-    // reading the date range holds, which is what every report meant before
-    // this existed -- so an untouched form changes nothing.
     // A picked file, when the sheet is private. Null keeps the open door, which
     // is still the one to prefer: no credential is involved in it at all.
     google_file_id: nul(form, 'google_file_id'),
+    // How many of the most recent readings the chart draws. Empty means every
+    // reading the date range holds, which is what every report meant before
+    // this existed -- so an untouched form changes nothing.
     chart_points: (() => {
       const n = Number(str(form, 'chart_points'))
       return Number.isFinite(n) && n >= 2 && n <= 500 ? Math.round(n) : null
@@ -175,8 +185,18 @@ export async function updateReport(_p: Result | null, form: FormData): Promise<R
 
   if (error) return { ok: false, message: refused(error.message, 'report') }
 
+  // Two records of one edit, and they answer different questions. The note is
+  // what the person SAID -- it sits on the report's own page, in their words,
+  // for whoever is reading the report next. The ledger entry is what HAPPENED,
+  // kept for seven years, and it carries the note so the reason travels with
+  // the change rather than living only on a screen somebody has to think to
+  // open. An edit that changed a number's source and left no reason anywhere is
+  // exactly the change nobody can account for later.
   await db.schema('hopper').from('report_note')
     .insert({ account_id: account, report_id: id, body: note, author_id: person })
+
+  await logAudit(db, { account_id: account, kind: 'report', object: name,
+    object_id: id, summary: `Edited the report ${name}`, note })
 
   revalidatePath('/reporting'); revalidatePath(`/reporting/${id}`)
   return { ok: true, message: 'Saved.' }

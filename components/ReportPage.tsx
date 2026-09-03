@@ -79,6 +79,10 @@ export default function ReportPage({ report, state, series: all, notes, checks, 
    * between the two, and the linking is simply not offered rather than offered
    * and wrong.
    */
+  /** Opened from the header, and by the pencil on the section below it. One
+   *  answer, because two edit forms is two things to keep in step. */
+  const [editing, setEditing] = useState(false)
+
   const [days, setDays] = useState<Set<string>>(new Set())
   const [last, setLast] = useState<string | null>(null)
   const allDays = useMemo(
@@ -125,6 +129,19 @@ export default function ReportPage({ report, state, series: all, notes, checks, 
           </p>
         </div>
         <div className="hi__go">
+          {/* Edit belongs beside Refresh, where everything else you can do to
+              this report already is. The pencil in the section header below
+              opens the same form -- but a pencil on one section reads as
+              "rename this heading", not as "change what this report reads". */}
+          {mayEdit && (
+            <button className="btn" type="button" onClick={() => setEditing(true)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+                   strokeLinecap="round" strokeLinejoin="round"
+                   style={{ width: 15, height: 15, marginRight: 6, verticalAlign: '-2px' }}>
+                <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
+              Edit
+            </button>
+          )}
           <RefreshBtn id={report.id} />
           <Link className="btn" href="/reporting">All reports</Link>
         </div>
@@ -216,6 +233,7 @@ export default function ReportPage({ report, state, series: all, notes, checks, 
         blurb="A report is a pointer, not data. This is the other end of it."
         editLabel="Change this report"
         editForm={mayEdit ? <EditReport report={report} columns={columns} /> : undefined}
+        editOpen={editing} onEditOpen={setEditing}
       >
         <div className="card"><div className="facts">
           <div className="row"><span className="row__l">Source</span>
