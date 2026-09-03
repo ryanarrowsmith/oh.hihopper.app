@@ -492,6 +492,13 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
               measures to what that type can draw, so the form cannot hold an
               answer the chart would refuse. */}
           <Fold title="How it draws" note={KIND_NAME[chartType] ?? 'Choose a mark'}>
+            {/* Above the marks, not under them. It is the sentence explaining
+                the thing you are about to choose, so it belongs in front of the
+                choosing rather than as a footnote to it -- and it says the name
+                by being lit next to the tile that is lit, so it does not need
+                to say the name again. */}
+            <p className="kinds__say">{KIND_SAY[chartType]}</p>
+
             <div className="kinds">
               {CHART_KINDS.map((g) => (
                 <Fragment key={g.group}>
@@ -513,11 +520,6 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
                 </Fragment>
               ))}
             </div>
-            {/* The sentence belongs to whichever one is chosen. Twelve of them
-                at once is twelve answers to a question nobody asked. */}
-            <p className="kinds__say">
-              <b>{KIND_NAME[chartType]}</b> — {KIND_SAY[chartType]}
-            </p>
 
             {/* Only a question when there is something to answer. */}
             {splitWhy(preview, chartType) && (
