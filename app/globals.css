@@ -3285,7 +3285,7 @@ a.crow:hover svg{stroke:var(--steel-ink)}
    there is nothing between them. */
 .folder__tab{
   display:inline-block; max-width:min(100%, 620px);
-  background:var(--manilla-2); border-radius:10px 10px 0 0;
+  background:var(--manilla-2); border-radius:12px 12px 0 0;
   padding:11px 40px 10px 20px;
   clip-path:polygon(0 0, calc(100% - 22px) 0, 100% 100%, 0 100%);
 }
@@ -3295,7 +3295,7 @@ a.crow:hover svg{stroke:var(--steel-ink)}
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 .folder__b{
-  position:relative; border-radius:0 var(--r) 0 0;
+  position:relative; border-radius:0 12px 0 0;
   padding:22px 24px 62px; display:flex; gap:26px; align-items:flex-start; flex-wrap:wrap;
   /* The foot of the folder is not drawn, it is let go of.
      A hard bottom edge makes it a card with a manilla fill; fading it out
@@ -3380,7 +3380,7 @@ a.crow:hover svg{stroke:var(--steel-ink)}
    rather than a coloured rectangle. */
 .folder__paper{
   position:absolute; z-index:-1; left:38%; right:16px; top:-7px; height:14px;
-  background:var(--surface); border-radius:3px 3px 0 0;
+  background:var(--surface); border-radius:3px 8px 0 0;
   box-shadow:0 -1px 0 var(--rule) inset;
 }
 @media (max-width:700px){ .folder__paper{display:none} }
