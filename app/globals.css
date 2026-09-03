@@ -3263,3 +3263,79 @@ a.idc__org:hover{background:var(--steel)}
   .idc{width:100%; max-width:300px; margin:0 auto}
   .idfacts > div{grid-template-columns:1fr; gap:2px}
 }
+
+/* ==========================================================================
+   SUPPORT
+   Hopper keeps no inbox. This is a form over beebee.open_request and a list
+   from beebee.my_requests, and it looks like the rest of the product because
+   asking for help should not feel like leaving it.
+   ========================================================================== */
+.sform{display:flex; flex-direction:column}
+.sform__t{resize:vertical; min-height:96px; line-height:1.55; font:inherit}
+.sform .rowacts{margin-top:14px}
+.swhy{margin-top:10px; font-size:13px; color:var(--bad); line-height:1.45}
+
+.sfile{
+  display:inline-flex; align-items:center; gap:8px; align-self:flex-start;
+  margin-top:12px; padding:8px 14px; cursor:pointer;
+  border:1px dashed var(--rule); border-radius:var(--r);
+  background:var(--sunken); font-size:13px; font-weight:700; color:var(--ink-2);
+}
+.sfile:hover{border-color:var(--ink-3); color:var(--ink)}
+.sfile input{position:absolute; width:1px; height:1px; opacity:0; pointer-events:none}
+.sfiles{list-style:none; margin:9px 0 0; display:flex; flex-wrap:wrap; gap:7px}
+.sfiles li{
+  display:inline-flex; align-items:center; gap:7px; padding:5px 6px 5px 10px;
+  background:var(--sunken); border:1px solid var(--rule); border-radius:999px;
+  font-size:12px; color:var(--ink-2);
+}
+.sfiles button{background:none; border:0; cursor:pointer; font-size:15px; line-height:1;
+  color:var(--ink-3); padding:0 3px}
+.sfiles button:hover{color:var(--bad)}
+
+/* The receipt. A reference number is the only thing they can quote back, so it
+   is the biggest thing on it. */
+.sok{
+  border:1px solid var(--good); border-radius:var(--r); background:var(--sunken);
+  padding:18px 20px; display:flex; flex-direction:column; align-items:flex-start; gap:9px;
+}
+.sok b{font-family:var(--mono); font-size:19px; letter-spacing:.06em; color:var(--good)}
+.sok p{font-size:14px; color:var(--ink-2); line-height:1.5; margin:0}
+
+/* ---- what you have asked ---- */
+.reqs{border:1px solid var(--rule); border-radius:var(--r); background:var(--surface)}
+.req{border-bottom:1px solid var(--rule-soft)}
+.req:last-child{border-bottom:0}
+.req__h{
+  display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; align-items:center;
+  gap:12px; width:100%; padding:12px 14px; cursor:pointer;
+  background:none; border:0; text-align:left; font:inherit;
+}
+.req__h:hover{background:var(--sunken)}
+.req.is-open .req__h{background:var(--sunken)}
+.req__ref{font-family:var(--mono); font-size:11.5px; font-weight:800; color:var(--ink-3);
+  letter-spacing:.04em}
+.req__s{font-size:14px; font-weight:700; min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.req__w{font-family:var(--mono); font-size:11px; color:var(--ink-3); white-space:nowrap}
+.req__b{padding:4px 14px 16px; border-top:1px solid var(--rule-soft)}
+
+.thread{display:flex; flex-direction:column; gap:10px; margin:12px 0 14px}
+.msg{
+  max-width:min(560px, 88%); padding:10px 13px; border-radius:var(--r);
+  background:var(--sunken); border:1px solid var(--rule); align-self:flex-end;
+}
+/* Theirs on the left in Steel, yours on the right on paper -- the same shape a
+   conversation takes everywhere else, so nobody has to learn it here. */
+.msg--them{align-self:flex-start; background:var(--steelwash); border-color:var(--steel)}
+.msg__w{margin:0 0 4px; font-size:11px; color:var(--ink-3); display:flex; gap:8px}
+.msg__w b{font-weight:800; color:var(--ink-2)}
+.msg__b{margin:0; font-size:13.5px; line-height:1.55; white-space:pre-wrap}
+
+.reqreply{display:flex; gap:9px; align-items:flex-end}
+.reqreply .field{flex:1; resize:vertical; font:inherit; line-height:1.5}
+@media (max-width:640px){
+  .req__h{grid-template-columns:auto minmax(0,1fr); row-gap:6px}
+  .req__w{grid-column:2; justify-self:end}
+  .reqreply{flex-direction:column; align-items:stretch}
+}
