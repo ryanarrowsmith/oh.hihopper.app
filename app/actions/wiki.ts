@@ -75,7 +75,7 @@ function summaryOf(text: string) {
   return line.length > 220 ? `${line.slice(0, 217).trimEnd()}…` : line || null
 }
 
-async function writeTags(db: any, docId: string, tags: string[]) {
+async function writeTags(db: any, account: string, docId: string, tags: string[]) {
   const want = [...new Set(tags.map((t) => t.trim().toLowerCase()).filter(Boolean))].slice(0, 20)
   const { data: had } = await db.schema('hopper').from('wiki_doc_tag')
     .select('tag').eq('doc_id', docId)
@@ -86,18 +86,20 @@ async function writeTags(db: any, docId: string, tags: string[]) {
     await db.schema('hopper').from('wiki_doc_tag').delete().eq('doc_id', docId).in('tag', gone)
   }
   if (added.length) {
+    // account_id is not decoration: it is the column the policies read and the
+    // only thing standing between two customers' handbooks.
     await db.schema('hopper').from('wiki_doc_tag')
-      .insert(added.map((tag) => ({ doc_id: docId, tag })))
+      .insert(added.map((tag) => ({ account_id: account, doc_id: docId, tag })))
   }
 }
 
-async function writeLinks(db: any, docId: string, slugs: Set<string>) {
+async function writeLinks(db: any, account: string, docId: string, slugs: Set<string>) {
   await db.schema('hopper').from('wiki_doc_link').delete().eq('from_id', docId)
   if (!slugs.size) return
   const { data: found } = await db.schema('hopper').from('wiki_doc')
     .select('id').in('slug', [...slugs])
   const rows = (found ?? []).filter((r: any) => r.id !== docId)
-    .map((r: any) => ({ from_id: docId, to_id: r.id }))
+    .map((r: any) => ({ account_id: account, from_id: docId, to_id: r.id }))
   if (rows.length) await db.schema('hopper').from('wiki_doc_link').insert(rows)
 }
 
@@ -154,8 +156,8 @@ export async function saveDoc(_prev: Result | null, form: FormData): Promise<Res
     docId = made.id
   }
 
-  await writeTags(db, docId, tags)
-  await writeLinks(db, docId, linksIn(body))
+  await writeTags(db, account, docId, tags)
+  await writeLinks(db, account, docId, linksIn(body))
 
   await logAudit(db, { account_id: account, kind: 'wiki', object: title, object_id: docId,
     summary: `${id ? 'Edited' : 'Wrote'} the document ${title}`,
