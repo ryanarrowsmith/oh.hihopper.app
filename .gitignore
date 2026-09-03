@@ -6,3 +6,8 @@ out
 .DS_Store
 *.tsbuildinfo
 next-env.d.ts
+
+# Supabase CLI state, written by `supabase link`. Machine-specific, and one of
+# these files is where a pooler connection string would land if the CLI ever
+# writes a live one. Nothing here belongs to the project.
+supabase/.temp/
