@@ -6,6 +6,7 @@ import { supabaseServer } from '@/lib/supabase/server'
 import { currentSession } from '@/lib/tenant'
 import { logAudit } from '@/lib/audit'
 import { addressOf, geocode, whyNoPin } from '@/lib/mapbox'
+import { addressesFrom, saveAddresses } from '@/lib/addresses'
 
 export type Result = { ok: boolean; message: string }
 
@@ -91,39 +92,29 @@ export async function createLocation(_prev: Result | null, form: FormData): Prom
   const entity_id = str(form, 'entity_id'), name = str(form, 'name')
   if (!entity_id || !name) return { ok: false, message: 'A location needs a name.' }
 
-  const place = {
-    address_line1: nul(form, 'address_line1'), address_line2: nul(form, 'address_line2'),
-    city: nul(form, 'city'), region: nul(form, 'region'),
-    postal_code: nul(form, 'postal_code'),
-    country: str(form, 'country') || 'United States',
-  }
-
-  // A pin typed by hand wins. Somebody who moved it did so because the
-  // geocoder was wrong about their yard, and re-resolving would undo that.
-  let latitude = num(form, 'latitude'), longitude = num(form, 'longitude')
-  let geocoded_at: string | null = null
-  let why: string | null = null
-  if (latitude == null || longitude == null) {
-    const r = await geocode(place)
-    if (r.ok) { latitude = r.pin.latitude; longitude = r.pin.longitude
-                geocoded_at = new Date().toISOString() }
-    else why = whyNoPin(r)
-  }
-
-  const { error } = await db.schema('hopper').from('location').insert({
-    account_id: account, entity_id, name, ...place,
+  // The location goes in with no address on it. Its address columns are a copy
+  // of the default address kept by a database trigger, so they fill in by
+  // themselves the moment the addresses below land -- writing them here as well
+  // would be a second author for one fact.
+  const { data: made, error } = await db.schema('hopper').from('location').insert({
+    account_id: account, entity_id, name,
     time_zone: str(form, 'time_zone') || 'America/Chicago',
     is_head_office: form.get('is_head_office') === 'on',
-    latitude, longitude, geocoded_at,
-  })
+  }).select('id').single()
   if (error) return { ok: false, message: refused(error.message, 'location') }
+
+  const { why } = await saveAddresses(db, account, made.id, addressesFrom(form),
+    { latitude: num(form, 'latitude'), longitude: num(form, 'longitude') })
+
+  const { data: after } = await db.schema('hopper').from('location')
+    .select('latitude').eq('id', made.id).maybeSingle()
 
   await logAudit(db, { account_id: account, kind: 'location', object: name,
     object_id: entity_id, summary: `Added the location ${name}`,
     note: why })
   revalidatePath(`/admin/organizations/${entity_id}`)
   revalidatePath('/admin/organizations/locations')
-  return { ok: true, message: latitude == null
+  return { ok: true, message: after?.latitude == null
     ? `${name} added, without a map pin. ${why ?? ''}`.trim()
     : `${name} added and pinned.` }
 }
@@ -139,50 +130,31 @@ export async function updateLocation(_prev: Result | null, form: FormData): Prom
   if (!id || !name) return { ok: false, message: 'A location needs a name.' }
 
   const { data: was } = await db.schema('hopper').from('location')
-    .select('*').eq('id', id).maybeSingle()
+    .select('id, entity_id').eq('id', id).maybeSingle()
   if (!was) return { ok: false, message: 'That location is not there.' }
 
-  const place = {
-    address_line1: nul(form, 'address_line1'), address_line2: nul(form, 'address_line2'),
-    city: nul(form, 'city'), region: nul(form, 'region'),
-    postal_code: nul(form, 'postal_code'),
-    country: str(form, 'country') || 'United States',
-  }
-
-  let latitude = num(form, 'latitude'), longitude = num(form, 'longitude')
-  let geocoded_at: string | null = was.geocoded_at
-  let why: string | null = null
-  const typedByHand = latitude != null && longitude != null
-    && (latitude !== was.latitude || longitude !== was.longitude)
-  const addressMoved = addressOf(place) !== addressOf(was)
-
-  if (typedByHand) {
-    geocoded_at = null                       // theirs now; leave it alone
-  } else if (addressMoved || latitude == null) {
-    const wasHandPlaced = was.latitude != null && was.geocoded_at == null
-    if (wasHandPlaced && !addressMoved) {
-      latitude = was.latitude; longitude = was.longitude
-    } else {
-      const r = await geocode(place)
-      if (r.ok) { latitude = r.pin.latitude; longitude = r.pin.longitude
-                  geocoded_at = new Date().toISOString() }
-      else { latitude = null; longitude = null; geocoded_at = null; why = whyNoPin(r) }
-    }
-  }
-
   const { error } = await db.schema('hopper').from('location').update({
-    name, ...place,
+    name,
     time_zone: str(form, 'time_zone') || 'America/Chicago',
     is_head_office: form.get('is_head_office') === 'on',
-    latitude, longitude, geocoded_at,
   }).eq('id', id)
   if (error) return { ok: false, message: refused(error.message, 'location') }
 
+  const posted = addressesFrom(form)
+  const { why } = await saveAddresses(db, account, id, posted,
+    { latitude: num(form, 'latitude'), longitude: num(form, 'longitude') })
+
+  // The trigger has just recomputed the location's copy of the default address,
+  // so this is the pin as it now stands rather than the pin as we hoped.
+  const { data: after } = await db.schema('hopper').from('location')
+    .select('latitude').eq('id', id).maybeSingle()
+
   await logAudit(db, { account_id: account, kind: 'location', object: name,
     object_id: was.entity_id, summary: `Edited the location ${name}`,
-    note: addressMoved ? 'The address changed.' : null })
+    note: `${posted.length} address${posted.length === 1 ? '' : 'es'} on file.` })
   revalidatePath(`/admin/organizations/${was.entity_id}`)
   revalidatePath(`/admin/organizations/${was.entity_id}/locations/${id}`)
+  revalidatePath('/admin/organizations')
 
   /**
    * Back to the record, not to a word about it.
@@ -195,7 +167,7 @@ export async function updateLocation(_prev: Result | null, form: FormData): Prom
   // The one thing worth saying out loud is a pin that could NOT be worked out,
   // because that is a result rather than a confirmation -- so it goes back as a
   // message and the redirect waits.
-  if (latitude == null) {
+  if (after?.latitude == null && posted.some((a) => a.kind === 'physical')) {
     return { ok: true, message: `Saved, without a map pin. ${why ?? ''}`.trim() }
   }
   redirect(`/admin/organizations/${was.entity_id}/locations/${id}`)
@@ -265,16 +237,27 @@ export async function repinLocation(_prev: Result | null, form: FormData): Promi
   const { db, account } = await ctx()
   const id = str(form, 'id')
   const { data: loc, error: readErr } = await db.schema('hopper').from('location')
-    .select('*').eq('id', id).maybeSingle()
+    .select('id, name, entity_id').eq('id', id).maybeSingle()
   if (readErr || !loc) return { ok: false, message: 'That location is not there.' }
 
-  const r = await geocode(loc)
+  // The pin belongs to the physical address, so that is what gets re-resolved.
+  // A location with only a mailing address has nothing to pin and is told so
+  // rather than being handed a marker on a post office.
+  const { data: phys } = await db.schema('hopper').from('location_address')
+    .select('*').eq('location_id', id).eq('kind', 'physical').maybeSingle()
+  if (!phys) {
+    return { ok: false, message: 'There is no physical address to pin. Add one and it will pin itself.' }
+  }
+
+  const r = await geocode(phys)
   if (!r.ok) return { ok: false, message: whyNoPin(r) }
   const pin = r.pin
 
-  const { error } = await db.schema('hopper').from('location')
+  // The location's own columns follow from the trigger; this writes the one
+  // row that is actually the source of the pin.
+  const { error } = await db.schema('hopper').from('location_address')
     .update({ latitude: pin.latitude, longitude: pin.longitude,
-              geocoded_at: new Date().toISOString() }).eq('id', id)
+              geocoded_at: new Date().toISOString() }).eq('id', phys.id)
   if (error) return { ok: false, message: refused(error.message, 'location') }
 
   await logAudit(db, { account_id: account, kind: 'location', object: loc.name,

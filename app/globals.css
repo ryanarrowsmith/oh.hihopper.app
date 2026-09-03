@@ -3397,25 +3397,29 @@ a.gcard:hover{border-color:var(--canvas-3); box-shadow:var(--lift)}
    the list draw at 64px, which is a shape to glance at and not something anyone
    wants printed, and page breaks have to be decided by something that knows
    where a report starts and ends -- which a grid of cards does not. */
-.sheet{max-width:840px; margin:0 auto; padding:26px 22px 40px; background:var(--surface)}
-.sheet__h{display:flex; align-items:center; gap:16px; padding-bottom:14px;
+/* .paper, not .sheet. This was written as .sheet and there was already a .sheet
+   -- the edit disclosure that opens under a record -- so every one of those
+   quietly became a padded white card wrapped around its own bordered card. Two
+   components, two names. */
+.paper{max-width:840px; margin:0 auto; padding:26px 22px 40px; background:var(--surface)}
+.paper__h{display:flex; align-items:center; gap:16px; padding-bottom:14px;
   border-bottom:2px solid var(--ink); margin-bottom:22px}
-.sheet__meta{margin-left:auto; text-align:right; font-size:12px; color:var(--ink-3)}
-.sheet__meta b{display:block; font-size:13.5px; color:var(--ink); letter-spacing:-.01em}
+.paper__meta{margin-left:auto; text-align:right; font-size:12px; color:var(--ink-3)}
+.paper__meta b{display:block; font-size:13.5px; color:var(--ink); letter-spacing:-.01em}
 
 /* The whole reason this is a page: a report cut in half by a page break is a
    report somebody has to hold two sheets up to read. */
-.sheet__r{break-inside:avoid; page-break-inside:avoid;
+.paper__r{break-inside:avoid; page-break-inside:avoid;
   padding:16px 0 18px; border-bottom:1px solid var(--rule)}
-.sheet__r:last-child{border-bottom:0}
-.sheet__rh{display:flex; align-items:baseline; gap:16px; margin-bottom:10px}
-.sheet__t b{display:block; font-size:16px; font-weight:800; letter-spacing:-.02em; color:var(--ink)}
-.sheet__t span{display:block; font-size:11.5px; color:var(--ink-3); margin-top:2px}
-.sheet__v{margin-left:auto; font-size:26px; font-weight:800; letter-spacing:-.03em;
+.paper__r:last-child{border-bottom:0}
+.paper__rh{display:flex; align-items:baseline; gap:16px; margin-bottom:10px}
+.paper__t b{display:block; font-size:16px; font-weight:800; letter-spacing:-.02em; color:var(--ink)}
+.paper__t span{display:block; font-size:11.5px; color:var(--ink-3); margin-top:2px}
+.paper__v{margin-left:auto; font-size:26px; font-weight:800; letter-spacing:-.03em;
   color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap}
-.sheet__v i{font-style:normal; font-size:13px; font-weight:700; margin-left:9px}
-.sheet__none{margin:0; font-size:13px; font-style:italic; color:var(--ink-3)}
-.sheet__f{margin:10px 0 0; font-size:11px; color:var(--ink-3)}
+.paper__v i{font-style:normal; font-size:13px; font-weight:700; margin-left:9px}
+.paper__none{margin:0; font-size:13px; font-style:italic; color:var(--ink-3)}
+.paper__f{margin:10px 0 0; font-size:11px; color:var(--ink-3)}
 
 @media print{
   /* Paper is white and ink is ink, whatever the screen was doing. A dark theme
@@ -3429,8 +3433,8 @@ a.gcard:hover{border-color:var(--canvas-3); box-shadow:var(--lift)}
   @page{ margin:14mm }
   body{background:#fff}
   .noprint, .app > .tbar, .rail, .foot, .menubtn{display:none !important}
-  .sheet{max-width:none; padding:0}
-  .sheet__h{border-bottom-width:1.5px}
+  .paper{max-width:none; padding:0}
+  .paper__h{border-bottom-width:1.5px}
   .charts__one{background:#fff; box-shadow:none; border-color:#ddd; break-inside:avoid}
   .chart__ar{opacity:.5}
 }
@@ -5537,4 +5541,61 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
 }
 @media (max-width:640px){
   .okid{margin:0 0 10px 14px}
+}
+
+/* ================================= A LOCATION KEEPS MORE THAN ONE ADDRESS ==
+   The physical one is the place people go to and the only one worth a pin; a
+   mailing address is where post goes. */
+
+/* Read side. A mark rather than a word: a pin means the place you go to and an
+   envelope means where post goes, two shapes anybody already reads, where two
+   words would sit in a column being re-read every visit. */
+.addrs{display:flex; flex-direction:column; gap:11px}
+.addr{display:grid; grid-template-columns:30px minmax(0,1fr); gap:11px; align-items:start}
+.addr__k{width:30px; height:30px; display:grid; place-items:center;
+  border:1px solid var(--rule); border-radius:var(--r);
+  color:var(--ink-3); background:var(--sunken)}
+/* The mapped one wears the pin AND the map's own colour, so the badge answers
+   "which of these is the pin?" without a column saying so. */
+.addr__k--phys{color:var(--steel-ink); background:var(--steelwash);
+  border-color:rgba(45,93,123,.35)}
+.addr__k svg{width:15px; height:15px; display:block}
+.addr__k b{display:none}
+.addr__l{font-size:13.5px; line-height:1.5; color:var(--ink); padding-top:4px}
+.addr__l span{display:block}
+.addr--off .addr__l{color:var(--ink-2)}
+
+/* Edit side: one block per address, each with its own kind. */
+.addrsay{font-size:12px; color:var(--ink-3); margin:2px 0 13px; max-width:66ch;
+  line-height:1.5}
+.addrbox{border:1px solid var(--rule); border-radius:var(--r); background:var(--sunken);
+  padding:13px; margin-bottom:11px}
+.addrbox__h{display:flex; align-items:center; gap:10px; margin-bottom:11px}
+.addrbox__pick{width:186px}
+.addrbox__n{font-family:var(--mono); font-size:9.5px; font-weight:800;
+  letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3); flex:none}
+.addrbox__x{margin-left:auto}
+.addrbox .formrow + .formrow{margin-top:11px}
+
+/* An icon whose label only appears on hover is an unlabelled icon wherever
+   hover does not exist -- which is every phone, and where Hopper switches its
+   tooltips off. So the word is printed instead. */
+@media (max-width:640px){
+  .addr{grid-template-columns:1fr; gap:5px}
+  .addr__l{padding-top:0}
+  .addr__k{width:auto; height:auto; justify-self:start; display:inline-flex;
+    align-items:center; gap:6px; padding:4px 9px}
+  .addr__k b{display:inline; font-family:var(--mono); font-size:9.5px;
+    font-weight:800; letter-spacing:.11em; text-transform:uppercase}
+  .addrbox__h{flex-wrap:wrap}
+  .addrbox__pick{width:100%}
+  .addrbox__x{margin-left:0}
+}
+@media (hover:none){
+  .addr{grid-template-columns:1fr; gap:5px}
+  .addr__l{padding-top:0}
+  .addr__k{width:auto; height:auto; justify-self:start; display:inline-flex;
+    align-items:center; gap:6px; padding:4px 9px}
+  .addr__k b{display:inline; font-family:var(--mono); font-size:9.5px;
+    font-weight:800; letter-spacing:.11em; text-transform:uppercase}
 }

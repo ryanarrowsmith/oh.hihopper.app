@@ -3,6 +3,7 @@ import { supabaseServer } from '@/lib/supabase/server'
 import { EditableSection, RowForm, Toggle } from '@/components/RowEdit'
 import { HeadOffice, PinMark } from '@/components/Icons'
 import { addressOf } from '@/lib/mapbox'
+import AddressFields from '@/components/AddressFields'
 import { createLocation } from '@/app/actions/admin'
 
 /**
@@ -45,28 +46,11 @@ export default async function Page({ params }: { params: { id: string } }) {
             <div className="formrow">
               <div><label htmlFor="ol-name">Name</label>
                 <input className="field" id="ol-name" name="name" required placeholder="Tulsa Yard" /></div>
-              <div><label htmlFor="ol-addr">Street</label>
-                <input className="field" id="ol-addr" name="address_line1"
-                       autoComplete="address-line1" placeholder="4321 S Sheridan Rd" /></div>
-            </div>
-            <div className="formrow" style={{ marginTop: 12 }}>
-              <div><label htmlFor="ol-addr2">Suite, unit, floor</label>
-                <input className="field" id="ol-addr2" name="address_line2" /></div>
-              <div><label htmlFor="ol-city">City</label>
-                <input className="field" id="ol-city" name="city" placeholder="Tulsa" /></div>
-            </div>
-            <div className="formrow" style={{ marginTop: 12 }}>
-              <div><label htmlFor="ol-region">State</label>
-                <input className="field" id="ol-region" name="region" placeholder="OK" /></div>
-              <div><label htmlFor="ol-zip">Postal code</label>
-                <input className="field" id="ol-zip" name="postal_code" placeholder="74145" /></div>
-            </div>
-            <div className="formrow" style={{ marginTop: 12 }}>
-              <div><label htmlFor="ol-country">Country</label>
-                <input className="field" id="ol-country" name="country" defaultValue="United States" /></div>
               <div><label htmlFor="ol-tz">Time zone</label>
                 <input className="field" id="ol-tz" name="time_zone" defaultValue="America/Chicago" /></div>
             </div>
+            <div className="sheet__cut" style={{ marginTop: 14 }}><span>Address</span></div>
+            <AddressFields />
             <div style={{ marginTop: 6 }}>
               <Toggle name="is_head_office" label="This is the head office" />
             </div>

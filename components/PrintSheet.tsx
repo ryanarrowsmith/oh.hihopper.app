@@ -56,7 +56,7 @@ export default function PrintSheet({ sheets }: { sheets: Sheet[] }) {
     }
 
     const measured = () => {
-      const charts = document.querySelectorAll<SVGElement>('.sheet__r svg.chart')
+      const charts = document.querySelectorAll<SVGElement>('.paper__r svg.chart')
       // No charts at all is a legitimate ready: every report can be one that
       // has never been read, and that page is words.
       if (charts.length === 0) return true
@@ -82,10 +82,10 @@ export default function PrintSheet({ sheets }: { sheets: Sheet[] }) {
     : `${w.from ? on(w.from) : '—'} to ${w.to ? on(w.to) : '—'}`
 
   return (
-    <div className="sheet">
-      <div className="sheet__h">
+    <div className="paper">
+      <div className="paper__h">
         <span className="mark mark--sm">hopper<span className="pd">.</span></span>
-        <span className="sheet__meta">
+        <span className="paper__meta">
           <b>{said}</b>
           <span>{sheets.length} report{sheets.length === 1 ? '' : 's'} ·
             printed {new Date().toLocaleDateString('en-US',
@@ -106,16 +106,16 @@ export default function PrintSheet({ sheets }: { sheets: Sheet[] }) {
         const newest = head[head.length - 1]
         const move = head.length > 1 ? newest.v - head[0].v : null
         return (
-          <section className="sheet__r" key={s.id}>
-            <div className="sheet__rh">
-              <span className="sheet__t"><b>{s.name}</b><span>{s.where}</span></span>
-              <span className="sheet__v">
+          <section className="paper__r" key={s.id}>
+            <div className="paper__rh">
+              <span className="paper__t"><b>{s.name}</b><span>{s.where}</span></span>
+              <span className="paper__v">
                 {newest ? nf.format(newest.v) : s.value == null ? '—' : nf.format(s.value)}
                 {move != null && <i className={move >= 0 ? 'up' : 'down'}>{nf.format(Math.abs(move))}</i>}
               </span>
             </div>
             {head.length < 2
-              ? <p className="sheet__none">
+              ? <p className="paper__none">
                   {s.dated && s.series.length > 0
                     ? 'No readings inside this range.'
                     : 'Nothing read yet.'}
@@ -124,7 +124,7 @@ export default function PrintSheet({ sheets }: { sheets: Sheet[] }) {
                   <Chart type={s.chartType} series={series} height={isSplit(series) ? 330 : 210} />
                   {!isSplit(series) && <Legend series={series} />}
                 </>}
-            <p className="sheet__f">
+            <p className="paper__f">
               {newest ? <>Dated {on(newest.on)}. </> : null}
               {s.lastLook ? <>Last looked {new Date(s.lastLook).toLocaleString('en-US',
                 { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}. </> : null}

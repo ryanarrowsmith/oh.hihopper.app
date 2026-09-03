@@ -7,6 +7,8 @@ import LocationMap from '@/components/LocationMap'
 import { updateLocation, repinLocation, toggleFavorite } from '@/app/actions/admin'
 import FavoriteButton from '@/components/CardActions'
 import { HeadOffice } from '@/components/Icons'
+import AddressFields, { KIND_MARK } from '@/components/AddressFields'
+import { KIND_WORD, type AddrKind } from '@/lib/addresses'
 
 export default async function Location({ params }: { params: { id: string; loc: string } }) {
   const db = supabaseServer()
@@ -20,13 +22,22 @@ export default async function Location({ params }: { params: { id: string; loc: 
     db.schema('hopper').from('my_favorites').select('object_id')
       .eq('object', 'location').eq('object_id', params.loc).maybeSingle(),
   ])
+  // The physical one first, because it is the one that is mapped and the one
+  // anybody scanning this is looking for.
+  const { data: addrs } = await db.schema('hopper').from('location_address')
+    .select('*').eq('location_id', params.loc)
+    // descending, because 'physical' sorts after 'mailing' and physical is the
+    // one being looked for.
+    .order('kind', { ascending: false }).order('sort_order')
   if (!l || !org) notFound()
   const mayEdit = rights?.may_edit === true
   const here = `/admin/organizations/${params.id}/locations/${params.loc}`
 
-  const street = [l.address_line1, l.address_line2].filter(Boolean)
-  const town = [l.city, [l.region, l.postal_code].filter(Boolean).join(' ')]
-    .filter(Boolean).join(', ')
+  const places = (addrs ?? []) as any[]
+  const lines = (a: any) => [a.address_line1, a.address_line2,
+    [a.city, [a.region, a.postal_code].filter(Boolean).join(' ')].filter(Boolean).join(', '),
+  ].filter(Boolean)
+  const physical = places.find((a) => a.kind === 'physical') ?? null
 
   return (
     <>
@@ -82,11 +93,30 @@ export default async function Location({ params }: { params: { id: string; loc: 
 
             <div className="locard__body">
               <table className="tbl locard__tbl"><tbody>
-                <tr><th style={{ width: 150 }}>Address</th>
-                  <td>{street.length || town
-                    ? <>{street.map((x: string, i: number) => <span key={i}>{x}<br /></span>)}
-                        {town}{l.country ? <><br />{l.country}</> : null}</>
-                    : <span className="muted">Nothing on file yet</span>}</td></tr>
+                <tr><th style={{ width: 150 }}>
+                  {places.length === 1 ? 'Address' : 'Addresses'}</th>
+                  <td>{places.length === 0
+                    ? <span className="muted">Nothing on file yet</span>
+                    : <div className="addrs">
+                        {places.map((a: any) => (
+                          <div className={`addr${a.kind === 'physical' ? '' : ' addr--off'}`} key={a.id}>
+                            {/* A pin means the place you go to and an envelope
+                                means where post goes -- two shapes anybody
+                                already reads. The word is on hover, on focus,
+                                on the accessible name, and printed outright
+                                where hover does not exist. */}
+                            <span className={`addr__k${a.kind === 'physical' ? ' addr__k--phys' : ''}`}
+                                  data-tip={`${KIND_WORD[a.kind as AddrKind]} address`}
+                                  role="img" aria-label={`${KIND_WORD[a.kind as AddrKind]} address`}>
+                              {KIND_MARK[a.kind as AddrKind]}
+                              <b>{KIND_WORD[a.kind as AddrKind]}</b>
+                            </span>
+                            <span className="addr__l">
+                              {lines(a).map((x: string, i: number) => <span key={i}>{x}</span>)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>}</td></tr>
                 <tr><th>Organization</th>
                   <td><a href={`/admin/organizations/${org.id}`}>{org.name}</a>
 
@@ -98,9 +128,10 @@ export default async function Location({ params }: { params: { id: string; loc: 
                   </td></tr>
                 <tr><th>Pin</th>
                   <td>{l.latitude == null
-                    ? <span className="pill">None</span>
+                    ? <span className="pill">{physical ? 'None' : 'No physical address'}</span>
                     : <><span className="mono">{Number(l.latitude).toFixed(5)}, {Number(l.longitude).toFixed(5)}</span>
-                        {' '}<span className="pill">{l.geocoded_at ? 'From the address' : 'Placed by hand'}</span></>}
+                        {' '}<span className="pill">
+                          {l.geocoded_at ? 'From the physical address' : 'Placed by hand'}</span></>}
                   </td></tr>
               </tbody></table>
             </div>
@@ -127,33 +158,19 @@ export default async function Location({ params }: { params: { id: string; loc: 
                   <div className="formrow">
                     <div><label htmlFor="n">Name</label>
                       <input className="field" id="n" name="name" defaultValue={l.name} required /></div>
-                    <div><label htmlFor="a1">Street</label>
-                      <input className="field" id="a1" name="address_line1"
-                             autoComplete="address-line1" defaultValue={l.address_line1 ?? ''} /></div>
-                  </div>
-                  <div className="formrow">
-                    <div><label htmlFor="a2">Suite, unit, floor</label>
-                      <input className="field" id="a2" name="address_line2"
-                             defaultValue={l.address_line2 ?? ''} /></div>
-                    <div><label htmlFor="ct">City</label>
-                      <input className="field" id="ct" name="city" defaultValue={l.city ?? ''} /></div>
-                  </div>
-                  <div className="formrow">
-                    <div><label htmlFor="rg">State</label>
-                      <input className="field" id="rg" name="region" defaultValue={l.region ?? ''} /></div>
-                    <div><label htmlFor="pc">Postal code</label>
-                      <input className="field" id="pc" name="postal_code"
-                             defaultValue={l.postal_code ?? ''} /></div>
-                    <div><label htmlFor="co">Country</label>
-                      <input className="field" id="co" name="country" defaultValue={l.country ?? ''} /></div>
                     <div><label htmlFor="tz">Time zone</label>
                       <input className="field" id="tz" name="time_zone" defaultValue={l.time_zone} /></div>
                   </div>
+                  <div className="sheet__cut"><span>Addresses</span></div>
+                  <AddressFields start={places as any} />
                   <label className="checkline">
                     <input type="checkbox" name="is_head_office" defaultChecked={l.is_head_office} />
                     This is the head office
                   </label>
                   <div className="sheet__cut"><span>Overrule the pin</span></div>
+                  <p className="fine" style={{ margin: '0 0 10px' }}>
+                    The pin belongs to the physical address. Typing one here puts it there.
+                  </p>
                   <div className="formrow">
                     <div><label htmlFor="la">Latitude</label>
                       <input className="field" id="la" name="latitude" inputMode="decimal"
