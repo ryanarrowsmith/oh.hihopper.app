@@ -601,11 +601,24 @@ a.bub{text-decoration:none}
    shrink below its content, which is exactly how a capped panel still
    overflows. */
 @media (max-width:560px){
+  /* Hung off HER right corner, the card was as wide as the viewport and
+     started well to the left of the column -- because she is not the last
+     bubble in the strip, there are two more to her right, and the app is
+     narrower than the viewport besides. So the first half of every quote was
+     outside the page. On a phone the card belongs to the COLUMN: it spans it,
+     edge to edge, and the beak stands down rather than pointing at a corner it
+     no longer hangs from. The vertical relationship -- directly under the
+     strip she was pressed in -- is the part that carries the meaning, and it
+     is kept. */
+  .dollyw{position:static}
+  .tools{position:relative}
   .dpop{
-    width:min(560px, calc(100vw - 28px));
+    left:0; right:0; width:auto;
     max-height:calc(100dvh - 132px);
     display:flex; flex-direction:column;
+    transform-origin:calc(100% - 132px) -14px;
   }
+  .dpop::before{display:none}
   .dpop .dolly{min-height:0; flex:1 1 auto; overflow:hidden}
   .dpop .dolly__say{max-height:none; flex:1 1 auto; min-height:0}
 }
@@ -2752,6 +2765,25 @@ a.gcard:hover{border-color:var(--canvas-3); box-shadow:var(--lift)}
 
 /* An action in the page heading, pushed to the right of the title block. */
 .hi__go{flex:none; display:flex; gap:8px; align-items:center}
+
+/* ---- and on a phone, it goes under the title instead ----
+   Beside a title, a column of buttons on a 390px screen leaves the title about
+   forty percent of the width -- which is how "Churn Report" became two lines
+   with three narrow buttons stacked next to it. There is no side-by-side worth
+   having at this width. The heading takes the full column, the actions go
+   under it and share a row, and each one is as wide as the others so the row
+   reads as one control rather than three of different importance.
+
+   This is the rule for every page heading, not this page's exception:
+   .hi is the pattern the whole product uses. */
+@media (max-width:640px){
+  .hi:has(> .hi__t){display:block}
+  .hi:has(> .hi__t) .hi__t{margin-bottom:13px}
+  .hi__go{width:100%; flex-wrap:wrap}
+  .hi__go > *{flex:1 1 0; min-width:max-content; justify-content:center; text-align:center}
+  /* A logo in the heading is a passenger at this width, not a column. */
+  .hi .orglogo{width:64px; height:64px; margin-bottom:12px}
+}
 
 /* Find a report. It narrows the groups rather than filtering inside one,
    because "where is it" is usually the question, not "which of these". */
