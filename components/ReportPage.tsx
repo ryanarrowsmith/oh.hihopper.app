@@ -40,7 +40,7 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
     id: string; name: string; entity: string; department: string; category: string | null
     sourceKind: string; sourceUrl: string | null; sourceTab: string | null
     refresh: string; restricted: boolean; chartType: string
-    dateColumn: string | null; measures: string[]
+    dateColumn: string | null; measures: string[]; points?: number | null
   }
   state: {
     value: number | null; valueOn: string | null
@@ -58,19 +58,50 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
   // The same question, answered once for the whole module: this page reads the
   // range Reporting was left on rather than asking again.
   const dated = !!report.dateColumn
-  const series = useMemo(() => {
+
+  /**
+   * How the chart is drawn RIGHT NOW: the mark, the measures in order, and how
+   * many readings. Seeded from the report and moved by the picker in the header
+   * and by the edit form below -- before either has reached the server, so the
+   * chart answers the question the control is asking while it is being asked.
+   */
+  const [drawAs, setDrawAs] = useState(report.chartType)
+  const [drawOrder, setDrawOrder] = useState<string[]>(report.measures)
+  const [drawPoints, setDrawPoints] = useState<number | null>(report.points ?? null)
+  const preview = useCallback(
+    (d: { measures: string[]; chartType: string; points: number | null }) => {
+      setDrawOrder(d.measures); setDrawAs(d.chartType); setDrawPoints(d.points)
+    }, [])
+  const windowed = useMemo(() => {
     if (!dated) return all
     return all
       .map((s) => ({ ...s, points: s.points.filter((p) => inWindow(p.on, win)) }))
       .filter((s) => s.points.length > 0)
   }, [all, dated, win])
 
+  /**
+   * The series as the report currently says to draw them: only the chosen
+   * measures, in the chosen order, and only the last N of each.
+   *
+   * Order is not decoration. series[0] is the headline -- the big number on the
+   * card and at the top of this page -- so reordering here is how a report
+   * whose headline was the week number stops being one.
+   */
+  const series = useMemo(() => {
+    const by = new Map(windowed.map((s) => [s.measure, s]))
+    const chosen = drawOrder.length
+      ? drawOrder.map((m) => by.get(m)).filter(Boolean) as typeof windowed
+      : windowed
+    if (!drawPoints) return chosen
+    return chosen.map((s) => ({ ...s, points: s.points.slice(-drawPoints) }))
+  }, [windowed, drawOrder, drawPoints])
+
   const head = series[0]?.points ?? []
   const newest = head[head.length - 1]
   const move = head.length > 1 ? newest.v - head[0].v : null
   const counted = {
     total: all.reduce((n, s) => n + s.points.length, 0),
-    kept: series.reduce((n, s) => n + s.points.length, 0),
+    kept: windowed.reduce((n, s) => n + s.points.length, 0),
     undated: dated ? 0 : 1,
   }
 
@@ -89,7 +120,6 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
   // What the chart is drawn as RIGHT NOW. Seeded from the report and moved by
   // the picker before the server has answered, so the chart redraws on the
   // click rather than a round trip later.
-  const [drawAs, setDrawAs] = useState(report.chartType)
 
   const [days, setDays] = useState<Set<string>>(new Set())
   const [last, setLast] = useState<string | null>(null)
@@ -250,7 +280,9 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
         title="Where it points"
         blurb="A report is a pointer, not data. This is the other end of it."
         editLabel="Change this report"
-        editForm={mayEdit ? <EditReport report={report} columns={columns} /> : undefined}
+        editForm={mayEdit
+          ? <EditReport report={report} columns={columns} onPreview={preview} />
+          : undefined}
         editOpen={editing} onEditOpen={setEditing}
       >
         <div className="card"><div className="facts">

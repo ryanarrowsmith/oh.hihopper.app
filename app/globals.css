@@ -1106,8 +1106,21 @@ select.field{appearance:none}
   text-transform:uppercase; color:var(--ink-3); margin-bottom:5px;
 }
 .formrow{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px}
+/* A label is inline by default, which is invisible for as long as the thing
+   under it is a field -- a block-level input wraps itself onto the next line
+   and the label looks like a block. Put a BUTTON under one and the two share a
+   line: "Tab" with "Show me the tabs" sitting on top of it. Every label in a
+   row is a block, so it does not depend on what follows it. */
+.formrow > div > label{display:block; margin-bottom:6px}
 .formgrid__go{display:flex; gap:9px; margin-top:2px}
 .note{padding:10px 12px; font-size:13.5px; border-radius:var(--r)}
+/* Not an error -- nothing has gone wrong. A question that has not been answered
+   yet, in the colour Hopper uses for "this needs you". */
+.note--warn{background:var(--warmbg); border:1px solid var(--warmrule); color:var(--ink-2)}
+/* What came back, beside the buttons rather than on the next step, so that
+   changing the tab and reading again is a loop you can see the ends of. */
+.readsaid{font-size:12.5px; color:var(--ink-3); align-self:center}
+.readsaid b{color:var(--ink); font-weight:800}
 .note--ok{background:var(--sunken); border:1px solid var(--good); color:var(--good)}
 .note--err{background:var(--warmbg); border:1px solid var(--bad); color:var(--bad)}
 .checkline{display:flex; align-items:center; gap:9px; font-size:14px; color:var(--ink-2)}

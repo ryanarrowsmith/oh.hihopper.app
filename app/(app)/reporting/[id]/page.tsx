@@ -109,6 +109,7 @@ export default async function Page({ params }: { params: { id: string } }) {
         chartType: rep.chart_type ?? 'line',
         dateColumn: rep.date_column,
         measures: rep.chart_measures ?? [],
+        points: rep.chart_points ?? null,
       }}
       state={{
         value: state?.value == null ? null : Number(state.value),

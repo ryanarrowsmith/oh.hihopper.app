@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Choice from '@/components/Choice'
 import GooglePick, { type Picked } from '@/components/GooglePick'
@@ -122,7 +122,12 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
         const m = out.columns.find((c: Col) => c.type === 'number')
         if (d) setDateCol(d.label)
         if (m) setMeasures([m.label])
-        setStep(2)
+        // Deliberately NOT setStep(2). Reading a sheet used to carry you
+        // straight to what came back -- past the tab picker, which is on this
+        // step -- so if you had read the wrong tab you had to go back to
+        // discover it, and if you had never asked for the tab list at all you
+        // had silently read whichever tab the workbook opens on. Reading and
+        // moving on are two decisions; the second is Next.
       } else {
         setCols(null); setFailure(out.failure ?? 'Hopper could not read that.')
       }
@@ -148,7 +153,13 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
     if (out.ok) router.push('/reporting')
   }
 
-  const canLeave1 = snapshot || (url.trim().length > 0 && cols !== null)
+  /**
+   * A workbook with one tab asks nothing -- reading it IS reading that tab. A
+   * workbook with several asks the whole question, and Hopper must not answer
+   * it by defaulting to the first one and saying nothing.
+   */
+  const mustPickTab = kind === 'google_sheet' && (tabs?.length ?? 0) > 1 && !tab
+  const canLeave1 = snapshot || (url.trim().length > 0 && cols !== null && !mustPickTab)
   /**
    * Ask the sheet what is in it.
    *
@@ -157,6 +168,24 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
    * a wrong answer that only shows up after the save. The workbook already
    * knows; this asks it.
    */
+  /**
+   * The tab list, asked for without being asked for.
+   *
+   * It used to sit behind a button, which meant the commonest path through this
+   * form -- paste, press Read it -- never touched it, and quietly reported on
+   * whichever tab the workbook happens to open on. Choosing the tab is not an
+   * advanced option; for a workbook with more than one it is the whole
+   * question. So a Google address fetches its own tabs a beat after it stops
+   * changing, and the button stays for asking again.
+   */
+  useEffect(() => {
+    if (kind !== 'google_sheet' || tabs !== null || tabbing) return
+    if (!/\/spreadsheets\/d\/[A-Za-z0-9-_]{20,}/.test(url)) return
+    const t = setTimeout(() => { findTabs() }, 700)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, kind, tabs, tabbing])
+
   async function findTabs() {
     if (!url.trim() && !file) return
     setTabbing(true); setFailure(null)
@@ -322,10 +351,28 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
           {snapshot && <p className="note note--err" style={{ marginTop: 14 }}>
             Uploads and pasted data are not built yet — point Hopper at a sheet or a link for now.</p>}
 
+          {mustPickTab && (
+            <p className="note note--warn" style={{ marginTop: 14 }}>
+              That workbook has {tabs!.length} tabs. Choose the one this report reads.
+            </p>
+          )}
+
           <div className="formgrid__go" style={{ marginTop: 18 }}>
-            <button className="btn btn--amber" type="button" disabled={looking || !url.trim() || snapshot}
-                    onClick={peek}>{looking ? 'Looking…' : 'Read it'}</button>
-            {cols && <button className="btn" type="button" onClick={() => setStep(2)}>Next</button>}
+            <button className="btn btn--amber" type="button"
+                    disabled={looking || !url.trim() || snapshot || mustPickTab}
+                    onClick={peek}>{looking ? 'Looking…' : cols ? 'Read it again' : 'Read it'}</button>
+            {cols && !mustPickTab && (
+              <button className="btn" type="button" onClick={() => setStep(2)}>Next</button>
+            )}
+            {/* What came back, said here, so that changing the tab and reading
+                again is a two-click loop on this step rather than a trip
+                forward and back. */}
+            {cols && (
+              <span className="readsaid">
+                <b>{cols.length}</b> columns, <b>{rowCount.toLocaleString()}{capped && '+'}</b> rows
+                {tab && <> from <b>{tab}</b></>}
+              </span>
+            )}
           </div>
         </>
       )}
