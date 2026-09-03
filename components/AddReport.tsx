@@ -315,12 +315,16 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
           {snapshot && <p className="note note--err" style={{ marginTop: 14 }}>
             Uploads and pasted data are not built yet — point Hopper at a sheet or a link for now.</p>}
 
+          {/* The amber follows the next thing to do. Before a read, that is
+              Read it; after one, reading again is a thing you MAY do and going
+              on is the thing you are here for -- two amber buttons side by side
+              is a fork, and this is not one. */}
           <div className="formgrid__go" style={{ marginTop: 18 }}>
-            <button className="btn btn--amber" type="button"
+            <button className={`btn${cols ? '' : ' btn--amber'}`} type="button"
                     disabled={looking || !url.trim() || snapshot}
                     onClick={peek}>{looking ? 'Looking…' : cols ? 'Read it again' : 'Read it'}</button>
             {cols && (
-              <button className="btn" type="button" disabled={tabbing}
+              <button className="btn btn--amber" type="button" disabled={tabbing}
                       onClick={() => setStep(afterSource)}>
                 {tabbing ? 'Reading the tabs…' : 'Next'}
               </button>
@@ -385,6 +389,11 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
             <button className="btn" type="button" onClick={() => setStep(1)}>Back</button>
             {/* Choosing a tab clears what came back, because what came back was
                 a different tab. Reading again is the only honest way forward. */}
+            {tab && cols && (
+              <button className="btn" type="button" disabled={looking} onClick={peek}>
+                {looking ? 'Reading…' : 'Read it again'}
+              </button>
+            )}
             <button className="btn btn--amber" type="button"
                     disabled={!tab || looking}
                     onClick={() => { cols ? setStep(3) : peek() }}>
