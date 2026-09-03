@@ -918,11 +918,22 @@ a.bub{text-decoration:none}
    run of them does not read as a pattern; box-decoration-break keeps a
    wrapped phrase as one stroke rather than one per line. */
 h1 .hl{background-size:100% .92em; background-position:0 .2em}
+/* The swash is a BACKGROUND rather than a pseudo-element, so that a phrase
+   wrapping onto a second line gets marked on both -- which is what
+   box-decoration-break:clone is for.
+   That also means it is clipped by the inline box's own padding area, and it
+   was: an inline box is as tall as the font says, 1.168em here, and the band
+   ran to 1.18em. Twelve thousandths of an em, which is exactly the flat cut
+   along the bottom of every highlight in the product.
+   Padding is the fix, because vertical padding on an inline box grows the area
+   the background paints into WITHOUT touching the line height -- so the swash
+   can now hang below the baseline, past a descender, the way a real marker
+   does, and nothing below it moves. */
 .hl{
   background-image:var(--hl); background-repeat:no-repeat;
-  background-size:100% 1.02em; background-position:0 .16em;
+  background-size:100% 1.22em; background-position:0 .1em;
   box-decoration-break:clone; -webkit-box-decoration-break:clone;
-  padding:0 .22em; margin:0 -.16em;
+  padding:.06em .22em .22em; margin:0 -.16em;
 }
 .hl--b{background-image:var(--hl2)}
 .hl--bad{background-image:var(--hlr)}
