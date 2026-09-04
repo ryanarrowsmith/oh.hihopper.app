@@ -37,7 +37,15 @@ export async function POST(req: Request) {
   const { data, error } = await db.schema('hopper').rpc('pivot', {
     p_report: body.report, p_spec: sent,
   })
-  if (error) return bad(error.message, 500)
+  if (error) {
+    // 54000 is the cap: a spec that would make more cells than any table or
+    // chart can show. That is a thing the person did, not a thing that broke,
+    // so it comes back as a sentence and a 400 rather than as a 500 with a
+    // stack trace in it. Postgres appends its own CONTEXT lines; the first
+    // line is the part written for a person to read.
+    const over = (error as { code?: string }).code === '54000'
+    return bad(error.message.split('\n')[0], over ? 400 : 500)
+  }
 
   return NextResponse.json({ ok: true, long: data ?? [] })
 }
