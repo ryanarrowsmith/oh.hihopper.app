@@ -7088,3 +7088,6 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
    than the count it qualifies: the first number is what you are looking at,
    this one is why it is smaller than the bar. */
 .pickbar__all{color:var(--ink-3)}
+/* Something went wrong, said where it went wrong. Same shape as the filter bar
+   so the table does not change height when one replaces the other. */
+.pickbar--bad{background:var(--badwash,#FBEEEC); color:var(--ink-2)}

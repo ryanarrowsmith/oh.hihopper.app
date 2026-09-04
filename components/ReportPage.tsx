@@ -415,6 +415,7 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
                     everRead={state.lastLook != null}
                     dateColumn={report.dateColumn} picked={picked}
                     cells={cellFor} cellLabel={cellLabel} cellRows={cellRows}
+                    spec={drawSpec}
                     expanded={wide} />
         </div>
         </div>
