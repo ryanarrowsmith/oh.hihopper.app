@@ -7381,30 +7381,48 @@ label.dktog .togsay{ font-size:13px; color:var(--ink-2); white-space:nowrap; }
 }
 
 @media (max-width:760px){
-  /* A row becomes a card, and the card is a stack: block flow, so nothing is
-     a column of anything. The small facts still share a line where they read as
-     one thought — the reference with the state it is in, the person holding it
-     with the clock on it — which is stacking, not a table. */
+  /* A row becomes a card, and the card is a STACK: one fact per line, every
+     one of them starting at the left edge. Sharing a line is what a table does,
+     and a table is the thing a card replaces — so the assignee, the state and
+     the clock each get their own row rather than floating together with the
+     group badge wrapping underneath them. */
   .dktix{ border:0; background:none; display:flex; flex-direction:column; gap:10px; }
   /* Two classes, because .dktix__r below is also two and would otherwise win
      on order and print the column header as a card of five stacked words. */
   .dktix .dktix__hd{ display:none; }
+  /* The padding moves off the card and onto each line, so the hairline
+     between two facts runs the full width of the card instead of floating
+     indented inside it. */
   .dktix__r{
-    display:block; padding:13px 14px;
+    display:block; padding:0;
     border:1px solid var(--rule); background:var(--surface);
   }
-  .dktix__r > span{ display:block; }
-  .dktix__r > .dktix__ref{ display:inline-block; margin-right:10px; }
-  .dktix__s{ margin-top:7px; }
+  .dktix__r > span{
+    display:block; padding:9px 14px; border-top:1px solid var(--rule-soft);
+  }
+  .dktix__r > span:first-child{ border-top:0; }
+  /* An empty cell would otherwise draw a rule under nothing. */
+  .dktix__r > span:empty{ display:none; }
   /* `.dktix__r > span` is a class AND an element, so a bare `.dktix__w` loses
-     to it and the avatar ends up sitting on top of the name. Same weight or
-     more, or it does not happen. */
-  .dktix__r > .dktix__w, .dktix__r > .dksla{
-    display:inline-flex; margin-top:9px; margin-right:16px; vertical-align:middle;
+     to it. Flex for the avatar beside the name, but still its own line. */
+  .dktix__r > .dktix__w, .dktix__r > .dksla{ display:flex; }
+
+  /* The column header that used to name these is gone, so each line says what
+     it is. A bare "12" is a number nobody can read. */
+  /* The badge is an inline-GRID with place-items:center, so adding a label
+     stacked it inside the box under the number. A row, not a grid. */
+  .dktix__r .dkgrp{
+    display:inline-flex; align-items:center; gap:6px;
+    min-width:0; height:auto; padding:3px 8px; white-space:nowrap;
   }
-  .dktix__r > :nth-child(4), .dktix__r > :nth-child(6){
-    display:inline-block; margin-top:9px; margin-right:8px; vertical-align:middle;
-  }
+  .dktix__r .dkgrp::after{ content:"grouped with this"; font-weight:500; }
+  /* The words say what the colour used to. `order` puts the dot back in front
+     of them — a ::before is a flex child like any other, so it would otherwise
+     read "due in ● 11m". */
+  .dktix__r > .dksla{ display:flex; align-items:center; gap:6px; }
+  .dktix__r > .dksla i{ order:-1; }
+  .dksla--ok::before, .dksla--soon::before{ content:"due in"; color:var(--ink-3); }
+  .dksla--paused::before{ content:"clock"; color:var(--ink-3); }
   /* A subject is the whole reason the card is there: it wraps rather than
      being cut off at the width of a phone. */
   .dktix__s b{ -webkit-line-clamp:none; display:block; overflow:visible; line-height:1.4; }
@@ -7888,21 +7906,25 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   /* One column. Every fact on its own line, each one saying what it is,
      because the column header it used to sit under is gone. */
   .crow{
-    display:block; padding:12px 14px;
+    display:block; padding:0;
     border:1px solid var(--rule); background:var(--surface);
   }
   .crow--hd{ display:none; }
-  .crow > span{ display:block; }
+  .crow > span{
+    display:block; padding:9px 14px; border-top:1px solid var(--rule-soft);
+  }
+  .crow > span:first-child{ border-top:0; }
+  .crow > span:empty{ display:none; }
   /* Same trap as the queue row: `.crow > span` outweighs a bare `.cwho`, so
      the avatar lands on top of the name instead of beside it. */
   .crow > .cwho{ display:flex; align-items:center; gap:10px; }
-  .cco{ font-size:12.5px; margin-top:7px; }
+  .cco{ font-size:12.5px; }
   .cco::before{ content:"Company "; color:var(--ink-3); }
   .cco em::before{ content:"none"; }
   .cco em{ font-size:0; }
   .cco em::before{ font-size:12.5px; }
   .crow > :nth-child(3), .crow > :nth-child(4), .crow > :nth-child(5){
-    margin-top:4px; font-size:12.5px;
+    font-size:12.5px;
   }
   .crow > :nth-child(3)::after{ content:" open now"; color:var(--ink-3); font-weight:500; }
   .crow > :nth-child(4)::after{ content:" all time"; color:var(--ink-3); }
@@ -7916,13 +7938,12 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   .cstat small{ display:inline; margin:0 0 0 7px; }
 
   /* A ticket on somebody's page stacks the same way the queue's rows do. */
-  .dktix__r--c{
-    display:block; padding:12px 14px;
-    border:1px solid var(--rule); background:var(--surface);
+  .dktix__r--c{ display:block; padding:0; }
+  .dktix__r--c > span{
+    display:block; padding:9px 14px; border-top:1px solid var(--rule-soft);
   }
-  .dktix__r--c > span{ display:block; }
-  .dktix__r--c > :nth-child(3), .dktix__r--c > :nth-child(4),
-  .dktix__r--c > :nth-child(5){ margin-top:6px; }
+  .dktix__r--c > span:first-child{ border-top:0; }
+  .dktix__r--c > span:empty{ display:none; }
 
   /* Buttons go full width and stack, like every other button in Hopper on a
      phone. An icon button is the one that would read as a mystery bar, so on a
