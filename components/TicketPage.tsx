@@ -186,15 +186,33 @@ function Said({ m, nameOf }: { m: Msg; nameOf: Map<string, string> }) {
         <span className="tmsg__k">
           {m.kind === 'in' ? 'wrote in' : m.kind === 'out' ? 'replied' : 'left a note'}
         </span>
-        {/* Said out loud rather than left to the color of the paper. "Internal"
-            and not "private": the rest of the desk can read this, and private
-            would promise otherwise. */}
-        {m.kind === 'note' && <span className="tmsg__int">Internal</span>}
+        {/* Said rather than left to the color of the paper -- but as a mark and
+            a floating label, not a box of words, so the header stays a row of
+            names and times with one small object in it. "Internal" and not
+            "private": the rest of the desk can read this, and private would
+            promise otherwise. Focusable, so the label is reachable without a
+            mouse, and it prints as the words because paper cannot hover. */}
+        {m.kind === 'note' && (
+          <span className="tmsg__int" tabIndex={0} role="img"
+                data-tip="Internal — not sent to them"
+                aria-label="Internal — not sent to them"><Lock /></span>
+        )}
         {m.task_id && <span className="tmsg__from">from the to-do</span>}
         <time dateTime={m.at}>{WHEN.format(new Date(m.at))}</time>
       </header>
       <div className="tmsg__b">{m.body.split('\n').map((line, i) => <p key={i}>{line || ' '}</p>)}</div>
     </article>
+  )
+}
+
+/** The mark on anything that does not leave the building. */
+function Lock() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"
+         strokeLinecap="square" strokeLinejoin="miter" aria-hidden="true">
+      <rect x="4.5" y="10.5" width="15" height="10" />
+      <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
+    </svg>
   )
 }
 
@@ -263,7 +281,11 @@ function Composer({ ticketId, snippets, status }: {
                 className={kind === 'note' ? 'on' : ''} onClick={() => setKind('note')}>
           Note for us
         </button>
-        {kind === 'note' && <span className="tcomp__int">Internal</span>}
+        {kind === 'note' && (
+          <span className="tcomp__int" tabIndex={0} role="img"
+                data-tip="Internal — nothing here is sent"
+                aria-label="Internal — nothing here is sent"><Lock /></span>
+        )}
         <span className="tcomp__tools">
           {snippets.length > 0 && (
             <Snip snippets={snippets} onPick={(t) => {

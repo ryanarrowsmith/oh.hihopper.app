@@ -4026,7 +4026,12 @@ a.idc__org:hover{background:var(--steel)}
 }
 [data-tip]::after{
   content:attr(data-tip); transform:translateX(-50%);
-  background:var(--ink); color:#FBF9F5; border-radius:var(--r);
+  /* Both halves are tokens, so the tip inverts with the theme. It used to pin
+     the text to a literal cream while the panel followed --ink, which in the
+     dark theme is a near-WHITE ink: cream on cream, and every tooltip in the
+     app was unreadable in the dark. --paper is the ground --ink is meant to be
+     read on, so it is the one color that is right on this panel in both. */
+  background:var(--ink); color:var(--paper); border-radius:var(--r);
   padding:5px 9px; font:600 11.5px/1.3 var(--sans); letter-spacing:.01em;
   white-space:nowrap; z-index:90; box-shadow:0 6px 16px -6px rgba(35,31,32,.5);
 }
@@ -7277,14 +7282,21 @@ a.dktix__r:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 .tmsg--out header{ box-shadow:inset 3px 0 0 var(--steel); }
 .tmsg--in header{ box-shadow:inset 3px 0 0 var(--canvas-3); }
 
-/* The word, in the shape the thread already uses for a fact about a message
-   -- the same pill as "from the to-do", so the header stays one row of facts
-   rather than a row of facts plus a badge. Filled rather than outlined,
-   because this is the one that has to win the glance. */
+/* A mark, not a box of words. The band already carries the warning at
+   scrolling speed; this says which warning, and says it in the space of a
+   glyph so the header stays a row of names and times.
+
+   inline-FLEX and not inline-grid: the tip is drawn with ::after, and a
+   pseudo-element inside a grid box is a grid child. This one is absolutely
+   positioned so it escapes either way, but the box a popover hangs off should
+   not be a box that would stack it. */
 .tmsg__int{
-  font-size:10px; font-weight:800; letter-spacing:.07em; text-transform:uppercase;
-  padding:2px 6px; background:var(--warmedge); color:var(--warmink); flex:none;
+  width:18px; height:18px; flex:none; display:inline-flex;
+  align-items:center; justify-content:center;
+  background:var(--warmedge); color:var(--warmink);
 }
+.tmsg__int svg{ width:11px; height:11px; }
+.tmsg__int:focus-visible{ outline:none; box-shadow:var(--focus); }
 
 .tdid{
   display:flex; align-items:center; gap:9px; margin:0; padding:2px 4px;
@@ -7323,9 +7335,12 @@ a.dktix__r:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 .tcomp--note .tcomp__box{ background:var(--warmbg); }
 .tcomp--note .tcomp__go{ background:var(--warmbg); border-top-color:var(--warmrule); }
 .tcomp__int{
-  font-size:10px; font-weight:800; letter-spacing:.07em; text-transform:uppercase;
-  padding:2px 6px; background:var(--warmedge); color:var(--warmink); flex:none;
+  width:18px; height:18px; flex:none; display:inline-flex;
+  align-items:center; justify-content:center;
+  background:var(--warmedge); color:var(--warmink);
 }
+.tcomp__int svg{ width:11px; height:11px; }
+.tcomp__int:focus-visible{ outline:none; box-shadow:var(--focus); }
 
 /* A popover on the composer. The bar it hangs off must not clip. */
 .tpop{ position:relative; }
@@ -7694,11 +7709,21 @@ a.td__tk:hover{ background:var(--todo); border-color:var(--todo); color:#fff; }
   .tmsg--note{ background:none; box-shadow:inset 3px 0 0 #b8933c; }
   .tmsg--note header{ padding-left:12px; }
   .tmsg--note .tmsg__b{ padding-left:13px; }
+  /* The glyph loses its label on paper -- there is nothing to hover -- so the
+     floating tip stops floating and becomes the stamp itself. */
   .tmsg__int{
-    background:none; border:1px solid #8a6a22; color:#6b5218;
-    font-size:8.5px; padding:1px 5px;
+    width:auto; height:auto; background:none;
+    border:1px solid #8a6a22; color:#6b5218;
+    font-size:8.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+    padding:1px 5px;
   }
-  .tmsg__int::after{ content:" — not sent"; }
+  .tmsg__int svg{ display:none; }
+  .tmsg--note .tmsg__int::after{
+    content:"Internal — not sent"; position:static; opacity:1; transform:none;
+    top:auto; left:auto; background:none; color:inherit; box-shadow:none;
+    padding:0; font:inherit; letter-spacing:inherit; white-space:nowrap;
+  }
+  .tmsg--note .tmsg__int::before{ display:none; }
   .tcomp__int{ display:none; }
   .tmsg__from{ background:none; border:1px solid #999; color:#333; }
   .jobs{ border-color:#999; }
