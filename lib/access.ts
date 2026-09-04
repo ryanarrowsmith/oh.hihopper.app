@@ -127,6 +127,23 @@ export const FLAT_MAX: Record<string, Level> = {
   administrator: 'admin',
 }
 
+/**
+ * The mark for each level, as path data.
+ *
+ * It lived in LevelPick, which is a client component -- and a value exported
+ * across that boundary and read by a SERVER component does not arrive as the
+ * object it was: Next turns every export of a 'use client' module into a client
+ * reference, so the server got a proxy and threw reading a key off it. A
+ * component survives that trip; a plain record does not. Your own access page
+ * was a 500 because of it. It belongs here anyway, beside LEVEL_WORD, which is
+ * the same fact in the other alphabet.
+ */
+export const LEVEL_MARK: Record<Level, string> = {
+  read: '<path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/>',
+  edit: '<path d="M4 20h4L19 9a2.8 2.8 0 1 0-4-4L4 16z"/><path d="M14.5 5.5 18.5 9.5"/>',
+  admin: '<path d="M6 11V8a6 6 0 1 1 12 0v3"/><rect x="4" y="11" width="16" height="10" rx="1.5"/>',
+}
+
 export const LEVELLED_MODULES = [
   { key: 'reporting', label: 'Reporting', blurb: 'Sheets, charts and the dashboards built on them' },
   { key: 'todo',      label: 'To Do',     blurb: 'Lists, tasks and subtasks' },

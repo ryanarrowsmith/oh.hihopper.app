@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
 import { currentSession } from '@/lib/tenant'
 import { supabaseServer } from '@/lib/supabase/server'
-import { LEVEL_MEANS, LEVEL_WORD, LEVELLED_MODULES, type Level } from '@/lib/access'
-import { LEVEL_MARK } from '@/components/LevelPick'
+import {
+  LEVEL_MARK, LEVEL_MEANS, LEVEL_WORD, LEVELLED_MODULES, type Level,
+} from '@/lib/access'
 
 export const dynamic = 'force-dynamic'
 

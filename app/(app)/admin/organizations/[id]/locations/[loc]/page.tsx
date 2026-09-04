@@ -1,13 +1,13 @@
 import { notFound } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
-import Section from '@/components/Section'
 import ActionForm from '@/components/ActionForm'
 import DeleteLocation from '@/components/DeleteLocation'
 import LocationMap from '@/components/LocationMap'
 import { updateLocation, repinLocation, toggleFavorite } from '@/app/actions/admin'
 import FavoriteButton from '@/components/CardActions'
 import { HeadOffice } from '@/components/Icons'
-import AddressFields, { KIND_MARK } from '@/components/AddressFields'
+import AddressFields from '@/components/AddressFields'
+import { KIND_MARK } from '@/components/AddrMarks'
 import { KIND_WORD, type AddrKind } from '@/lib/addresses'
 
 export default async function Location({ params }: { params: { id: string; loc: string } }) {

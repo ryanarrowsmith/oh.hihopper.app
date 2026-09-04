@@ -2,21 +2,11 @@
 import { useState } from 'react'
 import Choice from '@/components/Choice'
 import type { Addr, AddrKind } from '@/lib/addresses'
+// Shared with the location page, which is a server component -- so the marks
+// cannot live in this file. See the note in AddrMarks.
+import { KIND_MARK } from '@/components/AddrMarks'
 
-const PIN = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
-       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M12 21.5s7.2-7.6 7.2-12.3A7.2 7.2 0 0 0 4.8 9.2C4.8 13.9 12 21.5 12 21.5z" />
-    <circle cx="12" cy="9.2" r="2.6" />
-  </svg>
-)
-const ENV = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
-       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <rect x="2.6" y="5" width="18.8" height="14" rx="1.6" /><path d="m3 6.4 9 6.2 9-6.2" />
-  </svg>
-)
-export const KIND_MARK: Record<AddrKind, JSX.Element> = { physical: PIN, mailing: ENV }
+
 
 type Row = Addr & { key: string }
 const blank = (kind: AddrKind): Row => ({
