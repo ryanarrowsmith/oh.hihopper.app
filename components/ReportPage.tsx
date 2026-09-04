@@ -1,9 +1,9 @@
 'use client'
 import Link from 'next/link'
-import { useCallback, useMemo, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import Chart, { Legend, isSplit, splitWhy, type Series } from '@/components/Chart'
-import PivotView, { Wide } from '@/components/PivotView'
+import PivotView from '@/components/PivotView'
 import PivotAsk from '@/components/PivotAsk'
 import { ALL_KEY, OTHERS_KEY, cellKey, cellOf, cellParts, dateShaped, keyWord,
          type Cell, type LongRow, type Spec } from '@/lib/pivot'
@@ -236,6 +236,15 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
   // Expanding does not move the table in the tree -- only the classes around it
   // change -- so its sort, its hidden columns and its density all survive.
   const [wide, setWide] = useState(false)
+  // The frame itself gives up its reading width, because the panel cannot
+  // escape it: .app clips sideways on purpose, so that a wide table can never
+  // push the page into a horizontal scroll, and negative margins fought that
+  // by sliding the panel under the rail instead of past it. Widening the frame
+  // keeps everything aligned and covers nothing.
+  useEffect(() => {
+    document.body.classList.toggle('is-wide', wide)
+    return () => document.body.classList.remove('is-wide')
+  }, [wide])
 
   return (
     <>
@@ -299,7 +308,9 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
             given the whole window over a table still stuck in a column would
             be two panels again, which is what joining them undid. */}
         <div className={wide ? 'joined joined--wide' : 'joined'}>
-        <div className="card card--joined" style={{ padding: 18 }}><div className="shape">
+        <div className="card card--joined" style={{ padding: 18 }}>
+        <Wide on={wide} go={() => setWide((o) => !o)} />
+        <div className="shape">
           <div className="shape__c">
           {asPivot
             ? <>
@@ -312,8 +323,7 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
                 <PivotView tab={{ columns, rows }} spec={drawSpec} height={wide ? 460 : 400}
                            report={report.id} total={rowCount} stored={rowsStored}
                            seed={seed} seedKey={JSON.stringify(spec)}
-                           picked={picked}
-                           expanded={wide} onExpand={() => setWide((o) => !o)} />
+                           picked={picked} />
               </>
             : head.length < 2
             ? <p className="empty" style={{ margin: 0 }}>
@@ -491,6 +501,31 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
         </section>
       )}
     </>
+  )
+}
+
+/**
+ * Open the panel wide, and close it again.
+ *
+ * A bubble at the top right of the panel, the same control the cards on
+ * Reporting carry -- an icon with a floating label rather than a box of words,
+ * and in the corner rather than in the chart's own tab strip, because it acts
+ * on BOTH halves. A chart given the whole window over a table still stuck in a
+ * column would be two panels again, which is what joining them undid.
+ */
+function Wide({ on, go }: { on: boolean; go: () => void }) {
+  return (
+    <button className={`cbub shape__wide${on ? ' is-on' : ''}`} type="button" onClick={go}
+            aria-pressed={on}
+            title={on ? 'Back to the column' : 'Open it wide'}
+            aria-label={on ? 'Back to the column' : 'Open it wide'}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
+           strokeLinecap="round" strokeLinejoin="round">
+        {on
+          ? <><path d="M9 4v5H4M15 20v-5h5" /><path d="M20 4l-5 5M4 20l5-5" /></>
+          : <><path d="M15 4h5v5M9 20H4v-5" /><path d="M20 4l-6 6M4 20l6-6" /></>}
+      </svg>
+    </button>
   )
 }
 

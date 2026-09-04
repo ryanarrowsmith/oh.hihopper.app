@@ -218,7 +218,8 @@ export default function Chart({
   const order = axis?.order ?? unionDays(live)
   if (type === 'pie') return <Pie series={live} height={height} compact={compact} fmt={fmt} />
   if (type === 'big') return <Big series={live} fmt={fmt} />
-  if (type === 'barh') return <BarH series={live} height={height} bare={bare} fmt={fmt} order={order} />
+  if (type === 'barh') return <BarH series={live} height={height} bare={bare} fmt={fmt}
+                                   order={order} picked={picked} />
   if (type === 'scatter') return <Scatter series={live} height={height} bare={bare} labels={labels} fmt={fmt} />
 
   // 'bar' is what 'col' was called before the kit had twelve types, and every
@@ -370,6 +371,7 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
    *  a stack of them cannot, and a full-height column that means "this key,
    *  every series" is the honest target there. */
   const perMark = Boolean(picked?.keyOf) && SLOTTED.has(type) && !STACKED.has(type)
+
 
   const ticks = [lo, lo + span / 2, hi]
   /**
@@ -619,12 +621,16 @@ function Big({ series, fmt = day }: { series: Series[]; fmt?: (k: string) => str
  * of it and gets real room. Reads newest-first down the page, because that is
  * the order somebody scans a list.
  */
-function BarH({ series, height, bare, fmt = day, order }: {
+function BarH({ series, height, bare, fmt = day, order, picked }: {
   series: Series[]; height: number; bare?: boolean
   fmt?: (k: string) => string
   /** The axis order, so a category axis is drawn in the order the pivot put it
    *  in rather than in the order the rows happened to arrive. */
   order?: string[]
+  /** Linked selection. Every series gets its own bar in a slot here, so a click
+   *  can always mean one of them -- which makes this the one type where a
+   *  horizontal bar and a grouped column behave identically. */
+  picked?: Picked
 }) {
   /**
    * Measured, like every other plot here.
@@ -682,10 +688,24 @@ function BarH({ series, height, bare, fmt = day, order }: {
                 if (!pt) return null
                 const bw = (Math.abs(pt.v) / max) * Math.max(10, w - labelW - figW - 8)
                 const y = top + si * barH
+                const pk = picked ? (picked.keyOf ?? ((on: string) => on))(k, s.key) : null
+                const dim = pk != null && picked!.days.size > 0 && !picked!.days.has(pk)
                 return (
                   <g key={s.measure}>
+                    {/* The hit target is the whole slot, not the bar: a bar
+                        three pixels long is a value you can see and cannot
+                        click, and the short ones are exactly the ones somebody
+                        wants to look into. */}
+                    {pk != null && (
+                      <rect className="chart__hit" x={labelW} y={y}
+                            width={Math.max(10, w - labelW - 4)} height={Math.max(2, barH - 1)}
+                            onClick={(e) => picked!.pick(pk, e.shiftKey)}>
+                        <title>{`${fmt(k)} · ${s.measure}`}</title>
+                      </rect>
+                    )}
                     <rect x={labelW} y={y} width={Math.max(1, bw)} height={Math.max(2, barH - 1)}
-                          style={{ fill: `var(${SERIES_VAR[si % 3]})` }} />
+                          className={dim ? 'is-dim' : undefined}
+                          style={{ fill: `var(${SERIES_VAR[si % 3]})`, pointerEvents: 'none' }} />
                     {figW > 0 && (
                       <text className="chart__ax" x={labelW + bw + 6} y={y + barH * 0.78}>
                         {nf.format(pt.v)}

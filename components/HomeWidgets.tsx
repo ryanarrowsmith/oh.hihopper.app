@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Avatar from '@/components/Avatar'
-import Chart, { type Series } from '@/components/Chart'
+import Chart, { type Axis, type Series } from '@/components/Chart'
 import DrawnMap from '@/components/DrawnMap'
 import LocalTime from '@/components/LocalTime'
 import OrgLogo from '@/components/OrgLogo'
@@ -61,14 +61,15 @@ export function Sec({ mark, title, note, to, tip, children }: {
  * and others do not reads as a grid where something failed to load.
  */
 export function Art({ chart, address, logo, mark, name, photo }: {
-  chart?: { type: string; series: Series[] } | null
+  chart?: { type: string; series: Series[]; axis?: Axis | null } | null
   address?: string; logo?: string | null; mark?: string | null
   name?: string; photo?: string | null
 }) {
   if (chart && (chart.series[0]?.points.length ?? 0) > 0) {
     return (
       <span className="hxart hxart--chart">
-        <Chart type={chart.type} series={chart.series} height={76} labels={false} bare compact />
+        <Chart type={chart.type} series={chart.series} axis={chart.axis ?? undefined}
+               height={76} labels={false} bare compact />
       </span>
     )
   }

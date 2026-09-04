@@ -23,6 +23,12 @@ export type Card = {
   /** Days past the allowance its schedule implies. Null when it is not behind. */
   lateBy: number | null
   series: Series[]
+  /** The order the keys go in, and how each is written, when the axis is not
+   *  days. A pivot decides both -- chronological for a date, biggest-first or
+   *  by another column for a category -- and a card that re-sorted them
+   *  alphabetically behind the chart's back would disagree with the page it
+   *  links to. */
+  axis: { order: string[]; label: (k: string) => string } | null
   /** No date column means the readings cannot be put on a timeline at all, so
    *  this report is shown whole whatever the range says. */
   dated: boolean
@@ -413,6 +419,7 @@ function ReportCard({ c, onOpen, onRows, selected, onSelect }: {
       {(c.series[0]?.points.length ?? 0) > 0 ? (
         <span className="rcard__chart">
           <Chart type={c.chartType} series={c.series.slice(0, 1)}
+                 axis={c.axis ?? undefined}
                  height={64} labels={false} bare compact />
         </span>
       ) : (

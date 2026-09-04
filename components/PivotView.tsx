@@ -77,8 +77,7 @@ function useFar(report: string | undefined, spec: Spec, tab: Tab, total?: number
 const COLOR_CAP = 3
 
 export default function PivotView({ tab, spec, height = 300, tabs = true, only,
-                                    report, total, stored, seed, seedKey, picked,
-                                    expanded, onExpand }: {
+                                    report, total, stored, seed, seedKey, picked }: {
   tab: Tab
   spec: Spec
   height?: number
@@ -106,11 +105,6 @@ export default function PivotView({ tab, spec, height = 300, tabs = true, only,
   /** Linked selection with the rows behind it, keyed by CELL. Absent means the
    *  plot is not interactive, which is right on a card. */
   picked?: Picked
-  /** Whether the panel is opened wide, and how to toggle it. The control sits
-   *  at the top right of the chart because that is the thing you are trying to
-   *  give room to; the rows come with it, because they are the same panel. */
-  expanded?: boolean
-  onExpand?: () => void
 }) {
   const [show, setShow] = useState<'table' | 'chart'>(only ?? 'chart')
   const here = useMemo(() => pivot(tab, spec), [tab, spec])
@@ -301,7 +295,6 @@ export default function PivotView({ tab, spec, height = 300, tabs = true, only,
             {p.rowKeys.length}{p.colKeys.length ? ` × ${p.colKeys.length}` : ''}
             {p.matched > p.rowKeys.length ? ` of ${p.matched}` : ''}
           </span>
-          {onExpand && <Wide on={expanded} go={onExpand} />}
         </div>
       )}
       <div className={shown === 'table' ? 'pvbody pvbody--table' : 'pvbody'}>
@@ -334,28 +327,5 @@ export default function PivotView({ tab, spec, height = 300, tabs = true, only,
         </p>
       )}
     </>
-  )
-}
-
-/**
- * Open it wide, and close it again.
- *
- * An icon rather than a box of words, at the top right of the picture it makes
- * room for. It moves BOTH halves -- a chart given the whole window over a table
- * still stuck in a column would be two panels again.
- */
-export function Wide({ on, go }: { on?: boolean; go: () => void }) {
-  return (
-    <button className="btn iconbtn pvwide" type="button" onClick={go}
-            title={on ? 'Back to the column' : 'Open it wide'}
-            aria-pressed={!!on}
-            aria-label={on ? 'Back to the column' : 'Open it wide'}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-           strokeLinecap="round" strokeLinejoin="round">
-        {on
-          ? <><path d="M9 4v5H4M15 20v-5h5" /><path d="M20 4l-5 5M4 20l5-5" /></>
-          : <><path d="M15 4h5v5M9 20H4v-5" /><path d="M20 4l-6 6M4 20l6-6" /></>}
-      </svg>
-    </button>
   )
 }
