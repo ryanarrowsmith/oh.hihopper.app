@@ -5567,9 +5567,10 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
   .tdcard__body{padding:4px 12px 8px}
   .tdcard__body .td{margin:0 -12px; padding-left:12px; padding-right:12px}
   .tdcard__body .tdsub{margin-left:26px}
-  .tdcard__go{margin-left:0; width:100%}
-  .tdcard__go .pjaddtask{width:100%}
-  .tdcard__go .pjaddtask .btn{width:100%}
+  /* The bar wraps on a phone, so the button drops onto its own line -- at the
+     size of a button, not stretched across the card. Nothing else in Hopper is
+     a full-width slab and this did not need to be the first. */
+  .tdcard__go{margin-left:0}
 }
 
 /* ---- the quiet adders ---- */
@@ -5629,15 +5630,14 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
    one column. Wrapping the words, not shrinking them -- "Go to …" told nobody
    anything, and "Add / a / task" was a button folded into a stack. */
 @media (max-width:640px){
-  /* Two marks and one instruction, on one line. Three boxes of words stacked
-     down the screen read as a menu, and the page had not started yet. Email
-     and Print keep their words for a screen reader -- font-size:0 hides the
-     glyphs, not the accessible name -- and carry a tip for a finger that
-     rests. */
+  /* Email and Print keep their words. They lost them when there were three
+     buttons up here and three boxes of words stacked down a phone read as a
+     menu -- but Add a task has gone down onto the card's own bar, so two are
+     all that is left and two fit across the line with room to spare. Two 42px
+     marks stranded above a full-width amber slab was the worse of the two
+     problems. */
   .pj__go{margin-left:0; width:100%; flex-wrap:nowrap; gap:9px}
-  .pj__go > .btn{flex:none; width:42px; height:36px; padding:0; gap:0; font-size:0}
-  .pjaddtask{flex:1 1 auto}
-  .pjaddtask .btn{width:100%}
+  .pj__go > .btn{flex:1 1 0; min-width:0; white-space:nowrap}
 
   /* The milestone name is the longest string on the page, so it takes the
      line; the date and the drift note drop underneath it. */
