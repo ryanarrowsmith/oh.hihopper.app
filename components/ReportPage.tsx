@@ -236,14 +236,13 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
   // Expanding does not move the table in the tree -- only the classes around it
   // change -- so its sort, its hidden columns and its density all survive.
   const [wide, setWide] = useState(false)
-  // The frame itself gives up its reading width, because the panel cannot
-  // escape it: .app clips sideways on purpose, so that a wide table can never
-  // push the page into a horizontal scroll, and negative margins fought that
-  // by sliding the panel under the rail instead of past it. Widening the frame
-  // keeps everything aligned and covers nothing.
+  // Escape closes it, the same as every other popover here. A thing that covers
+  // the page has to be dismissable without finding the button that opened it.
   useEffect(() => {
-    document.body.classList.toggle('is-wide', wide)
-    return () => document.body.classList.remove('is-wide')
+    if (!wide) return
+    const off = (e: KeyboardEvent) => { if (e.key === 'Escape') setWide(false) }
+    window.addEventListener('keydown', off)
+    return () => window.removeEventListener('keydown', off)
   }, [wide])
 
   return (
@@ -304,12 +303,26 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
           )}
         </div>
 
-        {/* Both halves in one wrapper, so opening it wide moves both. A chart
-            given the whole window over a table still stuck in a column would
-            be two panels again, which is what joining them undid. */}
-        <div className={wide ? 'joined joined--wide' : 'joined'}>
-        <div className="card card--joined" style={{ padding: 18 }}>
-        <Wide on={wide} go={() => setWide((o) => !o)} />
+        {/* Both halves in one wrapper, so opening it wide takes both out
+            together. Only the classes around them change and every child is
+            keyed, so the popover does not remount the table -- a remount would
+            re-read the rows and throw away whatever somebody had sorted, hidden
+            or filtered to. */}
+        <div className={wide ? 'rscrim' : undefined}
+             onMouseDown={wide ? (e) => { if (e.target === e.currentTarget) setWide(false) } : undefined}>
+        <div className={wide ? 'rpop rpop--shape' : 'joined'}>
+        {wide && (
+          <div className="rpop__h" key="head">
+            <span className="rpop__t">
+              <b>{report.name}</b>
+              <span>The shape, and the rows behind it</span>
+            </span>
+            <button className="rpop__x" type="button" aria-label="Close"
+                    onClick={() => setWide(false)}>&times;</button>
+          </div>
+        )}
+        <div className="card card--joined" style={{ padding: 18 }} key="shape">
+        {!wide && <Wide on={wide} go={() => setWide(true)} />}
         <div className="shape">
           <div className="shape__c">
           {asPivot
@@ -320,7 +333,7 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
                     is the same report for everybody, and this is one person
                     looking at it. */}
                 <PivotAsk tab={{ columns, rows }} spec={drawSpec} onSpec={setDrawSpec} />
-                <PivotView tab={{ columns, rows }} spec={drawSpec} height={wide ? 460 : 400}
+                <PivotView tab={{ columns, rows }} spec={drawSpec} height={wide ? 340 : 400}
                            report={report.id} total={rowCount} stored={rowsStored}
                            seed={seed} seedKey={JSON.stringify(spec)}
                            picked={picked} />
@@ -397,12 +410,13 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
             The wrapper stays exactly where it was in the tree so expanding the
             table does not remount it — a remount would re-read the rows and
             throw away whatever somebody had sorted or hidden. */}
-        <div className="card card--joins">
+        <div className="card card--joins" key="rows">
           <RawTable reportId={report.id} name={report.name}
                     everRead={state.lastLook != null}
                     dateColumn={report.dateColumn} picked={picked}
                     cells={cellFor} cellLabel={cellLabel} cellRows={cellRows}
                     expanded={wide} />
+        </div>
         </div>
         </div>
       </section>

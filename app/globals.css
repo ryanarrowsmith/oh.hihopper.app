@@ -7050,13 +7050,29 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
    undid. Breaking out of the column is done with margins rather than position,
    so the page below it moves down instead of being covered -- there is no
    scrim here and nothing to dismiss, because nothing is hidden. */
-/* Opened wide, the FRAME gives up its comfortable reading width -- the panel
-   cannot escape it. .app clips sideways on purpose, so that a wide table can
-   never push the page into a horizontal scroll, and negative margins fought
-   that by sliding the panel under the rail rather than past it. Widening the
-   frame is the honest way to give a chart room: everything stays aligned, and
-   there is nothing to dismiss because nothing is covered. */
-body.is-wide .app{max-width:none; width:calc(100% - 18px)}
+/* Opened wide, the panel comes OUT -- the shape and the rows together, over a
+   scrim, at the width the screen honestly allows.
+
+   Widening the page frame was tried first and is wrong: it moves the rail, the
+   header and every other section to give room to one panel, and it cannot go
+   past the frame anyway because .app clips sideways on purpose, so that a wide
+   table can never push the page into a horizontal scroll. A popover asks the
+   page for nothing.
+
+   The rows take whatever height is left after the chart, rather than both
+   halves scrolling inside a third scroller: nested scrollbars are how you lose
+   a sticky header and the row you were reading at the same time. */
+.rpop--shape{
+  width:min(1600px, calc(100vw - 32px)); max-height:min(94vh, 1080px);
+  padding:0; overflow:hidden;
+}
+.rpop--shape > .card{border:0; border-radius:0; flex:none}
+.rpop--shape > .card--joins{flex:1 1 auto; min-height:0; display:flex}
+.rpop--shape .rawpane{flex:1 1 auto; min-height:0}
+.rpop--shape .rawwrap{max-height:none; flex:1 1 auto; min-height:0}
+/* The 840px the shape keeps on the page is there so a line is not stretched
+   flat across a wide column. Out here the whole point is the room. */
+.rpop--shape .shape{max-width:none}
 /* Joined onto the shape, the pane sits INSIDE the card's border rather than
    over it. Standalone it pulled itself a pixel out on every side, so its own
    edges replaced the card's; joined, that ate the sides it was supposed to be
