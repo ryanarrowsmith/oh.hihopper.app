@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useFormState, useFormStatus } from 'react-dom'
 import Choice from '@/components/Choice'
+import CrumbTail from '@/components/CrumbTail'
 import Toggle from '@/components/Toggle'
 import TicketJobs from '@/components/TicketJobs'
 import { sendMessage, updateTicket, findWiki, type Found } from '@/app/actions/desk'
@@ -95,11 +96,13 @@ export default function TicketPage({
     <div className="tkt">
       <div className="pj__h noprint">
         <div className="pj__id">
+          {/* Where it sits, not a breadcrumb -- the layout draws that, and a
+              second "Desk" under the first one is the same word twice. */}
           <p className="tkt__up">
-            <Link href="/desk">Desk</Link>
-            <span>{queueName}</span>
+            <span className="tkt__up1">{queueName}</span>
             {orgName && <span>{orgName}</span>}
           </p>
+          <CrumbTail>{ticket.ref}</CrumbTail>
           <h1><span className="tkt__ref tnum">{ticket.ref}</span> {ticket.subject}</h1>
           <p className="pjline">
             <span className={`dkpill dkpill--${ticket.status}`}>{STATUS_WORD[ticket.status as Status]}</span>

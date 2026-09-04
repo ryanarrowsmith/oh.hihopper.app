@@ -3182,13 +3182,20 @@ a.gcard:hover{border-color:var(--canvas-3); box-shadow:var(--lift)}
 
   /* The rail is a number, then what it did, then facts about it -- and it
      should read in that order without being read. Five figures at one size is
-     a list; this is a hierarchy. */
-  .shape__f .fig:first-child .fig__v{font-size:32px; letter-spacing:-.035em; line-height:1}
-  .shape__f .fig:nth-child(2){padding-top:10px; border-bottom-width:0}
-  .shape__f .fig:nth-child(2) .fig__v{font-size:19px}
-  .shape__f .fig:nth-child(2) .fig__l{display:none}
-  .shape__f .fig:nth-child(3){border-top:1px solid var(--rule-soft); padding-top:12px}
-  .shape__f .fig:nth-child(n+3) .fig__v{font-size:14px; font-weight:700; color:var(--ink-2)}
+     a list; this is a hierarchy.
+
+     On classes and not on nth-child, because a figure with no answer is not
+     drawn at all now: counting children made the hierarchy depend on how much
+     the report happened to know, so a pivot -- which has no reading and no
+     date -- promoted "Last look" to 32px. The role is written on the figure. */
+  .shape__f .fig--big .fig__v{font-size:32px; letter-spacing:-.035em; line-height:1}
+  .shape__f .fig--tag{padding-top:10px; border-bottom-width:0}
+  .shape__f .fig--tag .fig__v{font-size:19px}
+  .shape__f .fig--tag .fig__l{display:none}
+  .shape__f .fig--quiet .fig__v{font-size:14px; font-weight:700; color:var(--ink-2)}
+  /* The rule under the headline, wherever the headline ends. */
+  .shape__f .fig--big + .fig--quiet,
+  .shape__f .fig--tag + .fig--quiet{border-top:1px solid var(--rule-soft); padding-top:12px}
 }
 
 /* Up and down carry a mark as well as a colour, so the direction survives being
@@ -7224,6 +7231,8 @@ a.dktix__r:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   color:var(--ink-3); font-size:12.5px; }
 .tkt__up a{ color:var(--steel-ink); }
 .tkt__up span::before{ content:"·"; margin-right:10px; color:var(--canvas-3); }
+/* The first one starts the line, so it has nothing to be separated from. */
+.tkt__up .tkt__up1::before{ content:none; }
 .tkt__ref{ font:700 15px/1 var(--mono); color:var(--ink-3); margin-right:6px; }
 .tkt__acts{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 .tkt__acts .btn{ white-space:nowrap; }

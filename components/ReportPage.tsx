@@ -135,6 +135,14 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
   const head = series[0]?.points ?? []
   const newest = head[head.length - 1]
   const move = head.length > 1 ? newest.v - head[0].v : null
+  /* What the rail can actually say. Null means "do not draw that figure at
+     all" rather than "draw a dash": the reading falls back to the value the
+     report was left holding, and if there is no reading and no value either,
+     there is nothing to headline and the rail starts at the small facts. */
+  const nowValue = newest ? newest.v : state.value
+  const nowOn = newest ? newest.on : state.valueOn
+  /* A pivot is grouped, not dated. This is the thing down its side. */
+  const groupedBy = drawSpec.rows.map((r) => r.field).join(' \u00b7 ')
   const counted = {
     total: all.reduce((n, s) => n + s.points.length, 0),
     kept: windowed.reduce((n, s) => n + s.points.length, 0),
@@ -381,22 +389,44 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
               </>}
           </div>
 
+          {/* A figure with nothing to put in it is not a figure -- an em dash
+              under a label is an empty seat, and two of them side by side read
+              as a page that failed rather than a page with nothing to say. So
+              every one of these is drawn only when it has an answer, and the
+              hierarchy (big number, then what it did, then the small facts)
+              rides on classes rather than on which child happens to be first.
+
+              A pivot has no "now" at all: there are no readings behind it, only
+              rows. It gets the two facts it actually has instead. */}
           <div className="figs shape__f">
-            <span className="fig"><span className="fig__l">Now</span>
-              <span className="fig__v">{newest ? nf.format(newest.v)
-                : state.value == null ? '—' : nf.format(state.value)}</span></span>
-            {/* The arrow carries the direction, so the sign would say it twice. */}
-            {move != null && <span className="fig"><span className="fig__l">Move</span>
-              <span className={`fig__v ${move >= 0 ? 'up' : 'down'}`}>
-                {nf.format(Math.abs(move))}
-              </span></span>}
-            <span className="fig"><span className="fig__l">Dated</span>
-              <span className="fig__v" style={{ fontSize: 15 }}>
-                {newest ? on(newest.on) : state.valueOn ? on(state.valueOn) : '—'}</span></span>
-            <span className="fig"><span className="fig__l">Last look</span>
+            {asPivot ? (
+              <>
+                <span className="fig fig--big"><span className="fig__l">Rows</span>
+                  <span className="fig__v">{nf.format(rowCount)}</span></span>
+                {groupedBy && (
+                  <span className="fig fig--quiet"><span className="fig__l">Grouped by</span>
+                    <span className="fig__v" style={{ fontSize: 15 }}>{groupedBy}</span></span>)}
+              </>
+            ) : (
+              <>
+                {nowValue != null && (
+                  <span className="fig fig--big"><span className="fig__l">Now</span>
+                    <span className="fig__v">{nf.format(nowValue)}</span></span>)}
+                {/* The arrow carries the direction, so the sign would say it twice. */}
+                {move != null && (
+                  <span className="fig fig--tag"><span className="fig__l">Move</span>
+                    <span className={`fig__v ${move >= 0 ? 'up' : 'down'}`}>
+                      {nf.format(Math.abs(move))}
+                    </span></span>)}
+                {nowOn && (
+                  <span className="fig fig--quiet"><span className="fig__l">Dated</span>
+                    <span className="fig__v" style={{ fontSize: 15 }}>{on(nowOn)}</span></span>)}
+              </>
+            )}
+            <span className="fig fig--quiet"><span className="fig__l">Last look</span>
               <span className="fig__v" style={{ fontSize: 15 }}>
                 {state.lastLook ? at(state.lastLook) : 'Never'}</span></span>
-            <span className="fig"><span className="fig__l">Goes back</span>
+            <span className="fig fig--quiet"><span className="fig__l">Goes back</span>
               <span className="fig__v" style={{ fontSize: 15 }}>{cadence(report.refresh)}</span></span>
           </div>
         </div></div>

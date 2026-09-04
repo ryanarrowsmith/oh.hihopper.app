@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useFormState, useFormStatus } from 'react-dom'
 import Choice from '@/components/Choice'
 import Toggle from '@/components/Toggle'
+import CrumbTail from '@/components/CrumbTail'
 import { saveContact } from '@/app/actions/desk'
 import { TicketList, History, mark, LONG, type Tick } from '@/components/ContactBits'
 import type { ContactRow, CompanyRow } from '@/lib/deskdata'
@@ -30,11 +31,10 @@ export default function ContactPage({ contact, company, companies, tickets, queu
 
   return (
     <div className="pjcol dkcol">
-      <p className="tkt__up noprint">
-        <Link href="/desk">Desk</Link>
-        <Link href="/desk/contacts">Contacts</Link>
-        {company && <Link href={`/desk/companies/${company.id}` as any}>{company.name}</Link>}
-      </p>
+      {/* The layout already draws the trail. A second one under it was two
+          breadcrumbs saying nearly the same thing; this hands the real one the
+          name it could not know, because the page lives at a uuid. */}
+      <CrumbTail>{contact.name || contact.email}</CrumbTail>
 
       <div className="chead">
         <span className="cav" data-none={contact.name ? undefined : ''}>

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useFormState, useFormStatus } from 'react-dom'
 import Toggle from '@/components/Toggle'
+import CrumbTail from '@/components/CrumbTail'
 import { saveCompany } from '@/app/actions/desk'
 import { TicketList, History, mark, ago, type Tick } from '@/components/ContactBits'
 import type { CompanyRow } from '@/lib/deskdata'
@@ -44,10 +45,7 @@ export default function CompanyPage({ company, people, tickets, queues }: {
 
   return (
     <div className="pjcol dkcol">
-      <p className="tkt__up noprint">
-        <Link href="/desk">Desk</Link>
-        <Link href="/desk/contacts">Contacts</Link>
-      </p>
+      <CrumbTail>{company.name}</CrumbTail>
 
       <div className="chead">
         <span className="cav cav--co">{mark(company.name)}</span>
