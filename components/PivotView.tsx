@@ -77,7 +77,7 @@ function useFar(report: string | undefined, spec: Spec, tab: Tab, total?: number
 const COLOR_CAP = 3
 
 export default function PivotView({ tab, spec, height = 300, tabs = true, only,
-                                    report, total }: {
+                                    report, total, stored }: {
   tab: Tab
   spec: Spec
   height?: number
@@ -89,10 +89,18 @@ export default function PivotView({ tab, spec, height = 300, tabs = true, only,
   report?: string
   /** How many rows the source actually has, as of the last read. */
   total?: number
+  /** How many of them actually reached the row store. Null means the last read
+   *  did not finish storing them, so the table is a fragment of a sheet and
+   *  must not be pivoted as though it were one. */
+  stored?: number | null
 }) {
   const [show, setShow] = useState<'table' | 'chart'>(only ?? 'chart')
   const here = useMemo(() => pivot(tab, spec), [tab, spec])
-  const { far, waiting, failed } = useFar(report, spec, tab, total)
+  // A half-stored sheet is not a smaller sheet. Until the row store says it
+  // finished, the browser answers over the sample and says so -- rather than
+  // the database answering confidently over a fragment.
+  const whole = stored != null && stored >= (total ?? 0)
+  const { far, waiting, failed } = useFar(whole ? report : undefined, spec, tab, total)
   const p = far ?? here
   const nothing = whyNothing(spec)
 
@@ -264,7 +272,9 @@ export default function PivotView({ tab, spec, height = 300, tabs = true, only,
           the other is the whole reason report_row exists. */}
       {report && (total ?? 0) > tab.rows.length && !far && (
         <p className="pvnote">
-          {failed
+          {!whole
+            ? `Hopper has not finished storing this sheet — ${(stored ?? 0).toLocaleString()} of ${(total ?? 0).toLocaleString()} rows are in. Drawn from the first ${tab.rows.length.toLocaleString()} until it has. Refresh it if this does not clear.`
+            : failed
             ? `${failed} Drawn from the first ${tab.rows.length.toLocaleString()} rows instead.`
             : waiting
               ? `Working this out over all ${(total ?? 0).toLocaleString()} rows — showing the first ${tab.rows.length.toLocaleString()} in the meantime.`

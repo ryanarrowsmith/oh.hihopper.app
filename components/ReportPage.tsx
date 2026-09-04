@@ -38,7 +38,7 @@ const sourceName = (k: string) => k === 'google_sheet' ? 'Google Sheets'
   : k === 'airtable' ? 'Airtable' : k === 'microsoft' ? 'Microsoft 365'
   : k === 'link' ? 'A link' : k === 'upload' ? 'An uploaded file' : 'Pasted data'
 
-export default function ReportPage({ report, state, series: all, notes, roster, checks, related, mayEdit, columns, rows, rowCount, spec }: {
+export default function ReportPage({ report, state, series: all, notes, roster, checks, related, mayEdit, columns, rows, rowCount, rowsStored, spec }: {
   columns: { key: string; label: string; type: 'text' | 'number' | 'date' }[]
   /** The tab as it was last read -- the SAMPLE. What the pivot draws from when
    *  the whole sheet is small enough to fit in it. */
@@ -46,6 +46,9 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
   /** How many rows the source actually has. Past the sample, the pivot runs in
    *  the database instead. */
   rowCount: number
+  /** How many of them reached the row store. Null means the last read did not
+   *  finish, so what is in there is a fragment of a sheet. */
+  rowsStored: number | null
   spec: Spec
   report: {
     id: string; name: string; entity: string; department: string; category: string | null
@@ -248,7 +251,7 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
                     looking at it. */}
                 <PivotAsk tab={{ columns, rows }} spec={drawSpec} onSpec={setDrawSpec} />
                 <PivotView tab={{ columns, rows }} spec={drawSpec} height={400}
-                           report={report.id} total={rowCount} />
+                           report={report.id} total={rowCount} stored={rowsStored} />
               </>
             : head.length < 2
             ? <p className="empty" style={{ margin: 0 }}>

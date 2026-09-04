@@ -31,7 +31,7 @@ export default async function Page({ params }: { params: { id: string } }) {
   // going back to the sheet: Hopper already stored them, and making somebody
   // wait on a network round-trip to open a form is a form that feels broken.
   const { data: shape } = await db.schema('hopper').from('report_rows')
-    .select('columns, rows, row_count').eq('report_id', params.id).maybeSingle()
+    .select('columns, rows, row_count, rows_stored').eq('report_id', params.id).maybeSingle()
 
   const [{ data: state }, { data: readings }, { data: notes }, { data: checks },
          { data: ents }, { data: depts }, { data: cats }, { data: rights }, { data: siblings },
@@ -115,6 +115,7 @@ export default async function Page({ params }: { params: { id: string } }) {
       }}
       rows={(shape?.rows as any[]) ?? []}
       rowCount={shape?.row_count ?? 0}
+      rowsStored={shape?.rows_stored ?? null}
       spec={readSpec(rep.chart_spec)}
       state={{
         value: state?.value == null ? null : Number(state.value),
