@@ -78,24 +78,28 @@ export default function TodoRoot({ rows, orgs, people, mePersonId }: {
           person does; a subtask is one of the steps inside a task.
         </p>
       ) : shown.map((g) => (
-        <section key={g.list.id}>
-          <div className="hd">
-            <h3><Link href={`/todo/${g.list.id}` as any}>{g.list.name}</Link></h3>
-            <span className="hd__d">
+        /* A card each, the same shape the calendar and the reports wear: a
+           tinted bar carrying the name and the way in, and the work underneath
+           on paper. */
+        <section className="tdcard" key={g.list.id}>
+          <div className="tdcard__bar">
+            <b><Link href={`/todo/${g.list.id}` as any}>{g.list.name}</Link></b>
+            <span className="tdcard__sub">
               {[g.list.entity, g.list.dueOn ? `due ${day(g.list.dueOn)}` : null]
                 .filter(Boolean).join(' · ')}
             </span>
-            <span className="hd__a">
-              <Link className="lnk" href={`/todo/${g.list.id}` as any}>Open the list</Link>
-            </span>
+            <Link className="lnk tdcard__go" href={`/todo/${g.list.id}` as any}>
+              Open the list
+            </Link>
           </div>
-          <div className="hd__r" />
-          {g.tasks.length === 0
-            ? <p className="pjnone">Nothing open on this one.</p>
-            : <Tasks rows={g.tasks} people={people} list={g.list.id}
-                     every={[...g.tasks, ...g.tasks.flatMap((t) => t.subs)]
-                       .map((t) => ({ id: t.id, name: t.name }))}
-                     mayEdit={g.list.mayEdit} mePersonId={mePersonId} />}
+          <div className="tdcard__body">
+            {g.tasks.length === 0
+              ? <p className="pjnone pjnone--tight">Nothing open on this one.</p>
+              : <Tasks rows={g.tasks} people={people} list={g.list.id}
+                       every={[...g.tasks, ...g.tasks.flatMap((t) => t.subs)]
+                         .map((t) => ({ id: t.id, name: t.name }))}
+                       mayEdit={g.list.mayEdit} mePersonId={mePersonId} />}
+          </div>
         </section>
       ))}
     </div>

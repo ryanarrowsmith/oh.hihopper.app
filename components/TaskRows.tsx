@@ -3,7 +3,9 @@ import { useEffect, useState, useTransition } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import Choice from '@/components/Choice'
 import type { Task } from '@/lib/todo'
-import { addTask, assignTask, blockTask, closeTask, dateTask, tagTask } from '@/app/actions/todo'
+import {
+  addTask, assignTask, blockTask, closeTask, dateTask, repeatTask, tagTask,
+} from '@/app/actions/todo'
 
 export const I = (d: string, w = '1.9') => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w}
@@ -20,6 +22,26 @@ export const TICK = '<path pathLength="1" d="M4.2 12.9c1.6 1 3.2 2.4 4.7 4.3C12 
 export const ELBOW = '<path d="M4 3v7h7"/><path d="M8.5 6.5 12 10l-3.5 3.5"/>'
 export const PLUS = '<path d="M12 5v14M5 12h14"/>'
 export const CAL = '<rect x="3" y="5" width="18" height="16" rx="1.5"/><path d="M3 10h18M8 3v4M16 3v4"/>'
+export const CYCLE = '<path d="M20 11a8 8 0 1 0-.6 4"/><path d="M20 5v6h-6"/>'
+
+/**
+ * How often a task comes back.
+ *
+ * A short list rather than a number field and a unit field: these are the ones
+ * people actually mean, and two fields is two ways to get it half-right. The
+ * key is what the database stores, read in one place in the action.
+ */
+export const REPEATS: { value: string; label: string }[] = [
+  { value: '',   label: 'Does not repeat' },
+  { value: '1d', label: 'Every day' },
+  { value: '1w', label: 'Every week' },
+  { value: '2w', label: 'Every 2 weeks' },
+  { value: '1m', label: 'Every month' },
+  { value: '3m', label: 'Every 3 months' },
+  { value: '1y', label: 'Every year' },
+]
+export const repeatWord = (k: string) =>
+  REPEATS.find((r) => r.value === k)?.label ?? `Every ${k}`
 
 export const day = (d: string | null) => d
   ? new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
@@ -80,7 +102,7 @@ export function Row({ t, every, people, list, mayEdit, mePersonId }: {
   const sub = !!t.parentId
 
   if (editing) {
-    return <RowEdit t={t} people={people} onDone={() => setEditing(false)} />
+    return <RowEdit t={t} people={people} sub={sub} onDone={() => setEditing(false)} />
   }
 
   return (
@@ -127,6 +149,12 @@ export function Row({ t, every, people, list, mayEdit, mePersonId }: {
                     onPick={(v) => go(async () => { await blockTask(t.id, v || null) })} />
           </span>
         )}
+        {t.repeat && (
+          <span className="td__rep" role="img" aria-label={repeatWord(t.repeat)}
+                data-tip={`${repeatWord(t.repeat)} — ticking it moves it on`}>
+            {I(CYCLE, '2.2')}
+          </span>
+        )}
         {t.tags.map((g) => <span className="td__tag" key={g}>{g}</span>)}
         {t.initials && <span className="td__who" title={t.assignee ?? ''}>{t.initials}</span>}
         {t.dueOn && <span className={`td__due${late ? ' is-late' : ''}`}>{day(t.dueOn)}</span>}
@@ -142,8 +170,11 @@ export function Row({ t, every, people, list, mayEdit, mePersonId }: {
  * changing it against -- and because a date only means something next to the
  * dates above and below it. Saving closes it and gives the read version back.
  */
-function RowEdit({ t, people, onDone }: { t: Task; people: Person[]; onDone: () => void }) {
+function RowEdit({ t, people, sub, onDone }: {
+  t: Task; people: Person[]; sub: boolean; onDone: () => void
+}) {
   const [state, action] = useFormState(dateTask, null)
+  const [why, setWhy] = useState<string | null>(null)
   const [, go] = useTransition()
   // Only the result is a dependency. onDone is a fresh closure on every render
   // of the list above, so listing it would run this after every render.
@@ -169,6 +200,19 @@ function RowEdit({ t, people, onDone }: { t: Task; people: Person[]; onDone: () 
                     ...people.map((p) => ({ value: p.id, label: p.full_name }))]}
                   onPick={(v) => go(async () => { await assignTask(t.id, v || null) })} />
         </div>
+        {!sub && (
+          <div>
+            <label htmlFor={`rp-${t.id}`}>Repeats</label>
+            {/* Saves on the pick, like the assignee. The database rolls it
+                forward when it is ticked; nothing here has to remember. */}
+            <Choice id={`rp-${t.id}`} name={`rp-${t.id}`} placeholder="Does not repeat"
+                    defaultValue={t.repeat} options={REPEATS}
+                    onPick={(v) => go(async () => {
+                      const r = await repeatTask(t.id, v)
+                      if (!r.ok) setWhy(r.message)
+                    })} />
+          </div>
+        )}
         <div>
           <label htmlFor={`tg-${t.id}`}>Tags</label>
           <input className="field" id={`tg-${t.id}`} defaultValue={t.tags.join(', ')}
@@ -185,6 +229,7 @@ function RowEdit({ t, people, onDone }: { t: Task; people: Person[]; onDone: () 
         <button className="btn" type="button" onClick={onDone}>Done</button>
         <span className="fine">Every date change lands in the log.</span>
       </div>
+      {why && <p className="swhy">{why}</p>}
       {state && !state.ok && <p className="swhy">{state.message}</p>}
     </form>
   )

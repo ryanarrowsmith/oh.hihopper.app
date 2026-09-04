@@ -24,6 +24,8 @@ export type Task = {
   tags: string[]
   blockedBy: string | null; blockedByName: string | null
   order: number
+  /** '' when it does not repeat; otherwise '1d', '2w', '3m' and so on. */
+  repeat: string
   /** Only ever populated on a task with no parent of its own. */
   subs: Task[]
 }
@@ -56,7 +58,8 @@ const NOBODY = '00000000-0000-0000-0000-000000000000'
 const SELECT_LIST =
   'id, name, summary, entity_id, owner_id, status, started_on, due_on, tags, blocked_by'
 const SELECT_TASK =
-  'id, list_id, parent_id, name, detail, assignee_id, due_on, done_at, tags, sort_order, blocked_by'
+  'id, list_id, parent_id, name, detail, assignee_id, due_on, done_at, tags, sort_order,'
+  + ' blocked_by, repeat_every, repeat_unit'
 
 /**
  * A task and its subtasks in one shape.
@@ -76,6 +79,7 @@ function shape(rows: any[], who: Map<string, string>): Task[] {
       blockedBy: t.blocked_by,
       blockedByName: t.blocked_by ? (name.get(t.blocked_by) ?? null) : null,
       order: t.sort_order ?? 0,
+      repeat: t.repeat_every ? `${t.repeat_every}${String(t.repeat_unit)[0]}` : '',
       subs: [],
     }
   }

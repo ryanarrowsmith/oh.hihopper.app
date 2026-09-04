@@ -5501,6 +5501,12 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
 .td__why{order:6}
 .td__tag{font-size:10.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase;
   color:var(--ink-3); white-space:nowrap}
+/* It comes back. A mark rather than words, because "Every week" spelled out on
+   every chore is a column of the same two words. The cadence is on the tip and
+   in the accessible name. */
+.td__rep{flex:none; display:block; width:14px; height:14px; color:var(--ink-3); order:2}
+.td__rep svg{width:14px; height:14px; display:block; fill:none; stroke:currentColor}
+.td--done .td__rep{color:var(--canvas-3)}
 .td__due{font-family:var(--mono); font-size:11px; color:var(--ink-3); white-space:nowrap}
 .td__due.is-late{color:var(--bad)}
 .td__who{width:22px; height:22px; flex:none; border-radius:50%; background:var(--steel);
@@ -5530,6 +5536,41 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
 .td__hold .choice__cur{flex:none; max-width:22ch}
 .td__hold .choice__car{width:12px; height:12px}
 .td__hold .choice__btn[aria-expanded="true"]{box-shadow:none}
+
+/* ---- the card the list sits in ---- */
+
+/* Ryan: "Put the To Do list inside a card like the calendar or other pages."
+   The same shape .calmain wears -- surface, one hairline, the house shadow --
+   with a tinted bar carrying the name and the control that belongs to it.
+   NOT overflow:hidden, which is what .calmain uses to clip its corners: the
+   radius here is 0, so there is nothing to clip, and a box that clips is a box
+   that eats the tooltips and the "Waits on" popover inside it. */
+.tdcard{background:var(--surface); border:1px solid var(--rule);
+  border-radius:var(--r); box-shadow:var(--shadow); margin-top:20px}
+.tdcard__bar{display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:10px 14px; border-bottom:1px solid var(--rule); background:var(--sunken)}
+.tdcard__bar > b{font-size:14px; font-weight:800; letter-spacing:-.02em; color:var(--ink)}
+.tdcard__bar > b a{color:inherit; text-decoration:none}
+.tdcard__bar > b a:hover{text-decoration:underline}
+.tdcard__sub{font-family:var(--mono); font-size:11px; color:var(--ink-3)}
+.tdcard__go{margin-left:auto; display:inline-flex; align-items:center; position:relative}
+.tdcard__body{padding:5px 14px 9px}
+/* The rows run the full width of the card, so the hover wash reaches both
+   edges the way a table row does rather than stopping short of the border. */
+.tdcard__body .td{margin:0 -14px; padding-left:14px; padding-right:14px}
+.tdcard__body .tds .td + .td{border-top:1px solid var(--rule-soft)}
+.tdcard__body .tdsub{margin-left:34px}
+.tdcard__body .tdedit{margin-left:-7px; margin-right:-7px}
+.pjnone--tight{margin:8px 0 6px}
+
+@media (max-width:640px){
+  .tdcard__body{padding:4px 12px 8px}
+  .tdcard__body .td{margin:0 -12px; padding-left:12px; padding-right:12px}
+  .tdcard__body .tdsub{margin-left:26px}
+  .tdcard__go{margin-left:0; width:100%}
+  .tdcard__go .pjaddtask{width:100%}
+  .tdcard__go .pjaddtask .btn{width:100%}
+}
 
 /* ---- the quiet adders ---- */
 .lnk--add{display:inline-flex; align-items:center; gap:6px}
@@ -5565,7 +5606,7 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
 .tdedit--sub{margin-left:24px}
 /* Three short answers, side by side. Stacked, the form was taller than the six
    tasks it sat among -- a panel where a row had been. */
-.tdedit .formrow--lean{grid-template-columns:150px minmax(160px,1fr) minmax(140px,1fr);
+.tdedit .formrow--lean{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
   gap:10px; align-items:end}
 .tdedit .formrow--lean > div > label{margin-bottom:4px; font-size:11.5px}
 .tdedit .field{min-height:32px; height:32px; padding-top:0; padding-bottom:0; font-size:13px}

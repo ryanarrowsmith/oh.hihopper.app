@@ -18,6 +18,21 @@ async function ctx() {
   return { db: supabaseServer(), account: s.accountId, person: s.personId }
 }
 
+/**
+ * How often it comes back, as one short string.
+ *
+ * A number and a unit in two fields is two ways to get it half-right; the
+ * choices people actually want are a short list, so the list is the control and
+ * this is the only place that knows how to read it. '' means it does not
+ * repeat, and the database refuses anything it does not recognise anyway.
+ */
+const UNIT: Record<string, string> = { d: 'day', w: 'week', m: 'month', y: 'year' }
+function repeatOf(key: string) {
+  const m = /^(\d{1,3})([dwmy])$/.exec(key.trim())
+  if (!m) return { repeat_every: null, repeat_unit: null }
+  return { repeat_every: Number(m[1]), repeat_unit: UNIT[m[2]] }
+}
+
 const STATUS = new Set(['on_track', 'at_risk', 'blocked', 'complete'])
 const SAID: Record<string, string> = {
   on_track: 'on track', at_risk: 'at risk', blocked: 'blocked', complete: 'complete',
@@ -118,6 +133,7 @@ export async function addTask(_p: Result | null, form: FormData): Promise<Result
     due_on: nul(form, 'due_on'),
     blocked_by: nul(form, 'blocked_by'),
     tags: tags(form), created_by: person,
+    ...repeatOf(str(form, 'repeat')),
   })
   // The database refuses a subtask under a subtask, in words a person can read.
   if (error) return { ok: false, message: error.message }
@@ -212,6 +228,36 @@ export async function tagTask(id: string, list: string[]): Promise<Result> {
   }
   touch(t.list_id)
   return { ok: true, message: 'Tagged.' }
+}
+
+/**
+ * How often it comes back, or not at all.
+ *
+ * Ticking a repeating task rolls it forward rather than leaving a corpse and
+ * making a copy -- that is the database's job, in a trigger, so it happens
+ * whether the tick came from this action or from anywhere else.
+ */
+export async function repeatTask(id: string, key: string): Promise<Result> {
+  const { db } = await ctx()
+  const { data: t } = await db.schema('hopper').from('task')
+    .select('list_id, due_on, parent_id').eq('id', id).maybeSingle()
+  if (!t) return { ok: false, message: 'That task is not there.' }
+  if (t.parent_id) {
+    return { ok: false, message: 'A subtask comes back with the task above it, not on its own.' }
+  }
+  const r = repeatOf(key)
+  if (r.repeat_every && !t.due_on) {
+    return { ok: false, message: 'Give it a date first — a repeat needs something to count from.' }
+  }
+
+  const { data: hit, error } = await db.schema('hopper').from('task')
+    .update(r).eq('id', id).select('id')
+  if (error) return { ok: false, message: error.message }
+  if (!hit || hit.length === 0) {
+    return { ok: false, message: 'Setting a repeat is limited to the people who run this list.' }
+  }
+  touch(t.list_id)
+  return { ok: true, message: r.repeat_every ? 'It will come back.' : 'It will not come back.' }
 }
 
 /** What is holding a task up, or nothing. */

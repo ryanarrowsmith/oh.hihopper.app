@@ -5,7 +5,7 @@ import Choice from '@/components/Choice'
 import CrumbTail from '@/components/CrumbTail'
 import Log from '@/components/Log'
 import { WORD } from '@/components/ListBits'
-import { Tasks, Go, I, PLUS, day, type Person } from '@/components/TaskRows'
+import { Tasks, Go, I, PLUS, REPEATS, day, type Person } from '@/components/TaskRows'
 import type { ListHead, Task, LogEntry, LStatus } from '@/lib/todo'
 import { addNote, addTask, setListDate, setListStatus } from '@/app/actions/todo'
 
@@ -88,7 +88,6 @@ export default function ListBoard({ list, tasks, every, log, people, mayEdit, me
                     onClick={() => window.print()}>
               {I(PRINT, '1.8')}Print
             </button>
-            {mayEdit && <AddTask list={list.id} people={people} every={every} />}
           </div>
         </div>
         {said && <p className="swhy">{said}</p>}
@@ -100,24 +99,49 @@ export default function ListBoard({ list, tasks, every, log, people, mayEdit, me
           </p>
         )}
 
-        <div className="hd__r hd__r--top" />
+        {/* The same card the calendar wears: a tinted bar with the controls on
+            it, and the work underneath on paper. The add button lives on the
+            bar rather than up beside Print, for the same reason the calendar's
+            plus does -- it belongs to the thing it adds to. */}
+        <section className="tdcard">
+          <div className="tdcard__bar">
+            <b>Tasks</b>
+            <span className="tdcard__sub">
+              {list.total === 0 ? 'Nothing yet'
+                : `${list.total - list.done} open of ${list.total}`}
+            </span>
+            {mayEdit && (
+              <span className="tdcard__go">
+                <AddTask list={list.id} people={people} every={every} />
+              </span>
+            )}
+          </div>
+          <div className="tdcard__body">
+            {tasks.length === 0 ? (
+              <p className="pjnone pjnone--tight">
+                Nothing on it yet. A task is a thing one person does; a subtask is one of
+                the steps inside it.
+              </p>
+            ) : (
+              <Tasks rows={tasks} every={every} people={people} list={list.id}
+                     mayEdit={mayEdit} mePersonId={mePersonId} />
+            )}
+          </div>
+        </section>
 
-        {tasks.length === 0 ? (
-          <p className="pjnone">
-            Nothing on it yet. A task is a thing one person does; a subtask is one of the
-            steps inside it.
-          </p>
-        ) : (
-          <Tasks rows={tasks} every={every} people={people} list={list.id}
-                 mayEdit={mayEdit} mePersonId={mePersonId} />
-        )}
-
-        <div className="hd hd--far">
-          <h3>The log</h3>
-          <span className="hd__a hd--far__a"><AddNote list={list.id} /></span>
-        </div>
-        <div className="hd__r" />
-        <Log entries={log} />
+        <section className="tdcard">
+          <div className="tdcard__bar">
+            <b>The log</b>
+            <span className="tdcard__sub">
+              {log.length === 0 ? 'Nothing yet'
+                : `${log.length} ${log.length === 1 ? 'entry' : 'entries'}`}
+            </span>
+            <span className="tdcard__go"><AddNote list={list.id} /></span>
+          </div>
+          <div className="tdcard__body">
+            <Log entries={log} />
+          </div>
+        </section>
       </div>
     </>
   )
@@ -219,6 +243,15 @@ function AddTask({ list, people, every }: {
                 <div><label htmlFor="tk-t">Tags</label>
                   <input className="field" id="tk-t" name="tags" maxLength={120}
                          placeholder="Car, Money" autoComplete="off" /></div>
+              </div>
+              <div className="formrow" style={{ marginTop: 12 }}>
+                <div><label htmlFor="tk-r">Repeats</label>
+                  {/* Needs a date to count from, which the database enforces --
+                      so the hint says so before the save does. */}
+                  <Choice id="tk-r" name="repeat" placeholder="Does not repeat"
+                          options={REPEATS} />
+                  <p className="fine">Give it a date above if it repeats.</p></div>
+                <div />
               </div>
               <div className="rowacts"><Go label="Add it" busy="Adding…" />
                 <button className="btn" type="button" onClick={() => setOpen(false)}>Cancel</button></div>
