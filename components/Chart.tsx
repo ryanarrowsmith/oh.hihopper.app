@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { keyWord, type Grain } from '@/lib/pivot'
 import { CHART_KINDS, appliesTo, measureCap, type ChartKind } from '@/lib/charts'
 
 /**
@@ -35,7 +36,19 @@ export type Series = {
  * for a date, biggest-first for a category) and how one is written. Absent,
  * everything behaves exactly as it did -- the union of the days, sorted, dated.
  */
-export type Axis = { order: string[]; label: (k: string) => string }
+/**
+ * What runs along the bottom when it is not days.
+ *
+ * The GRAIN, not a function that writes a label. This crosses the server/client
+ * boundary -- a card's axis is decided in lib/cards, which runs on the server --
+ * and a function cannot make that trip: it throws at render, which arrives as a
+ * 500 on the home page rather than as a type error at build.
+ *
+ * Carrying the grain instead also means one answer to "how is this key
+ * written": keyWord(), called here, rather than a closure built in whichever
+ * component happened to construct the axis.
+ */
+export type Axis = { order: string[]; grain?: Grain | null }
 
 const SERIES_VAR = ['--s1', '--s2', '--s3'] as const
 const PIE_VAR = ['--s1', '--s2', '--s3', '--steel', '--amber', '--canvas-3'] as const
@@ -214,7 +227,7 @@ export default function Chart({
 }) {
   const live = series.filter((s) => s.points.length > 0)
   if (live.length === 0) return null
-  const fmt = axis?.label ?? day
+  const fmt = axis ? (k: string) => keyWord(k, axis.grain ?? undefined) : day
   const order = axis?.order ?? unionDays(live)
   if (type === 'pie') return <Pie series={live} height={height} compact={compact} fmt={fmt} />
   if (type === 'big') return <Big series={live} fmt={fmt} />

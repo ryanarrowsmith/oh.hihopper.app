@@ -244,7 +244,7 @@ export default function PivotView({ tab, spec, height = 300, tabs = true, only,
     keyOf: (on, series) => cellKey(on, series ?? ALL_KEY),
   }
 
-  const axis = { order: p.rowKeys, label: rk }
+  const axis = { order: p.rowKeys, grain: p.rowGrain ?? null }
 
   const chart = plots.length === 0
     ? <p className="empty" style={{ margin: 0 }}>

@@ -10,6 +10,7 @@ import DateField from '@/components/DateField'
 import { useRange, inWindow } from '@/components/useRange'
 import { useScope } from '@/components/useScope'
 import { attentionOf } from '@/lib/freshness'
+import { type Grain } from '@/lib/pivot'
 
 export type Card = {
   id: string; name: string; entity: string; department: string; category: string | null
@@ -28,7 +29,7 @@ export type Card = {
    *  by another column for a category -- and a card that re-sorted them
    *  alphabetically behind the chart's back would disagree with the page it
    *  links to. */
-  axis: { order: string[]; label: (k: string) => string } | null
+  axis: { order: string[]; grain: Grain | null } | null
   /** No date column means the readings cannot be put on a timeline at all, so
    *  this report is shown whole whatever the range says. */
   dated: boolean
@@ -36,6 +37,7 @@ export type Card = {
 }
 
 const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
+
 
 /** The mark on the row you are already on. */
 const Tick = () => (

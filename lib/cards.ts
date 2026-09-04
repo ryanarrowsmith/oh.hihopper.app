@@ -2,8 +2,8 @@ import 'server-only'
 import { supabaseServer } from '@/lib/supabase/server'
 import type { Card } from '@/components/Reports'
 import { freshnessOf, lateBy } from '@/lib/freshness'
-import { dateShaped, fromLong, keyWord, readSpec, valueWord,
-         type Col, type LongRow } from '@/lib/pivot'
+import { dateShaped, fromLong, readSpec, valueWord,
+         type Col, type Grain, type LongRow } from '@/lib/pivot'
 
 /**
  * Every report this reader may see, as cards.
@@ -136,7 +136,13 @@ function pivotCard(id: string, raw: unknown, cells?: LongRow[], cols?: Col[]) {
     series: [{ measure: valueWord(spec.values[0]), points }],
     // The order the pivot put them in, so a card does not re-sort a category
     // axis alphabetically behind the chart's back.
-    axis: { order: keys, label: (k: string) => keyWord(k, grain) },
+    //
+    // The GRAIN, not a function that closes over it. This is loaded by a
+    // server component and handed to a client one, and a function cannot
+    // cross that boundary -- it throws at render, which is a 500 on the home
+    // page rather than a type error at build. The client writes the label; it
+    // has keyWord() too, and this way the two cannot disagree either.
+    axis: { order: keys, grain: grain ?? null },
   }
 }
 
