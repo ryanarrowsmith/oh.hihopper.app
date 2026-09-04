@@ -3,12 +3,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import Choice from '@/components/Choice'
 import { raiseTicket } from '@/app/actions/desk'
-import { PRIORITY_WORD, FACING_WORD } from '@/lib/desk'
+import { PRIORITY_WORD, FACING_WORD, type Facing } from '@/lib/desk'
 
 type Q = { id: string; name: string; entity_id: string; facing: string }
 type P = { id: string; full_name: string }
 type K = { id: string; name: string; entity_id: string }
-type C = { id: string; name: string | null; email: string }
+type C = { id: string; name: string | null; email: string; entity_id: string }
 
 /**
  * Raising one from inside.
@@ -73,15 +73,16 @@ function Form({ queues, people, kinds, contacts, onDone }: {
 }) {
   const [state, action] = useFormState(raiseTicket, null)
   const [queue, setQueue] = useState(queues[0]?.id ?? '')
+  const [picked, setPicked] = useState('')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (state?.ok) onDone() }, [state])
 
   const q = useMemo(() => queues.find((x) => x.id === queue), [queues, queue])
-  // Only the types and contacts that belong to the organization behind the
-  // chosen queue. A picker offering another business's ticket types is a
-  // picker that saves something the database then refuses.
+  // Only the types that belong to the organization behind the chosen queue. A
+  // picker offering another business's ticket types is a picker that saves
+  // something the database then refuses.
   const myKinds = kinds.filter((k) => !q || k.entity_id === q.entity_id)
-  const facingIn = q?.facing === 'in'
+  const myContacts = contacts.filter((c) => !q || c.entity_id === q.entity_id)
 
   return (
     <form action={action}>
@@ -91,7 +92,7 @@ function Form({ queues, people, kinds, contacts, onDone }: {
           <Choice id="rt-q" name="queue_id" required placeholder="Choose one"
                   defaultValue={queue} onPick={setQueue}
                   options={queues.map((x) => ({
-                    value: x.id, label: x.name, hint: FACING_WORD[x.facing as 'in' | 'out'],
+                    value: x.id, label: x.name, hint: FACING_WORD[x.facing as Facing],
                   }))} />
         </div>
         <div>
@@ -117,20 +118,50 @@ function Form({ queues, people, kinds, contacts, onDone }: {
         </div>
       </div>
 
-      {!facingIn && (
-        <div className="formrow" style={{ marginTop: 12 }}>
+      {/* The people already on file, so a returning customer's fourth ticket
+          joins their first three instead of starting a fourth contact. Picking
+          one here beats the address lookup that would otherwise run, because a
+          person choosing from a list has answered better than a string match
+          could. */}
+      {myContacts.length > 0 && (
+        <div className="formrow formrow--one" style={{ marginTop: 12 }}>
           <div>
-            <label htmlFor="rt-rn">Who is asking</label>
-            <input className="field" id="rt-rn" name="requester_name" maxLength={120}
-                   placeholder="Their name" autoComplete="off" />
-          </div>
-          <div>
-            <label htmlFor="rt-re">Where to answer them</label>
-            <input className="field" id="rt-re" name="requester_email" type="email" maxLength={200}
-                   placeholder="name@example.com" autoComplete="off" />
+            <label htmlFor="rt-c">Somebody we already know</label>
+            <Choice id="rt-c" name="contact_id" defaultValue="" onPick={setPicked}
+                    placeholder="Search the contacts"
+                    options={[{ value: '', label: 'Somebody new' },
+                              ...myContacts.map((c) => ({
+                                value: c.id, label: c.name || c.email,
+                                hint: c.name ? c.email : undefined,
+                              }))]} />
           </div>
         </div>
       )}
+
+      {/* Always asked, whichever way the queue faces.
+          These were hidden on an internal queue, on the reasoning that a
+          colleague raising a request IS the requester -- which quietly made it
+          impossible to do the most ordinary thing at a desk: take a phone call
+          and open a ticket on somebody else's behalf. `facing` describes the
+          doors people write IN through; it was never meant to govern what
+          somebody sitting at the desk is allowed to type. */}
+      <div className="formrow" style={{ marginTop: 12 }} hidden={!!picked}>
+        <div>
+          <label htmlFor="rt-rn">Who it is for</label>
+          <input className="field" id="rt-rn" name="requester_name" maxLength={120}
+                 placeholder="Their name" autoComplete="off" />
+        </div>
+        <div>
+          <label htmlFor="rt-re">Where to answer them</label>
+          <input className="field" id="rt-re" name="requester_email" type="email" maxLength={200}
+                 placeholder="name@example.com" autoComplete="off" />
+        </div>
+      </div>
+      <p className="fine" style={{ marginTop: 6 }}>
+        {picked
+          ? 'Filed under the contact you picked.'
+          : 'A new address makes a contact. Leave both blank if this is for somebody inside — it will be filed under you.'}
+      </p>
 
       <div className="formrow" style={{ marginTop: 12 }}>
         <div>

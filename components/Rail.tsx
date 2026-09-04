@@ -59,6 +59,7 @@ export const MODULE_NAV: Record<string, Item> = {
     kids: [
       { href: '/desk/mine', label: 'Assigned to me' },
       { href: '/desk/unassigned', label: 'Unassigned' },
+      { href: '/desk/contacts', label: 'Contacts' },
       { href: '/desk/settings', label: 'Queues & SLAs' },
     ] },
   staffing: { href: '/staffing', label: 'Staffing',

@@ -46,7 +46,8 @@ export default function TicketPage({
 }: {
   ticket: any; messages: Msg[]; trail: Trail[]; jobs: Job[]
   fields: Field[]; snippets: Snippet[]
-  contact: { id: string; name: string | null; email: string; company: string | null; phone: string | null } | null
+  contact: { id: string; name: string | null; email: string; phone: string | null
+             company_id: string | null } | null
   siblings: { id: string; ref: string; subject: string; status: Status }[]
   queues: (Named & { entity_id: string })[]; people: { id: string; full_name: string }[]
   kinds: Named[]; groups: (Named & { reason: string })[]; orgs: Named[]
@@ -372,7 +373,7 @@ function Quick({ id, status, mine, mePersonId }: {
              strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M7 8V3h10v5" /><rect x="3" y="8" width="18" height="8" rx="1.5" />
           <path d="M7 14h10v7H7z" />
-        </svg>
+        </svg><span className="btn__w">Print</span>
       </button>
       {!mine && mePersonId && (
         <form action={action}>
@@ -398,7 +399,8 @@ function Quick({ id, status, mine, mePersonId }: {
 function Facts({ ticket, queues, people, kinds, groups, fields, contact, who }: {
   ticket: any; queues: Named[]; people: { id: string; full_name: string }[]
   kinds: Named[]; groups: (Named & { reason: string })[]; fields: Field[]
-  contact: { name: string | null; email: string; company: string | null; phone: string | null } | null
+  contact: { id: string; name: string | null; email: string; phone: string | null
+             company_id: string | null } | null
   who: string | undefined | null
 }) {
   const [state, action] = useFormState(updateTicket, null)
@@ -455,11 +457,18 @@ function Facts({ ticket, queues, people, kinds, groups, fields, contact, who }: 
 
       <h2>Who is asking</h2>
       <p className="tfacts__who">
-        <b>{contact?.name || ticket.requester_name || contact?.email || ticket.requester_email || 'Somebody inside'}</b>
+        {/* A link, because "has this one written in before?" is the question
+            you have while reading the ticket, and a name you cannot click is a
+            search you have to go and think of instead. */}
+        {contact
+          ? <Link href={`/desk/contacts/${contact.id}` as any} className="tfacts__lk">
+              {contact.name || contact.email}
+            </Link>
+          : <b>{ticket.requester_name || ticket.requester_email || 'Somebody inside'}</b>}
         {(contact?.email || ticket.requester_email) &&
           <span>{contact?.email ?? ticket.requester_email}</span>}
-        {contact?.company && <span>{contact.company}</span>}
         {contact?.phone && <span>{contact.phone}</span>}
+        {contact && <span className="fine">Everything they have raised →</span>}
       </p>
 
       <div className="rowacts">

@@ -24,10 +24,17 @@ export default async function Page() {
   // What this person may configure, asked of the database rather than guessed.
   // One view, one round trip, and the same helper the policies use -- so the
   // screen and the write can never disagree about who may do what.
-  const [{ data: rights }, { data: agents }] = await Promise.all([
-    db.schema('hopper').from('desk_rights').select('entity_id, may_admin'),
-    db.schema('hopper').from('queue_agent').select('id, queue_id, person_id, lead, active'),
-  ])
+  const [{ data: rights }, { data: agents }, { data: fields }, { data: snippets }] =
+    await Promise.all([
+      db.schema('hopper').from('desk_rights').select('entity_id, may_admin'),
+      db.schema('hopper').from('queue_agent').select('id, queue_id, person_id, lead, active'),
+      db.schema('hopper').from('ticket_field')
+        .select('id, kind_id, key, label, kind, required, options, hint, on_form, active, sort_order')
+        .order('sort_order'),
+      db.schema('hopper').from('reply_snippet')
+        .select('id, entity_id, queue_id, kind_id, title, body, active, sort_order')
+        .order('sort_order'),
+    ])
   const mayOrgs = (rights ?? []).filter((r: any) => r.may_admin).map((r: any) => r.entity_id)
 
   return (
@@ -35,6 +42,7 @@ export default async function Page() {
       orgs={refs.orgs} mayOrgs={mayOrgs}
       departments={refs.departments} queues={refs.queues} agents={(agents ?? []) as any}
       slas={refs.slas} kinds={refs.kinds} people={refs.people} desks={refs.desks}
+      fields={(fields ?? []) as any} snippets={(snippets ?? []) as any}
     />
   )
 }

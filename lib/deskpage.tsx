@@ -37,7 +37,8 @@ export async function deskScreen(opts: {
       .gte('resolved_at', dawn.toISOString())
       .order('resolved_at', { ascending: false }).limit(120),
     loadDeskRefs(),
-    db.schema('hopper').from('contact').select('id, name, email').order('name').limit(500),
+    db.schema('hopper').from('contact').select('id, name, email, entity_id')
+      .eq('active', true).order('name').limit(1000),
     // Whether the empty desk gets a way out of being empty, asked of the same
     // helper the write policy uses so the screen and the save agree.
     db.schema('hopper').from('desk_rights').select('may_admin'),

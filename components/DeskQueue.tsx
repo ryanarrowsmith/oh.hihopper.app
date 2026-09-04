@@ -42,7 +42,7 @@ export default function DeskQueue({
   queues: (Named & { entity_id: string; facing: string })[]
   people: Who[]; orgs: Named[]; kinds: (Named & { entity_id: string })[]
   groups: Grp[]
-  contacts: { id: string; name: string | null; email: string }[]
+  contacts: { id: string; name: string | null; email: string; entity_id: string }[]
   /** ticket id → how many to-dos it is still waiting on. */
   outstanding: Record<string, number>
   mePersonId: string | null
@@ -103,7 +103,7 @@ export default function DeskQueue({
   const bands = groups.filter((g) => rows.some((r) => r.group_id === g.id))
 
   return (
-    <div className="pjcol">
+    <div className="pjcol dkcol">
       {/* The printed sheet writes its own header, just below. */}
       <div className="pj__h noprint">
         <div className="pj__id">

@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import Choice from '@/components/Choice'
 import Toggle from '@/components/Toggle'
@@ -8,7 +8,7 @@ import {
 } from '@/app/actions/desk'
 import {
   FACING_WORD, ASSIGN_WORD, FIELD_WORD, gap,
-  type AssignMode, type FieldKind,
+  type AssignMode, type FieldKind, type Facing,
 } from '@/lib/desk'
 
 type Named = { id: string; name: string }
@@ -25,11 +25,40 @@ type Queue = Named & {
 }
 type Kind = Named & { entity_id: string; sla_id: string | null; active: boolean }
 type Agent = { id: string; queue_id: string; person_id: string; lead: boolean; active: boolean }
+type Field = {
+  id: string; kind_id: string; key: string; label: string; kind: FieldKind
+  required: boolean; options: string[]; hint: string | null; on_form: boolean; active: boolean
+}
+type Snip = {
+  id: string; entity_id: string; queue_id: string | null; kind_id: string | null
+  title: string; body: string; active: boolean
+}
 type Who = { id: string; full_name: string }
 type Desk = {
   entity_id: string; prefix: string; next_number: number
   day_start: number; day_end: number; work_days: number[]; time_zone: string
 }
+
+/**
+ * A save that worked closes the form.
+ *
+ * Every edit form in Hopper returns you to the read version when it saves --
+ * a green line under a form that is still open leaves you looking at the boxes
+ * you have finished with, wondering whether to press it again. The message is
+ * only for the save that did NOT work, which is the one you have to act on.
+ *
+ * The result is the dependency and nothing else: useFormState keeps its last
+ * result for good, so depending on the callback would close the form again on
+ * every render for ever.
+ */
+function useSaved(state: { ok: boolean } | null, onSaved?: () => void) {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (state?.ok) onSaved?.() }, [state])
+}
+
+/** "1 queues" is the kind of thing you stop seeing after a week and everybody
+ *  else sees immediately. */
+const count = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
 const TABS = [
   { key: 'queues', label: 'Queues' },
@@ -50,10 +79,11 @@ type Tab = typeof TABS[number]['key']
  * its tickets, and can be switched back on where you left it.
  */
 export default function DeskAdmin({
-  orgs, mayOrgs, departments, queues, agents, slas, kinds, people, desks,
+  orgs, mayOrgs, departments, queues, agents, slas, kinds, people, desks, fields, snippets,
 }: {
   orgs: Org[]; mayOrgs: string[]; departments: Dep[]; queues: Queue[]; agents: Agent[]
   slas: Sla[]; kinds: Kind[]; people: Who[]; desks: Desk[]
+  fields: Field[]; snippets: Snip[]
 }) {
   const [tab, setTab] = useState<Tab>('queues')
   const mine = useMemo(() => orgs.filter((o) => mayOrgs.includes(o.id)), [orgs, mayOrgs])
@@ -61,7 +91,7 @@ export default function DeskAdmin({
 
   if (mine.length === 0) {
     return (
-      <div className="pjcol">
+      <div className="pjcol dkcol">
         <div className="pj__h"><div className="pj__id"><h1>Queues &amp; SLAs</h1></div></div>
         <p className="empty">
           You work the desk but you do not configure it. Ask whoever manages this
@@ -79,19 +109,19 @@ export default function DeskAdmin({
   const desk = desks.find((d) => d.entity_id === org) ?? null
 
   return (
-    <div className="pjcol">
+    <div className="pjcol dkcol">
       <div className="pj__h">
         <div className="pj__id">
           <h1>Queues &amp; SLAs</h1>
           <p className="pjline">
-            <span>{myQueues.filter((q) => q.active).length} queues</span>
-            <span>{mySlas.filter((s) => s.active).length} SLAs</span>
-            <span>{myKinds.filter((k) => k.active).length} ticket types</span>
+            <span>{count(myQueues.filter((q) => q.active).length, 'queue')}</span>
+            <span>{count(mySlas.filter((s) => s.active).length, 'SLA')}</span>
+            <span>{count(myKinds.filter((k) => k.active).length, 'ticket type')}</span>
           </p>
         </div>
         {/* Only when there is more than one to choose between. */}
         {mine.length > 1 && (
-          <div className="pj__go" style={{ minWidth: 220 }}>
+          <div className="pj__go dkorg">
             <Choice name="admin_org" defaultValue={org} onPick={setOrg}
                     options={mine.map((o) => ({ value: o.id, label: o.name }))} />
           </div>
@@ -112,7 +142,8 @@ export default function DeskAdmin({
                 people={people} agents={agents} />
       )}
       {tab === 'slas' && <Slas org={org} slas={mySlas} />}
-      {tab === 'kinds' && <Kinds org={org} kinds={myKinds} slas={mySlas} queues={myQueues} />}
+      {tab === 'kinds' && <Kinds org={org} kinds={myKinds} slas={mySlas} queues={myQueues}
+                                 fields={fields} snippets={snippets.filter((x) => x.entity_id === org)} />}
       {tab === 'hours' && <Hours org={org} desk={desk} />}
     </div>
   )
@@ -139,7 +170,7 @@ function Queues({ org, queues, deps, slas, people, agents }: {
                     onClick={() => setOpen(open === q.id ? null : q.id)}>
               <span className="dkrow__n">
                 <b>{q.name}</b>
-                <span>{FACING_WORD[q.facing as 'in' | 'out']} · {ASSIGN_WORD[q.assign_mode]}
+                <span>{FACING_WORD[q.facing as Facing]} · {ASSIGN_WORD[q.assign_mode]}
                   {q.inbox_address ? ` · ${q.inbox_address}` : ''}
                   {q.active ? '' : ' · switched off'}</span>
               </span>
@@ -150,7 +181,8 @@ function Queues({ org, queues, deps, slas, people, agents }: {
             </button>
             {open === q.id && (
               <div className="dkrow__b">
-                <QueueForm org={org} q={q} deps={deps} slas={slas} people={people} />
+                <QueueForm org={org} q={q} deps={deps} slas={slas} people={people}
+                           onSaved={() => setOpen(null)} />
                 <Agents queue={q} people={people} agents={agents} />
               </div>
             )}
@@ -159,17 +191,20 @@ function Queues({ org, queues, deps, slas, people, agents }: {
         {queues.length === 0 && <p className="empty">No queues yet. Add the first one.</p>}
       </div>
       <Adder label="Add a queue" title="New queue">
-        <QueueForm org={org} q={null} deps={deps} slas={slas} people={people} />
+        {(close) => <QueueForm org={org} q={null} deps={deps} slas={slas} people={people}
+                               onSaved={close} />}
       </Adder>
     </>
   )
 }
 
-function QueueForm({ org, q, deps, slas, people }: {
-  org: string; q: Queue | null; deps: Dep[]; slas: Sla[]; people: Who[]
+function QueueForm({ org, q, deps, slas, people, onSaved }: {
+  org: string; q: Queue | null; deps: Dep[]; slas: Sla[]; people: Who[]; onSaved?: () => void
 }) {
   const [state, action] = useFormState(saveQueue, null)
   const [mode, setMode] = useState<AssignMode>(q?.assign_mode ?? 'manual')
+  useSaved(state, onSaved)
+  const live = slas.filter((x) => x.active)
   return (
     <form action={action} className="dkform">
       {q && <input type="hidden" name="id" value={q.id} />}
@@ -196,12 +231,19 @@ function QueueForm({ org, q, deps, slas, people }: {
                   options={Object.entries(FACING_WORD).map(([v, l]) => ({ value: v, label: l }))} />
         </div>
         <div>
-          <label>What we promise</label>
-          <Choice name="sla_id" defaultValue={q?.sla_id ?? ''} placeholder="No promise"
-                  options={[{ value: '', label: 'No promise' },
-                            ...slas.filter((s) => s.active).map((s) => ({
+          <label>How fast we answer it</label>
+          <Choice name="sla_id" defaultValue={q?.sla_id ?? ''}
+                  placeholder={live.length ? 'No clock on it' : 'No SLAs yet'}
+                  options={[{ value: '', label: 'No clock on it',
+                              hint: 'Tickets here are never counted as late' },
+                            ...live.map((s) => ({
                               value: s.id, label: s.name, hint: slaLine(s),
                             }))]} />
+          <p className="fine">
+            {live.length
+              ? 'The SLA these tickets are held to — how long until a first reply, and until it is resolved.'
+              : 'An SLA is how long you promise to take: a first reply and a resolution. There are none set up yet — add one under SLAs and it will appear here.'}
+          </p>
         </div>
       </div>
 
@@ -247,7 +289,7 @@ function QueueForm({ org, q, deps, slas, people }: {
       </div>
 
       <div className="rowacts"><Go label={q ? 'Save' : 'Add it'} /></div>
-      {state && <p className={state.ok ? 'sok sok--thin' : 'swhy'}>{state.message}</p>}
+      {state && !state.ok && <p className="swhy">{state.message}</p>}
     </form>
   )
 }
@@ -321,7 +363,11 @@ function Slas({ org, slas }: { org: string; slas: Sla[] }) {
               </span>
               <Caret on={open === s.id} />
             </button>
-            {open === s.id && <div className="dkrow__b"><SlaForm org={org} s={s} /></div>}
+            {open === s.id && (
+              <div className="dkrow__b">
+                <SlaForm org={org} s={s} onSaved={() => setOpen(null)} />
+              </div>
+            )}
           </div>
         ))}
         {slas.length === 0 && <p className="empty">
@@ -329,13 +375,16 @@ function Slas({ org, slas }: { org: string; slas: Sla[] }) {
           not a bug, but usually not the one you want.
         </p>}
       </div>
-      <Adder label="Add an SLA" title="New SLA"><SlaForm org={org} s={null} /></Adder>
+      <Adder label="Add an SLA" title="New SLA">
+        {(close) => <SlaForm org={org} s={null} onSaved={close} />}
+      </Adder>
     </>
   )
 }
 
-function SlaForm({ org, s }: { org: string; s: Sla | null }) {
+function SlaForm({ org, s, onSaved }: { org: string; s: Sla | null; onSaved?: () => void }) {
   const [state, action] = useFormState(saveSla, null)
+  useSaved(state, onSaved)
   return (
     <form action={action} className="dkform">
       {s && <input type="hidden" name="id" value={s.id} />}
@@ -367,15 +416,15 @@ function SlaForm({ org, s }: { org: string; s: Sla | null }) {
         <Toggle name="active" label="In use" defaultChecked={s?.active ?? true} />
       </div>
       <div className="rowacts"><Go label={s ? 'Save' : 'Add it'} /></div>
-      {state && <p className={state.ok ? 'sok sok--thin' : 'swhy'}>{state.message}</p>}
+      {state && !state.ok && <p className="swhy">{state.message}</p>}
     </form>
   )
 }
 
 /* ══════════════════════════════════════════════════════════ ticket types */
 
-function Kinds({ org, kinds, slas, queues }: {
-  org: string; kinds: Kind[]; slas: Sla[]; queues: Queue[]
+function Kinds({ org, kinds, slas, queues, fields, snippets }: {
+  org: string; kinds: Kind[]; slas: Sla[]; queues: Queue[]; fields: Field[]; snippets: Snip[]
 }) {
   const [open, setOpen] = useState<string | null>(null)
   return (
@@ -394,9 +443,10 @@ function Kinds({ org, kinds, slas, queues }: {
             </button>
             {open === k.id && (
               <div className="dkrow__b">
-                <KindForm org={org} k={k} slas={slas} />
-                <Fields kindId={k.id} />
-                <Snippets org={org} kindId={k.id} queues={queues} />
+                <KindForm org={org} k={k} slas={slas} onSaved={() => setOpen(null)} />
+                <Fields kindId={k.id} rows={fields.filter((f) => f.kind_id === k.id)} />
+                <Snippets org={org} kindId={k.id} queues={queues}
+                          rows={snippets.filter((x) => x.kind_id === k.id)} />
               </div>
             )}
           </div>
@@ -407,14 +457,17 @@ function Kinds({ org, kinds, slas, queues }: {
         </p>}
       </div>
       <Adder label="Add a ticket type" title="New ticket type">
-        <KindForm org={org} k={null} slas={slas} />
+        {(close) => <KindForm org={org} k={null} slas={slas} onSaved={close} />}
       </Adder>
     </>
   )
 }
 
-function KindForm({ org, k, slas }: { org: string; k: Kind | null; slas: Sla[] }) {
+function KindForm({ org, k, slas, onSaved }: {
+  org: string; k: Kind | null; slas: Sla[]; onSaved?: () => void
+}) {
   const [state, action] = useFormState(saveKind, null)
+  useSaved(state, onSaved)
   return (
     <form action={action} className="dkform">
       {k && <input type="hidden" name="id" value={k.id} />}
@@ -437,91 +490,151 @@ function KindForm({ org, k, slas }: { org: string; k: Kind | null; slas: Sla[] }
         <Toggle name="active" label="In use" defaultChecked={k?.active ?? true} />
       </div>
       <div className="rowacts"><Go label={k ? 'Save' : 'Add it'} /></div>
-      {state && <p className={state.ok ? 'sok sok--thin' : 'swhy'}>{state.message}</p>}
+      {state && !state.ok && <p className="swhy">{state.message}</p>}
     </form>
   )
 }
 
-/** What this type asks for. Added here, answered on the ticket. */
-function Fields({ kindId }: { kindId: string }) {
+/**
+ * What this type asks for.
+ *
+ * This used to be an add form and nothing else -- no list of what the type
+ * already asked for, so there was no read version for a save to return to and
+ * no way to see that you had added the same field twice. The list IS the
+ * screen; the form is what you open to add to it.
+ */
+function Fields({ kindId, rows }: { kindId: string; rows: Field[] }) {
   const [state, action] = useFormState(saveField, null)
   const [kind, setKind] = useState<FieldKind>('text')
+  const [adding, setAdding] = useState(false)
+  useSaved(state, () => { setAdding(false); setKind('text') })
+
+  const live = rows.filter((f) => f.active)
   return (
     <div className="dkagents">
       <h3>What it asks for</h3>
-      <form action={action} className="dkform">
-        <input type="hidden" name="kind_id" value={kindId} />
-        <div className="formrow">
-          <div>
-            <label htmlFor={`fl${kindId}`}>Label</label>
-            <input className="field" id={`fl${kindId}`} name="label" required maxLength={80}
-                   placeholder="Service address" autoComplete="off" />
-          </div>
-          <div>
-            <label>What sort of answer</label>
-            <Choice name="kind" defaultValue="text" onPick={(v) => setKind(v as FieldKind)}
-                    options={Object.entries(FIELD_WORD).map(([v, l]) => ({ value: v, label: l }))} />
-          </div>
-        </div>
-        {kind === 'choice' && (
-          <div className="formrow formrow--one" style={{ marginTop: 12 }}>
+      {live.length === 0
+        ? <p className="fine">Nothing yet. A ticket of this type asks only the usual questions.</p>
+        : <ul className="dkmini">
+            {live.map((f) => (
+              <li key={f.id}>
+                <b>{f.label}</b>
+                <span>{FIELD_WORD[f.kind]}{f.required ? ' · needed' : ''}
+                  {f.on_form ? ' · on the web form' : ''}</span>
+                <code>{f.key}</code>
+              </li>
+            ))}
+          </ul>}
+
+      {adding ? (
+        <form action={action} className="dkform">
+          <input type="hidden" name="kind_id" value={kindId} />
+          <div className="formrow">
             <div>
-              <label htmlFor={`fo${kindId}`}>The list, one to a line</label>
-              <textarea className="field" id={`fo${kindId}`} name="options" rows={3}
-                        placeholder={'Roll-off\nFront load\nRestroom'} />
+              <label htmlFor={`fl${kindId}`}>Label</label>
+              <input className="field" id={`fl${kindId}`} name="label" required maxLength={80}
+                     autoFocus placeholder="Service address" autoComplete="off" />
+            </div>
+            <div>
+              <label>What sort of answer</label>
+              <Choice name="kind" defaultValue="text" onPick={(v) => setKind(v as FieldKind)}
+                      options={Object.entries(FIELD_WORD).map(([v, l]) => ({ value: v, label: l }))} />
             </div>
           </div>
-        )}
-        <div className="formrow formrow--one" style={{ marginTop: 12 }}>
-          <div>
-            <label htmlFor={`fh${kindId}`}>A hint under it</label>
-            <input className="field" id={`fh${kindId}`} name="hint" maxLength={140}
-                   placeholder="Optional" autoComplete="off" />
+          {kind === 'choice' && (
+            <div className="formrow formrow--one" style={{ marginTop: 12 }}>
+              <div>
+                <label htmlFor={`fo${kindId}`}>The list, one to a line</label>
+                <textarea className="field" id={`fo${kindId}`} name="options" rows={3}
+                          placeholder={'Roll-off\nFront load\nRestroom'} />
+              </div>
+            </div>
+          )}
+          <div className="formrow formrow--one" style={{ marginTop: 12 }}>
+            <div>
+              <label htmlFor={`fh${kindId}`}>A hint under it</label>
+              <input className="field" id={`fh${kindId}`} name="hint" maxLength={140}
+                     placeholder="Optional" autoComplete="off" />
+            </div>
           </div>
-        </div>
-        <div className="dktogs">
-          <Toggle name="required" label="Must be answered" />
-          <Toggle name="on_form" label="Ask on the web form too" />
-        </div>
-        <div className="rowacts"><Go label="Add the field" /></div>
-        {state && <p className={state.ok ? 'sok sok--thin' : 'swhy'}>{state.message}</p>}
-      </form>
+          <div className="dktogs">
+            <Toggle name="required" label="Must be answered" />
+            <Toggle name="on_form" label="Ask on the web form too" />
+          </div>
+          <div className="rowacts">
+            <Go label="Add the field" />
+            <button className="btn" type="button" onClick={() => setAdding(false)}>Never mind</button>
+          </div>
+          {state && !state.ok && <p className="swhy">{state.message}</p>}
+        </form>
+      ) : (
+        <button className="lnk dkmini__add" type="button" onClick={() => setAdding(true)}>
+          + Ask for something else
+        </button>
+      )}
     </div>
   )
 }
 
-function Snippets({ org, kindId, queues }: { org: string; kindId: string; queues: Queue[] }) {
+function Snippets({ org, kindId, queues, rows }: {
+  org: string; kindId: string; queues: Queue[]; rows: Snip[]
+}) {
   const [state, action] = useFormState(saveSnippet, null)
+  const [adding, setAdding] = useState(false)
+  useSaved(state, () => setAdding(false))
+
+  const live = rows.filter((x) => x.active)
   return (
     <div className="dkagents">
       <h3>Quick responses</h3>
       <p className="fine">Written once, dropped into a reply from the ticket.</p>
-      <form action={action} className="dkform">
-        <input type="hidden" name="entity_id" value={org} />
-        <input type="hidden" name="kind_id" value={kindId} />
-        <div className="formrow">
-          <div>
-            <label htmlFor={`snt${kindId}`}>What it is called</label>
-            <input className="field" id={`snt${kindId}`} name="title" required maxLength={80}
-                   placeholder="We are on our way" autoComplete="off" />
+      {live.length > 0 && (
+        <ul className="dkmini">
+          {live.map((x) => (
+            <li key={x.id}>
+              <b>{x.title}</b>
+              <span>{x.body.slice(0, 90)}{x.body.length > 90 ? '…' : ''}</span>
+              {x.queue_id && <code>{queues.find((q) => q.id === x.queue_id)?.name ?? 'one queue'}</code>}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {adding ? (
+        <form action={action} className="dkform">
+          <input type="hidden" name="entity_id" value={org} />
+          <input type="hidden" name="kind_id" value={kindId} />
+          <div className="formrow">
+            <div>
+              <label htmlFor={`snt${kindId}`}>What it is called</label>
+              <input className="field" id={`snt${kindId}`} name="title" required maxLength={80}
+                     autoFocus placeholder="We are on our way" autoComplete="off" />
+            </div>
+            <div>
+              <label>Only on one queue</label>
+              <Choice name="queue_id" defaultValue="" placeholder="Any queue"
+                      options={[{ value: '', label: 'Any queue' },
+                                ...queues.map((q) => ({ value: q.id, label: q.name }))]} />
+            </div>
           </div>
-          <div>
-            <label>Only on one queue</label>
-            <Choice name="queue_id" defaultValue="" placeholder="Any queue"
-                    options={[{ value: '', label: 'Any queue' },
-                              ...queues.map((q) => ({ value: q.id, label: q.name }))]} />
+          <div className="formrow formrow--one" style={{ marginTop: 12 }}>
+            <div>
+              <label htmlFor={`snb${kindId}`}>What it says</label>
+              <textarea className="field" id={`snb${kindId}`} name="body" rows={3} required
+                        placeholder="Thanks for letting us know — a truck is scheduled for tomorrow." />
+            </div>
           </div>
-        </div>
-        <div className="formrow formrow--one" style={{ marginTop: 12 }}>
-          <div>
-            <label htmlFor={`snb${kindId}`}>What it says</label>
-            <textarea className="field" id={`snb${kindId}`} name="body" rows={3} required
-                      placeholder="Thanks for letting us know — a truck is scheduled for tomorrow." />
+          <div className="rowacts">
+            <Go label="Add it" />
+            <button className="btn" type="button" onClick={() => setAdding(false)}>Never mind</button>
           </div>
-        </div>
-        <div className="rowacts"><Go label="Add it" /></div>
-        {state && <p className={state.ok ? 'sok sok--thin' : 'swhy'}>{state.message}</p>}
-      </form>
+          {state && !state.ok && <p className="swhy">{state.message}</p>}
+        </form>
+      ) : (
+        <button className="lnk dkmini__add" type="button" onClick={() => setAdding(true)}>
+          + Write another
+        </button>
+      )}
     </div>
   )
 }
@@ -604,7 +717,9 @@ function Hours({ org, desk }: { org: string; desk: Desk | null }) {
 /* ─────────────────────────────────────────────────────────────── the bits */
 
 function Adder({ label, title, children }: {
-  label: string; title: string; children: React.ReactNode
+  label: string; title: string
+  /** A function, so the form inside can shut the popover the moment it saves. */
+  children: (close: () => void) => React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
   return (
@@ -620,7 +735,7 @@ function Adder({ label, title, children }: {
             <button className="addpop__x" type="button" aria-label="Close"
                     onClick={() => setOpen(false)}>&times;</button>
           </div>
-          {children}
+          {children(() => setOpen(false))}
         </div>
       )}
     </div>

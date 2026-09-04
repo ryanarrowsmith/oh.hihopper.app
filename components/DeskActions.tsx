@@ -27,7 +27,7 @@ export default function DeskActions({ queues, people, kinds, contacts, canConfig
   queues: Q[]
   people: { id: string; full_name: string }[]
   kinds: { id: string; name: string; entity_id: string }[]
-  contacts: { id: string; name: string | null; email: string }[]
+  contacts: { id: string; name: string | null; email: string; entity_id: string }[]
   canConfigure: boolean
 }) {
   return (
@@ -35,7 +35,7 @@ export default function DeskActions({ queues, people, kinds, contacts, canConfig
       <button className="btn btn--icon noprint" type="button"
               data-tip="Print this list" aria-label="Print this list"
               onClick={() => window.print()}>
-        {Ic(PRINTER)}
+        {Ic(PRINTER)}<span className="btn__w">Print</span>
       </button>
 
       {queues.length > 0

@@ -5402,7 +5402,15 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
    A reading column, because the metadata hugs the right edge the way Things
    does and Things' window is narrow. Uncapped on a wide screen, a task's tags
    end up a hand's width from the task they belong to. */
+/* A reading column. 920px is about 90 characters of a task name, which is the
+   right measure for To Do and for a list of lists.
+   It is the WRONG measure for a screen whose content is a table or a pair of
+   side-by-side form columns -- Desk was reusing this class and losing 370px of
+   a 1290px page, which is also why its subject column felt cramped. Those
+   screens get .dkcol: wide enough for six columns, still capped, because an
+   unbounded line of small type on a 27-inch monitor is its own problem. */
 .pjcol{max-width:920px}
+.dkcol{max-width:1280px}
 
 .pj__h{display:flex; align-items:flex-start; gap:20px; flex-wrap:wrap}
 .pj__id{min-width:0; flex:1 1 320px}
@@ -7373,24 +7381,30 @@ label.dktog .togsay{ font-size:13px; color:var(--ink-2); white-space:nowrap; }
 }
 
 @media (max-width:760px){
-  /* A row becomes a card. Six columns at 390px is six stripes of nothing. */
+  /* A row becomes a card, and the card is a stack: block flow, so nothing is
+     a column of anything. The small facts still share a line where they read as
+     one thought — the reference with the state it is in, the person holding it
+     with the clock on it — which is stacking, not a table. */
   .dktix{ border:0; background:none; display:flex; flex-direction:column; gap:10px; }
-  .dktix__hd{ display:none; }
+  /* Two classes, because .dktix__r below is also two and would otherwise win
+     on order and print the column header as a card of five stacked words. */
+  .dktix .dktix__hd{ display:none; }
   .dktix__r{
-    grid-template-columns:auto 1fr auto;
-    grid-template-areas:
-      "ref  ref  grp"
-      "subj subj subj"
-      "who  sla  sla";
-    gap:8px 12px; padding:13px 14px;
+    display:block; padding:13px 14px;
     border:1px solid var(--rule); background:var(--surface);
   }
-  .dktix__r > :nth-child(1){ grid-area:ref; }
-  .dktix__r > :nth-child(2){ grid-area:subj; }
-  .dktix__r > :nth-child(3){ grid-area:who; }
-  .dktix__r > :nth-child(4){ grid-area:ref; justify-self:end; margin-right:34px; }
-  .dktix__r > :nth-child(5){ grid-area:sla; justify-self:end; }
-  .dktix__r > :nth-child(6){ grid-area:grp; }
+  .dktix__r > span{ display:block; }
+  .dktix__r > .dktix__ref{ display:inline-block; margin-right:10px; }
+  .dktix__s{ margin-top:7px; }
+  /* `.dktix__r > span` is a class AND an element, so a bare `.dktix__w` loses
+     to it and the avatar ends up sitting on top of the name. Same weight or
+     more, or it does not happen. */
+  .dktix__r > .dktix__w, .dktix__r > .dksla{
+    display:inline-flex; margin-top:9px; margin-right:16px; vertical-align:middle;
+  }
+  .dktix__r > :nth-child(4), .dktix__r > :nth-child(6){
+    display:inline-block; margin-top:9px; margin-right:8px; vertical-align:middle;
+  }
   /* A subject is the whole reason the card is there: it wraps rather than
      being cut off at the width of a phone. */
   .dktix__s b{ -webkit-line-clamp:none; display:block; overflow:visible; line-height:1.4; }
@@ -7528,7 +7542,15 @@ a.td__tk:hover{ background:var(--todo); border-color:var(--todo); color:#fff; }
    words sitting beside three other boxes of words. */
 .btn--icon{ padding:7px; line-height:0; }
 .btn--icon svg{ width:17px; height:17px; }
-.dkacts{ display:flex; align-items:center; gap:8px; }
+/* An icon with a floating label on a desk; the label is a hover, and a phone
+   has none — so the word is in the markup and simply hidden until it is
+   needed. */
+.btn__w{ display:none; }
+.dkacts{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+/* An action button never wraps its own words: "+ New / contact" over two lines
+   reads as two controls. */
+.dkacts .btn{ white-space:nowrap; }
+.dkorg{ min-width:min(280px, 40vw); }
 
 .printonly{ display:none; }
 
@@ -7717,4 +7739,231 @@ a.td__tk:hover{ background:var(--todo); border-color:var(--todo); color:#fff; }
   /* Whitespace that only existed to separate things the border now separates. */
   .rowacts, .formrow{ margin-top:6px !important; }
   .empty{ padding:6px 0 !important; }
+}
+
+/* A small read list inside an expanded row: what this type already asks for,
+   what it already says. The form to add another is what you open; this is what
+   is there when you have not. */
+.dkmini{ list-style:none; margin:10px 0 0; padding:0; }
+.dkmini li{
+  display:flex; align-items:baseline; gap:10px; padding:6px 0;
+  border-bottom:1px solid var(--rule-soft);
+}
+.dkmini li:last-child{ border-bottom:0; }
+.dkmini b{ font-size:13px; font-weight:700; flex:none; }
+.dkmini span{
+  color:var(--ink-3); font-size:12px; min-width:0; flex:1;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.dkmini code{
+  font:600 10.5px/1.6 var(--mono); color:var(--ink-3); flex:none;
+  background:var(--sunken); border:1px solid var(--rule); padding:1px 5px;
+}
+.dkmini__add{ display:inline-block; margin-top:11px; font-weight:700; }
+
+@media (max-width:760px){
+  .dkmini li{ flex-wrap:wrap; gap:3px 10px; }
+  .dkmini span{ flex:1 1 100%; white-space:normal; }
+}
+
+/* ==========================================================================
+   WHO KEEPS WRITING IN
+   A contact is mostly something you look up rather than something you make —
+   the rows write themselves the first time an address sends anything in. So
+   the counts are the loud part of a row, and Add is not.
+   ========================================================================== */
+
+.cfind{ flex:1 1 240px; max-width:340px; }
+
+.clist{ margin-top:16px; border:1px solid var(--rule); background:var(--surface); }
+.crow{
+  display:grid; align-items:center; gap:14px;
+  grid-template-columns:minmax(0,1fr) 190px 74px 84px 96px;
+  padding:10px 15px; border-bottom:1px solid var(--rule-soft);
+  color:inherit; text-decoration:none;
+}
+.crow:last-child{ border-bottom:0; }
+a.crow:hover{ background:var(--sunken); }
+a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
+.crow--hd{
+  background:var(--sunken); border-bottom:1px solid var(--rule);
+  font:700 11px/1 var(--sans); letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink-3);
+}
+.cwho{ display:flex; align-items:center; gap:10px; min-width:0; }
+/* Scoped to the text half: a bare `.cwho span` also catches the avatar, whose
+   own centering is a grid, and squashes the initials out of it. */
+.cwho__t{ min-width:0; }
+.cwho__t b{ display:block; font-size:13.5px; font-weight:700;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cwho__t > span{ display:block; font-size:11.5px; color:var(--ink-3);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cco{ font-size:12.5px; color:var(--ink-2); overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.cco em{ font-style:normal; color:var(--canvas-3); }
+.cnum{ font-size:12.5px; color:var(--ink-2); font-variant-numeric:tabular-nums; }
+.cnum b{ font-weight:800; color:var(--ink); }
+.cnum--none{ color:var(--canvas-3); }
+
+/* --------------------------------------------------------- one of them */
+.chead{
+  display:flex; align-items:flex-start; gap:16px; margin-top:6px;
+  padding:16px 18px; background:var(--surface); border:1px solid var(--rule);
+}
+.cav{
+  width:46px; height:46px; flex:none; display:grid; place-items:center;
+  background:var(--steel); color:#fff; font:800 16px/1 var(--sans);
+}
+.cav[data-none]{ background:var(--canvas-2); color:var(--canvas-ink); }
+.cav--co{ background:var(--ink); }
+.chead__n{ min-width:0; }
+.chead__n h1{ margin:0; font-size:22px; font-weight:800; letter-spacing:-.02em; }
+.chead__n p{
+  display:flex; flex-wrap:wrap; gap:9px; margin:5px 0 0;
+  font-size:12.5px; color:var(--ink-3);
+}
+.chead__n p span + span::before{ content:"·"; margin-right:9px; color:var(--canvas-3); }
+.chead__a{ margin-left:auto; display:flex; gap:8px; align-items:center; flex:none; }
+.cwarn{ color:var(--bad); font-weight:700; }
+.cedit{ border:1px solid var(--rule); border-top:0; background:var(--sunken); padding:4px 18px 18px; }
+
+.cstats{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:1px;
+  background:var(--rule); border:1px solid var(--rule); border-top:0; margin:0 0 14px;
+}
+.cstat{ background:var(--sunken); padding:11px 14px; }
+.cstat dt{
+  font:700 10px/1 var(--sans); letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); margin-bottom:6px;
+}
+.cstat dd{ margin:0; font-size:22px; font-weight:800; letter-spacing:-.02em; }
+.cstat .cstat--sm{ font-size:15px; }
+.cstat small{
+  display:block; font-size:11px; font-weight:500; color:var(--ink-3);
+  margin-top:3px; letter-spacing:0;
+}
+
+.cnote{
+  margin:0 0 14px; padding:11px 14px; font-size:13px; color:var(--ink-2);
+  background:var(--warmbg); border:1px solid var(--warmrule);
+}
+.cnote b{ color:var(--ink); }
+.csub{ margin:4px 0 10px; font-size:14px; font-weight:800; }
+
+.cpeople{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+.cperson{
+  display:flex; align-items:center; border:1px solid var(--rule);
+  background:var(--surface); min-width:0;
+}
+.cperson.on{ border-color:var(--steel); box-shadow:inset 0 0 0 1px var(--steel); }
+.cperson.off{ opacity:.55; }
+.cperson__b{
+  display:flex; align-items:center; gap:9px; padding:8px 11px; border:0;
+  background:none; cursor:pointer; color:inherit; text-align:left; min-width:0;
+}
+.cperson__t{ min-width:0; }
+.cperson__t b{ display:block; font-size:13px; font-weight:700; }
+.cperson__t span{ display:block; font-size:11px; color:var(--ink-3); }
+.cperson__go{
+  padding:0 11px; border-left:1px solid var(--rule-soft); align-self:stretch;
+  display:flex; align-items:center; font-size:12px; font-weight:700;
+}
+
+/* A ticket met on a contact's page is the same row it is in the queue, minus
+   the assignee column — you already know who the ticket is about. */
+.dktix__r--c{ grid-template-columns:82px minmax(0,1fr) 122px 120px 74px; }
+.dktix__when{ font-size:11.5px; color:var(--ink-3); }
+
+.tfacts__lk{
+  font-size:13.5px; font-weight:700; color:var(--steel-ink); text-decoration:none;
+  border-bottom:1px solid var(--canvas-3);
+}
+.tfacts__lk:hover{ border-bottom-color:var(--steel-ink); }
+
+@media (max-width:760px){
+  /* A row becomes a card. The three counts get a column EACH -- putting them
+     all in one named area does not flow them inline, it stacks them in the
+     same cell on top of one another, which is exactly what it did. */
+  .clist{ border:0; background:none; display:flex; flex-direction:column; gap:9px; }
+  /* One column. Every fact on its own line, each one saying what it is,
+     because the column header it used to sit under is gone. */
+  .crow{
+    display:block; padding:12px 14px;
+    border:1px solid var(--rule); background:var(--surface);
+  }
+  .crow--hd{ display:none; }
+  .crow > span{ display:block; }
+  /* Same trap as the queue row: `.crow > span` outweighs a bare `.cwho`, so
+     the avatar lands on top of the name instead of beside it. */
+  .crow > .cwho{ display:flex; align-items:center; gap:10px; }
+  .cco{ font-size:12.5px; margin-top:7px; }
+  .cco::before{ content:"Company "; color:var(--ink-3); }
+  .cco em::before{ content:"none"; }
+  .cco em{ font-size:0; }
+  .cco em::before{ font-size:12.5px; }
+  .crow > :nth-child(3), .crow > :nth-child(4), .crow > :nth-child(5){
+    margin-top:4px; font-size:12.5px;
+  }
+  .crow > :nth-child(3)::after{ content:" open now"; color:var(--ink-3); font-weight:500; }
+  .crow > :nth-child(4)::after{ content:" all time"; color:var(--ink-3); }
+  .crow > :nth-child(5)::before{ content:"Last heard "; color:var(--ink-3); }
+
+  /* The stat strip is five facts across on a desk and five lines on a phone. */
+  .cstats{ grid-template-columns:1fr; }
+  .cstat{ display:flex; align-items:baseline; gap:10px; padding:9px 14px; }
+  .cstat dt{ margin:0; flex:1; }
+  .cstat dd, .cstat .cstat--sm{ font-size:16px; }
+  .cstat small{ display:inline; margin:0 0 0 7px; }
+
+  /* A ticket on somebody's page stacks the same way the queue's rows do. */
+  .dktix__r--c{
+    display:block; padding:12px 14px;
+    border:1px solid var(--rule); background:var(--surface);
+  }
+  .dktix__r--c > span{ display:block; }
+  .dktix__r--c > :nth-child(3), .dktix__r--c > :nth-child(4),
+  .dktix__r--c > :nth-child(5){ margin-top:6px; }
+
+  /* Buttons go full width and stack, like every other button in Hopper on a
+     phone. An icon button is the one that would read as a mystery bar, so on a
+     phone it grows its word back -- the floating label is a hover, and there is
+     no hover here. */
+  .dkacts{ width:100%; flex-direction:column; align-items:stretch; gap:9px; }
+  .dkacts .sec__a{ width:100%; margin:0; }
+  /* Spelled out rather than left to `.btn{width:100%}`, which an icon button
+     does not inherit: it is display:grid at its own width, so it stayed a 38px
+     square in a column of full-width buttons. */
+  .btn--icon{
+    width:100% !important; display:inline-flex !important; align-items:center;
+    justify-content:center; gap:8px; padding:10px 12px; line-height:1;
+  }
+  .btn__w{ display:inline; }
+
+  /* Four tabs wrap onto two lines rather than scrolling sideways: a tab you
+     have to discover by swiping is a tab most people never find. */
+  .dktabs{ overflow-x:visible; flex-wrap:wrap; gap:0 4px; }
+  .dktabs > button{ flex:1 1 auto; text-align:center; }
+
+  /* Thumbs. 29px is a target you miss. */
+  .dkchip, .choice, .btn--tiny{ min-height:40px; }
+  .dkchip{ padding:8px 12px; }
+  .btn--tiny{ padding:8px 12px; font-size:12.5px; }
+  .dkagents li{ gap:8px; }
+  .dkagents li form{ display:block; flex:1 1 auto; }
+  .dkagents li .btn--tiny{ width:100%; }
+
+  .chead{ flex-wrap:wrap; }
+  .chead__a{ margin-left:0; width:100%; flex-direction:column; align-items:stretch; }
+  .cfind{ max-width:none; flex:1 1 100%; }
+  .cpeople{ flex-direction:column; }
+  .cperson{ width:100%; }
+  .cperson__b{ flex:1; }
+}
+
+@media print{
+  .clist{ border:0; }
+  .crow{ padding:5px 0 !important; border-bottom:1px solid #ddd; break-inside:avoid; }
+  .cedit, .cpeople .cperson__go, .cfind{ display:none !important; }
+  .chead{ border:0; padding:0 0 8px !important; }
+  .cstats{ border-left:0; border-right:0; }
 }

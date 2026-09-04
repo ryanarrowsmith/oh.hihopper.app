@@ -7,7 +7,7 @@
 
 export type Status = 'open' | 'waiting' | 'resolved' | 'closed'
 export type Priority = 'low' | 'normal' | 'high' | 'urgent'
-export type Facing = 'in' | 'out'
+export type Facing = 'in' | 'out' | 'both'
 export type AssignMode = 'manual' | 'round_robin' | 'least_open' | 'fixed'
 export type FieldKind = 'text' | 'long' | 'number' | 'date' | 'choice' | 'toggle'
 
@@ -20,7 +20,9 @@ export const PRIORITY_WORD: Record<Priority, string> = {
   low: 'Low', normal: 'Normal', high: 'High', urgent: 'Urgent',
 }
 export const FACING_WORD: Record<Facing, string> = {
-  out: 'Customers write in', in: 'Colleagues ask for something',
+  out: 'Customers write in',
+  in: 'Colleagues ask for something',
+  both: 'Both — customers and colleagues',
 }
 export const ASSIGN_WORD: Record<AssignMode, string> = {
   manual: 'Nobody — somebody picks it up',

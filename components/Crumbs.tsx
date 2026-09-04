@@ -35,6 +35,8 @@ const NAMES: Record<string, string> = {
   mine: 'Assigned to me',
   unassigned: 'Unassigned',
   settings: 'Queues & SLAs',
+  contacts: 'Contacts',
+  companies: 'Companies',
   me: 'You',
   access: 'What you may do',
 }

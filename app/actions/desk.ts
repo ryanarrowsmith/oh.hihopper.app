@@ -377,7 +377,16 @@ export async function saveSnippet(_p: Result | null, form: FormData): Promise<Re
   return { ok: true, message: 'Saved.' }
 }
 
-/** A contact is made on the way past, from whoever wrote in. */
+/* ═══════════════════════════════════════════ the people who write in */
+
+/**
+ * A contact, by hand.
+ *
+ * Most of them are not made here -- they make themselves the first time an
+ * address writes in, wherever it writes in from. This is for the ones somebody
+ * knows about before they have written: a new account handed over by sales, a
+ * list imported from whatever the desk used before.
+ */
 export async function saveContact(_p: Result | null, form: FormData): Promise<Result> {
   const { db, account } = await ctx()
   const id = nul(form, 'id')
@@ -388,8 +397,9 @@ export async function saveContact(_p: Result | null, form: FormData): Promise<Re
 
   const row = {
     account_id: account, entity_id, email,
-    name: nul(form, 'name'), company: nul(form, 'company'),
+    name: nul(form, 'name'), company_id: nul(form, 'company_id'),
     phone: nul(form, 'phone'), note: nul(form, 'note'),
+    active: !form.has('active') || on(form, 'active'),
   }
   const { error } = id
     ? await db.schema('hopper').from('contact').update(row).eq('id', id)
@@ -398,8 +408,103 @@ export async function saveContact(_p: Result | null, form: FormData): Promise<Re
     return { ok: false, message: /contact_email_idx/.test(error.message)
       ? 'That address is already on file here.' : error.message }
   }
+  revalidatePath('/desk/contacts'); if (id) revalidatePath(`/desk/contacts/${id}`)
   touch()
   return { ok: true, message: 'Saved.' }
+}
+
+export async function saveCompany(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account, person } = await ctx()
+  const id = nul(form, 'id')
+  const name = str(form, 'name')
+  const entity_id = str(form, 'entity_id')
+  if (!name) return { ok: false, message: 'A company needs a name.' }
+  if (!entity_id) return { ok: false, message: 'Which organization?' }
+
+  // Typed as "@acmebrick.com", "https://acmebrick.com" or just the domain --
+  // all three are the same answer to the same question, so all three are taken.
+  const domain = str(form, 'domain')
+    .toLowerCase().replace(/^@/, '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').trim() || null
+
+  const row = {
+    account_id: account, entity_id, name, domain,
+    note: nul(form, 'note'),
+    active: !form.has('active') || on(form, 'active'),
+  }
+  const { error } = id
+    ? await db.schema('hopper').from('company').update(row).eq('id', id)
+    : await db.schema('hopper').from('company').insert({ ...row, created_by: person })
+  if (error) {
+    return { ok: false, message:
+      /company_name_idx/.test(error.message) ? 'There is already a company by that name here.'
+      : /company_domain_idx/.test(error.message) ? 'Another company already takes mail from that domain.'
+      : /company_domain_shape/.test(error.message) ? 'That does not look like a domain — try acmebrick.com.'
+      : error.message }
+  }
+  revalidatePath('/desk/contacts'); if (id) revalidatePath(`/desk/companies/${id}`)
+  touch()
+  return { ok: true, message: 'Saved.' }
+}
+
+/**
+ * A list from wherever the desk kept one before.
+ *
+ * Paste rather than upload: the thing people actually have is a spreadsheet
+ * open in front of them, and select-all-copy is one gesture where saving a CSV
+ * somewhere findable is four. Email, name, company, phone -- and email is the
+ * only one that has to be there, because it is the only one that is identity.
+ */
+export async function importContacts(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const entity_id = str(form, 'entity_id')
+  const text = str(form, 'rows')
+  if (!entity_id) return { ok: false, message: 'Which organization?' }
+  if (!text) return { ok: false, message: 'Nothing to import.' }
+
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
+  if (lines.length > 2000) return { ok: false, message: 'Two thousand at a time, please.' }
+
+  const cut = (l: string) => l.split(/[\t,]/).map((c) => c.trim().replace(/^"|"$/g, ''))
+  const head = cut(lines[0]).map((c) => c.toLowerCase())
+  const hasHeader = head.some((c) => c === 'email' || c === 'e-mail')
+  const at = (want: string[], fallback: number) => {
+    const i = head.findIndex((c) => want.includes(c))
+    return hasHeader && i >= 0 ? i : fallback
+  }
+  const iE = at(['email', 'e-mail'], 0)
+  const iN = at(['name', 'contact', 'full name'], 1)
+  const iC = at(['company', 'account', 'organization'], 2)
+  const iP = at(['phone', 'telephone', 'mobile'], 3)
+
+  // The companies named in the paste, matched to what is already on file so an
+  // import does not quietly make a second Acme Brick.
+  const { data: known } = await db.schema('hopper').from('company')
+    .select('id, name').eq('entity_id', entity_id)
+  const byName = new Map((known ?? []).map((c: any) => [c.name.toLowerCase(), c.id]))
+
+  const rows: Record<string, unknown>[] = []
+  let skipped = 0
+  for (const line of lines.slice(hasHeader ? 1 : 0)) {
+    const c = cut(line)
+    const email = (c[iE] ?? '').toLowerCase()
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { skipped++; continue }
+    rows.push({
+      account_id: account, entity_id, email,
+      name: c[iN] || null, phone: c[iP] || null,
+      company_id: byName.get((c[iC] ?? '').toLowerCase()) ?? null,
+    })
+  }
+  if (!rows.length) return { ok: false, message: 'No usable email addresses in that.' }
+
+  // Already on file wins: an import is new people, never a way to overwrite
+  // what somebody has since corrected by hand.
+  const { error } = await db.schema('hopper').from('contact')
+    .upsert(rows, { onConflict: 'account_id,entity_id,email', ignoreDuplicates: true })
+  if (error) return { ok: false, message: error.message }
+
+  revalidatePath('/desk/contacts')
+  return { ok: true, message:
+    `${rows.length} brought in${skipped ? `, ${skipped} line${skipped > 1 ? 's' : ''} without a usable address skipped` : ''}.` }
 }
 
 /* ═══════════════════════════════════════════════════════ the handbook */

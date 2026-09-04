@@ -91,3 +91,51 @@ export async function loadJobs(ticketIds: string[]) {
     .order('created_at')
   return (data ?? []) as (Job & { ticket_id: string })[]
 }
+
+/* ------------------------------------------------------------- contacts */
+
+export type ContactRow = {
+  id: string; email: string; name: string | null; phone: string | null
+  note: string | null; company_id: string | null; entity_id: string
+  active: boolean; created_at: string
+}
+export type CompanyRow = {
+  id: string; name: string; domain: string | null; note: string | null
+  entity_id: string; active: boolean
+}
+
+/**
+ * Everyone who has ever written in, with what they have written about.
+ *
+ * The counts come back with the list rather than one query per row: 300
+ * contacts on a page must not be 300 round trips, and the numbers are the
+ * whole reason the list is worth opening. RLS narrows both halves, so a
+ * contact whose tickets this person cannot see simply counts zero.
+ */
+export async function loadContacts() {
+  const db = supabaseServer()
+  const [people, companies, tickets] = await Promise.all([
+    db.schema('hopper').from('contact')
+      .select('id, email, name, phone, note, company_id, entity_id, active, created_at')
+      .order('name'),
+    db.schema('hopper').from('company')
+      .select('id, name, domain, note, entity_id, active').order('name'),
+    db.schema('hopper').from('ticket')
+      .select('contact_id, status, opened_at').not('contact_id', 'is', null).limit(5000),
+  ])
+
+  const seen = new Map<string, { open: number; all: number; last: string | null }>()
+  for (const t of (tickets.data ?? []) as any[]) {
+    const at = seen.get(t.contact_id) ?? { open: 0, all: 0, last: null }
+    at.all += 1
+    if (t.status === 'open' || t.status === 'waiting') at.open += 1
+    if (!at.last || t.opened_at > at.last) at.last = t.opened_at
+    seen.set(t.contact_id, at)
+  }
+
+  return {
+    contacts: (people.data ?? []) as ContactRow[],
+    companies: (companies.data ?? []) as CompanyRow[],
+    counts: Object.fromEntries(seen) as Record<string, { open: number; all: number; last: string | null }>,
+  }
+}

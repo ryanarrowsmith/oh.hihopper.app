@@ -40,7 +40,7 @@ export default async function Page({ params }: { params: { id: string } }) {
       .eq('entity_id', t.entity_id).eq('active', true).order('sort_order'),
     t.contact_id
       ? db.schema('hopper').from('contact')
-          .select('id, name, email, company, phone').eq('id', t.contact_id).maybeSingle()
+          .select('id, name, email, phone, company_id').eq('id', t.contact_id).maybeSingle()
       : Promise.resolve({ data: null }),
     t.group_id
       ? db.schema('hopper').from('ticket').select('id, ref, subject, status')
