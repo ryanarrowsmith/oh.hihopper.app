@@ -7024,3 +7024,16 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
   .pvask__one{flex:1 1 100%}
   .pvask__clear{margin-left:0; width:100%}
 }
+
+/* The shape and the rows behind it are one surface.
+
+   They were two sections with a heading and a gap between them, which put a
+   scroll's worth of nothing between a bar and the rows that make it up. The
+   table already carries an action row -- density, columns, export, expand --
+   and that row is a better seam than a heading was: it belongs to the numbers
+   below it and reads as the line where the picture stops.
+
+   Only the doubled border comes off. Both halves keep their own padding, so
+   the chart still has air under it and the table still starts where it did. */
+.card--joined{border-bottom:0}
+.card--joins{border-top:0}

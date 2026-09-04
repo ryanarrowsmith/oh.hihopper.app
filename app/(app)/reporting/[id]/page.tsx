@@ -33,6 +33,13 @@ export default async function Page({ params }: { params: { id: string } }) {
   const { data: shape } = await db.schema('hopper').from('report_rows')
     .select('columns, rows, row_count, rows_stored').eq('report_id', params.id).maybeSingle()
 
+  // The pivot of the saved spec, worked out when the rows landed. The view
+  // only hands back one that still answers this report's current spec over the
+  // rows it currently holds, so there is nothing to check here: present means
+  // usable, absent means the page asks for it live the way it always did.
+  const { data: kept } = await db.schema('hopper').from('report_pivot_fresh')
+    .select('cells').eq('report_id', params.id).maybeSingle()
+
   const [{ data: state }, { data: readings }, { data: notes }, { data: checks },
          { data: ents }, { data: depts }, { data: cats }, { data: rights }, { data: siblings },
          { data: people }] =
@@ -116,6 +123,7 @@ export default async function Page({ params }: { params: { id: string } }) {
       rows={(shape?.rows as any[]) ?? []}
       rowCount={shape?.row_count ?? 0}
       rowsStored={shape?.rows_stored ?? null}
+      seed={(kept?.cells as any[]) ?? null}
       spec={readSpec(rep.chart_spec)}
       state={{
         value: state?.value == null ? null : Number(state.value),

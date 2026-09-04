@@ -77,7 +77,7 @@ function useFar(report: string | undefined, spec: Spec, tab: Tab, total?: number
 const COLOR_CAP = 3
 
 export default function PivotView({ tab, spec, height = 300, tabs = true, only,
-                                    report, total, stored }: {
+                                    report, total, stored, seed, seedKey }: {
   tab: Tab
   spec: Spec
   height?: number
@@ -93,6 +93,15 @@ export default function PivotView({ tab, spec, height = 300, tabs = true, only,
    *  did not finish storing them, so the table is a fragment of a sheet and
    *  must not be pivoted as though it were one. */
   stored?: number | null
+  /** The pivot of the report's SAVED spec, worked out when its rows landed and
+   *  shipped down with the page. The saved spec is the one the page opens on,
+   *  so the first thing anybody sees costs no round trip at all. Drag a chip
+   *  and the spec stops being the saved one, seedKey stops matching, and the
+   *  database answers live exactly as before. */
+  seed?: LongRow[] | null
+  /** The spec `seed` answers, as JSON. Compared to the drawn spec rather than
+   *  assumed: a seed served for a different question is worse than no seed. */
+  seedKey?: string | null
 }) {
   const [show, setShow] = useState<'table' | 'chart'>(only ?? 'chart')
   const here = useMemo(() => pivot(tab, spec), [tab, spec])
@@ -100,8 +109,17 @@ export default function PivotView({ tab, spec, height = 300, tabs = true, only,
   // finished, the browser answers over the sample and says so -- rather than
   // the database answering confidently over a fragment.
   const whole = stored != null && stored >= (total ?? 0)
-  const { far, waiting, failed } = useFar(whole ? report : undefined, spec, tab, total)
-  const p = far ?? here
+  // The answer that came with the page, when the question has not changed.
+  const seeded = useMemo(
+    () => (seed && seedKey && seedKey === JSON.stringify(spec)
+            ? fromLong(seed, spec, tab.columns) : null),
+    [seed, seedKey, spec, tab.columns])
+  const { far, waiting, failed } = useFar(
+    whole && !seeded ? report : undefined, spec, tab, total)
+  // Whichever of the two answered over the whole sheet. `here` is the sample,
+  // and the note at the foot turns on the difference.
+  const answered = seeded ?? far
+  const p = answered ?? here
   const nothing = whyNothing(spec)
 
   if (nothing) return <p className="empty" style={{ margin: 0 }}>{nothing}</p>
@@ -270,7 +288,7 @@ export default function PivotView({ tab, spec, height = 300, tabs = true, only,
       {/* Which rows this was worked out from. The sample and the whole sheet
           give different answers, and a screen that shows one while implying
           the other is the whole reason report_row exists. */}
-      {report && (total ?? 0) > tab.rows.length && !far && (
+      {report && (total ?? 0) > tab.rows.length && !answered && (
         <p className="pvnote">
           {!whole
             ? `Hopper has not finished storing this sheet — ${(stored ?? 0).toLocaleString()} of ${(total ?? 0).toLocaleString()} rows are in. Drawn from the first ${tab.rows.length.toLocaleString()} until it has. Refresh it if this does not clear.`

@@ -5,7 +5,7 @@ import { useFormState, useFormStatus } from 'react-dom'
 import Chart, { Legend, isSplit, splitWhy, type Series } from '@/components/Chart'
 import PivotView from '@/components/PivotView'
 import PivotAsk from '@/components/PivotAsk'
-import { dateShaped, type Cell, type Spec } from '@/lib/pivot'
+import { dateShaped, type Cell, type LongRow, type Spec } from '@/lib/pivot'
 import ChartPick from '@/components/ChartPick'
 import { setChartTogether } from '@/app/actions/reports'
 import { EditableSection } from '@/components/RowEdit'
@@ -38,7 +38,7 @@ const sourceName = (k: string) => k === 'google_sheet' ? 'Google Sheets'
   : k === 'airtable' ? 'Airtable' : k === 'microsoft' ? 'Microsoft 365'
   : k === 'link' ? 'A link' : k === 'upload' ? 'An uploaded file' : 'Pasted data'
 
-export default function ReportPage({ report, state, series: all, notes, roster, checks, related, mayEdit, columns, rows, rowCount, rowsStored, spec }: {
+export default function ReportPage({ report, state, series: all, notes, roster, checks, related, mayEdit, columns, rows, rowCount, rowsStored, spec, seed }: {
   columns: { key: string; label: string; type: 'text' | 'number' | 'date' }[]
   /** The tab as it was last read -- the SAMPLE. What the pivot draws from when
    *  the whole sheet is small enough to fit in it. */
@@ -49,6 +49,11 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
   /** How many of them reached the row store. Null means the last read did not
    *  finish, so what is in there is a fragment of a sheet. */
   rowsStored: number | null
+  /** The pivot of the saved spec, worked out when the rows landed. Present
+   *  only while it still answers the current spec over the current rows -- the
+   *  view that produces it checks both, so anything that arrives here is
+   *  usable as it stands. */
+  seed: LongRow[] | null
   spec: Spec
   report: {
     id: string; name: string; entity: string; department: string; category: string | null
@@ -240,7 +245,7 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
           )}
         </div>
 
-        <div className="card" style={{ padding: 18 }}><div className="shape">
+        <div className={wide ? 'card' : 'card card--joined'} style={{ padding: 18 }}><div className="shape">
           <div className="shape__c">
           {asPivot
             ? <>
@@ -251,7 +256,8 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
                     looking at it. */}
                 <PivotAsk tab={{ columns, rows }} spec={drawSpec} onSpec={setDrawSpec} />
                 <PivotView tab={{ columns, rows }} spec={drawSpec} height={400}
-                           report={report.id} total={rowCount} stored={rowsStored} />
+                           report={report.id} total={rowCount} stored={rowsStored}
+                           seed={seed} seedKey={JSON.stringify(spec)} />
               </>
             : head.length < 2
             ? <p className="empty" style={{ margin: 0 }}>
@@ -315,18 +321,19 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
               <span className="fig__v" style={{ fontSize: 15 }}>{cadence(report.refresh)}</span></span>
           </div>
         </div></div>
-      </section>
 
-      <section className="sec">
-        <div className="sec__h"><div className="sec__t">
-          <h2>The rows behind it</h2>
-          <p>{picked
-            ? 'What the sheet actually said. Click a point on the chart, or a row here — the two follow each other.'
-            : 'What the sheet actually said, the last time Hopper looked.'}</p>
-        </div></div>
+        {/* The rows behind it, joined onto the shape rather than announced.
+            The table's own action row already separates the picture from the
+            numbers; a heading and a gap on top of that were a second divider
+            doing the first one's job, and they pushed the rows a scroll away
+            from the bars they explain.
+
+            The wrapper stays exactly where it was in the tree so expanding the
+            table does not remount it — a remount would re-read the rows and
+            throw away whatever somebody had sorted or hidden. */}
         <div className={wide ? 'rscrim' : undefined}
              onMouseDown={wide ? (e) => { if (e.target === e.currentTarget) setWide(false) } : undefined}>
-          <div className={wide ? 'rpop rpop--rows' : 'card'}>
+          <div className={wide ? 'rpop rpop--rows' : 'card card--joins'}>
             <RawTable reportId={report.id} name={report.name}
                       everRead={state.lastLook != null}
                       dateColumn={report.dateColumn} picked={picked}
