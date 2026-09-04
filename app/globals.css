@@ -5370,85 +5370,187 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
   display:flex; justify-content:space-between; gap:8px}
 .pnum b{color:var(--ink-2); font-weight:700}
 
-/* ---- where the project stands, on the project page ---- */
-.pstate .came__h{display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-  font-size:12.5px; color:var(--ink-2); margin-bottom:11px}
-.pstate .came__h b{color:var(--ink); font-weight:700}
-.pstate__pick{display:flex; align-items:center; gap:9px}
-.pstate__pick .pk{width:28px; height:28px; border-radius:var(--r); align-self:center; flex:none}
-.pstate .pbar{height:9px}
+/* ---- the project board -------------------------------------------------
+   Things has almost no boxes. What separates one thing from the next is space
+   and, at most, one hairline -- never a border round everything. The status
+   card, the progress bar and the milestone rail are gone; what they carried is
+   one quiet line under the title.
 
-/* ---- the milestone spine ---- */
-.mile{position:relative; padding-left:28px; margin-top:2px}
-.mile::before{content:""; position:absolute; left:8px; top:20px; bottom:-2px; width:1px;
-  background:var(--rule)}
-.mile:last-child::before{display:none}
-.mile__k{position:absolute; left:1px; top:11px; width:15px; height:15px; border-radius:50%;
-  background:var(--surface); border:2px solid var(--canvas-3)}
-.mile--done .mile__k{background:var(--good); border-color:var(--good)}
-.mile--now .mile__k{border-color:var(--amber); box-shadow:0 0 0 4px var(--warmbg)}
-.mile--late .mile__k{border-color:var(--bad); box-shadow:0 0 0 4px rgba(217,58,43,.12)}
-.mile--block .mile__k{border-color:var(--bad)}
-.mile--loose .mile__k{border-style:dashed}
-.mile__h{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:8px 0 9px}
-.mile__t{font-size:15px; font-weight:800; letter-spacing:-.02em; color:var(--ink)}
-.mile--done .mile__t{color:var(--ink-3)}
-.mile__d{font-family:var(--mono); font-size:11px; color:var(--ink-3)}
-.mile__d b{color:var(--ink-2)}
-.mile__moved{font-size:11px; color:var(--warn); font-weight:700}
-.mile__s{font-size:12.5px; color:var(--ink-3); margin:0 0 10px; max-width:62ch;
-  line-height:1.5}
-.mile__s--block{color:var(--bad)}
-.mile__s--block b{font-weight:800}
-/* The two verbs sit at the far end of the header line, so the name and the date
-   stay together and the actions do not push them apart. */
-.mile__a{margin-left:auto; display:flex; align-items:center; gap:12px; flex:none}
+   A reading column, because the metadata hugs the right edge the way Things
+   does and Things' window is narrow. Uncapped on a wide screen, a task's tags
+   end up a hand's width from the task they belong to. */
+.pjcol{max-width:920px}
 
-/* The reason a date moved is asked for at the only moment anybody knows it. */
-.movebox{border:1px solid var(--rule); border-radius:var(--r);
-  background:var(--sunken); padding:14px; margin:0 0 12px}
+.pj__h{display:flex; align-items:flex-start; gap:20px; flex-wrap:wrap}
+.pj__id{min-width:0; flex:1 1 320px}
+.pj__h h1{margin:0}
+.pj__go{margin-left:auto; display:flex; gap:8px; align-items:center; flex:none}
+.pjaddtask{position:relative; display:inline-flex}
 
-/* ---- tasks ---- */
-.tks{border:1px solid var(--rule); border-radius:var(--r); background:var(--surface);
-  margin-bottom:16px; overflow:hidden}
-.tk{display:grid; grid-template-columns:22px minmax(0,1fr) auto auto auto auto; gap:11px;
-  align-items:center; padding:10px 13px; border-top:1px solid var(--rule-soft)}
-.tk:first-child{border-top:0}
-.tk:hover{background:var(--sunken)}
-.tkbox{width:17px; height:17px; border:1.5px solid var(--canvas-3); border-radius:var(--r);
-  background:var(--surface); cursor:pointer; display:grid; place-items:center; padding:0;
-  flex:none}
-.tkbox svg{width:11px; height:11px; fill:none; stroke:#fff; stroke-width:3;
+.pjline{display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+  margin:8px 0 0; font-size:13.5px; color:var(--ink-3)}
+.pjline .sep{opacity:.45; margin-right:9px}
+.pjline > b{color:var(--ink-2); font-weight:700}
+
+/* The one number worth keeping. A bar with 0% written inside it, above a line
+   that already said "0 of 1 tasks done", was the same fact three times. */
+.pjring{width:17px; height:17px; flex:none; transform:rotate(-90deg)}
+.pjring circle{fill:none; stroke-width:3}
+.pjring .t{stroke:var(--canvas-2)}
+.pjring .v{stroke-linecap:butt; transition:stroke-dashoffset .3s ease}
+
+/* The status is a word you can press, not a control in a box. */
+.pjstat .choice__btn{
+  border:0; background:none; padding:0; height:auto; min-height:0; gap:5px;
+  font-size:13.5px; font-weight:700; color:var(--ink-2);
+}
+.pjstat .choice__cur{border-bottom:1px solid var(--rule); flex:none}
+.pjstat .choice__btn:hover .choice__cur{color:var(--ink); border-bottom-color:var(--ink-3)}
+.pjstat .choice__btn[aria-expanded="true"]{box-shadow:none}
+.pjstat .choice__car{width:13px; height:13px}
+
+/* ---- a milestone is a heading ---- */
+.hd{display:flex; align-items:baseline; gap:12px; margin:34px 0 0}
+.hd h3{margin:0; font-size:15px; font-weight:800; letter-spacing:-.02em; color:var(--ink)}
+.hd--done h3{color:var(--ink-3); text-decoration:line-through}
+.hd--late .hd__d b, .hd--block .hd__d b{color:var(--bad)}
+.hd--loose{color:var(--ink-3); font-weight:700}
+.hd--far{margin-top:46px}
+.hd__d{font-family:var(--mono); font-size:11px; color:var(--ink-3)}
+.hd__d b{color:var(--ink-2); font-weight:700}
+.hd__moved{font-size:11px; font-weight:700; color:var(--warn)}
+.hd__r{height:1px; background:var(--rule-soft); margin:9px 0 3px}
+.hd__s{margin:2px 0 6px; font-size:13px; color:var(--ink-3); max-width:64ch; line-height:1.55}
+.hd__s--block{color:var(--bad)}
+.hd__s--block b{font-weight:800}
+
+/* On hover, because a milestone nobody is changing does not need two links
+   sitting on it. Focus counts, so a keyboard finds them too -- and a touch
+   screen has no hover at all, so there they simply stay. */
+.hd__a{margin-left:auto; display:flex; align-items:baseline; gap:14px; flex:none;
+  opacity:0; transition:opacity .15s}
+.hd:hover .hd__a, .hd:focus-within .hd__a{opacity:1}
+@media (hover:none){ .hd__a{opacity:1} }
+.hd--far__a{opacity:1}
+
+/* ---- a to-do is a row on paper ---- */
+.tds{margin-top:2px}
+.td{display:flex; align-items:center; gap:12px; padding:9px 10px; margin:0 -10px;
+  border-radius:var(--r)}
+.td:hover{background:var(--sunken)}
+.td__box{
+  width:18px; height:18px; flex:none; padding:0; cursor:pointer;
+  border:1.5px solid var(--canvas-3); border-radius:50%; background:var(--surface);
+  display:grid; place-items:center; transition:background .15s, border-color .15s;
+}
+.td__box svg{width:11px; height:11px; fill:none; stroke:#FBF9F5;
+  stroke-linecap:round; stroke-linejoin:round; opacity:0; transition:opacity .12s}
+.td:hover .td__box{border-color:var(--ink-3)}
+.td__box:disabled{cursor:not-allowed; background:var(--canvas-2)}
+.td--done .td__box{background:var(--steel); border-color:var(--steel)}
+.td--done .td__box svg{opacity:1}
+.td--block .td__box{border-style:dashed}
+.td__t{font-size:14px; color:var(--ink); min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.td--done .td__t{color:var(--ink-3); text-decoration:line-through}
+
+.td__m{margin-left:auto; display:flex; align-items:center; gap:11px; flex:none; min-width:0}
+.td__tag{font-size:10.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ink-3); white-space:nowrap}
+.td__due{font-family:var(--mono); font-size:11px; color:var(--ink-3); white-space:nowrap}
+.td__due.is-late{color:var(--bad)}
+.td__who{width:22px; height:22px; flex:none; border-radius:50%; background:var(--steel);
+  color:#FBF9F5; font-size:9.5px; font-weight:800; display:grid; place-items:center}
+.td__why{font-size:11.5px; color:var(--bad); max-width:32ch;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+/* Nothing until you hover, unless it is set -- a list of twelve tasks each
+   wearing a permanent "Waits on…" is a list you cannot read. The old one had a
+   max-width and no min-width, so the grid handed it whatever was left and
+   "Nothing" arrived on screen as "N..". */
+.td__hold{opacity:0; transition:opacity .15s; display:inline-flex; align-items:center;
+  gap:5px; font-size:11.5px; color:var(--ink-3); white-space:nowrap}
+.td:hover .td__hold, .td:focus-within .td__hold, .td__hold.is-set{opacity:1}
+@media (hover:none){ .td__hold{opacity:1} }
+/* The padlock leads, then the words, then the name. The ::before is a
+   pseudo-element so it lands ahead of the icon in the box; order pulls the
+   icon back in front of it. */
+.td__hold svg{width:12px; height:12px; flex:none; fill:none; stroke:currentColor; order:-1}
+/* Set, it has to say what the name MEANS. "Go to Dealership" in red on the
+   right of a row is a name with no verb -- the old row said "Blocked by", and
+   dropping that was dropping the sentence. */
+.td__hold.is-set{color:var(--bad); font-weight:700}
+.td__hold.is-set::before{content:"Waits on"; font-weight:600; opacity:.8}
+.td__hold .choice__btn{border:0; background:none; padding:0; height:auto; min-height:0;
+  font-size:11.5px; font-weight:600; color:inherit; gap:4px}
+.td__hold .choice__cur{flex:none; max-width:22ch}
+.td__hold .choice__car{width:12px; height:12px}
+.td__hold .choice__btn[aria-expanded="true"]{box-shadow:none}
+
+/* ---- the quiet adders ---- */
+.lnk--add{display:inline-flex; align-items:center; gap:6px}
+.lnk--add svg{width:13px; height:13px; fill:none; stroke:currentColor;
   stroke-linecap:round; stroke-linejoin:round}
-.tkbox:disabled{cursor:not-allowed}
-.tk--done .tkbox{background:var(--good); border-color:var(--good)}
-.tk--block .tkbox{border-color:var(--bad); border-style:dashed}
-.tkt{font-size:13.5px; font-weight:600; color:var(--ink); min-width:0}
-.tk--done .tkt{color:var(--ink-3); text-decoration:line-through}
-.tkt small{display:block; font-size:11.5px; font-weight:500; color:var(--bad);
-  margin-top:2px}
-.tkt small b{font-weight:800}
-.tkt small svg{width:11px; height:11px; vertical-align:-1px; margin-right:4px; fill:none;
-  stroke:currentColor; stroke-width:2; display:inline-block}
-.tkt__why{color:var(--bad)}
-.tktag{font-size:10.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
-  color:var(--ink-3); background:var(--canvas-2); padding:2px 7px; border-radius:var(--r);
-  white-space:nowrap}
-.tkdue{font-family:var(--mono); font-size:11px; color:var(--ink-3); white-space:nowrap}
-.tkdue.is-late{color:var(--bad); font-weight:700}
-/* "Waits on" is a quiet control until it holds something. One bordered field on
-   every row, saying nothing, would shout louder than the tasks it sits beside --
-   so until a dependency is set it is grey text, and it takes a border when you
-   reach for it or when it actually holds a name. */
-.tkhold{flex:none; min-width:0; max-width:190px}
-.tkhold .choice__btn{font-size:11.5px; padding:4px 7px; height:auto; min-height:0;
-  background:none; border-color:transparent; color:var(--ink-3); font-weight:600;
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; width:100%}
-.tk:hover .tkhold .choice__btn,
-.tkhold .choice__btn:hover,
-.tkhold .choice__btn:focus-visible{border-color:var(--canvas-3); background:var(--surface)}
-.tkhold--set .choice__btn{border-color:var(--canvas-3); background:var(--surface);
-  color:var(--ink-2)}
+.pjadd{margin:20px 0 0; position:relative}
+.pjnone{margin:14px 0 0; font-size:13.5px; color:var(--ink-3); max-width:64ch; line-height:1.6}
+.pjlog{margin-top:12px}
+
+/* On a phone the reading column IS the screen, so nothing may sit beside
+   anything else that it could push out of the way. A milestone name is the
+   longest string on the page; it gets the line to itself and its date drops
+   underneath. A task does the same: title on one line, its tags, its owner and
+   its date on the next, indented to clear the checkbox so the eye still reads
+   one column. Wrapping the words, not shrinking them -- "Go to …" told nobody
+   anything, and "Add / a / task" was a button folded into a stack. */
+@media (max-width:640px){
+  /* Two marks and one instruction, on one line. Three boxes of words stacked
+     down the screen read as a menu, and the page had not started yet. Email
+     and Print keep their words for a screen reader -- font-size:0 hides the
+     glyphs, not the accessible name -- and carry a tip for a finger that
+     rests. */
+  /* A middot that begins a line is a dot with nothing before it. The line
+     wraps three ways on a phone, so the separators go and the spacing does
+     the separating. */
+  .pjline{column-gap:15px}
+  .pjline .sep{display:none}
+
+  .pj__go{margin-left:0; width:100%; flex-wrap:nowrap; gap:9px}
+  .pj__go > .btn{flex:none; width:42px; height:36px; padding:0; gap:0; font-size:0}
+  .pjaddtask{flex:1 1 auto}
+  .pjaddtask .btn{width:100%}
+
+  /* The milestone name is the longest string on the page, so it takes the
+     line; the date and the drift note drop underneath it. */
+  .hd{flex-wrap:wrap; column-gap:10px; row-gap:3px}
+  .hd h3{flex:1 1 100%}
+  .hd__a{margin-left:0; flex:1 1 100%; margin-top:1px}
+
+  /* A row becomes a card: the task on one line, everything about it on the
+     next, indented past the box so the column still reads as a column. */
+  /* Two lines a row, so the rows need telling apart -- between them only,
+     never top and bottom, or the list turns into a box again. The face goes:
+     an avatar is a nicety on a wide screen and a thing in the way on a narrow
+     one, and the row already carries who by name everywhere it matters. */
+  .td{flex-wrap:wrap; align-items:flex-start; gap:12px; row-gap:5px}
+  .tds .td + .td{border-top:1px solid var(--rule-soft)}
+  .td__who{display:none}
+  .td__box{margin-top:2px}
+  .td__t{flex:1 1 0; white-space:normal; overflow:visible; text-overflow:clip}
+  .td__m{margin-left:30px; flex:1 1 100%; flex-wrap:wrap;
+    justify-content:flex-start; gap:8px; row-gap:5px}
+  .td__why{max-width:100%; white-space:normal}
+  /* What a task waits on is the last thing about it, and until something is
+     set it is a padlock rather than a sentence -- twelve rows each offering
+     "Waits on…" is twelve rows you cannot read past. */
+  .td__hold{order:9}
+  .td__hold.is-set{order:-1}
+  .td__hold svg{width:15px; height:15px}
+  .td__hold:not(.is-set) .choice__cur, .td__hold:not(.is-set) .choice__car{
+    position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%);
+  }
+  .td__hold:not(.is-set) .choice__btn{padding:2px}
+  .td__hold .choice__cur{max-width:18ch}
+}
 
 /* ---- the log ---- */
 .log{border-left:2px solid var(--rule); padding-left:15px; display:flex;
@@ -5479,27 +5581,15 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
   /* There is room for a second line here, and the summary is worth reading. */
   .pname small{white-space:normal; overflow:visible}
   .pnext{white-space:normal; overflow:visible}
-  /* A task on a phone is the box, the name, and then everything about it on one
-     wrapped line underneath -- not four stacked lines. The box comes out of the
-     flow so the second line stays lined up under the first. */
-  .tk{display:flex; flex-wrap:wrap; align-items:center; gap:7px 10px; position:relative;
-    padding:11px 13px 11px 44px}
-  .tkbox{position:absolute; left:13px; top:12px}
-  .tkt{flex:1 1 100%}
-  .tkdue{margin-left:auto}
-  .tkhold{max-width:none; flex:1 1 100%}
-  /* An empty dependency picker is not worth a line of a phone screen. */
-  .tkhold:not(.tkhold--set){display:none}
-  .mile__a{margin-left:0; width:100%}
 }
 
 /* Print is the PDF. Everything that is a control disappears and the board
    becomes the document it was already describing. */
 @media print{
-  .pstate__pick .choice, .mile__a, .tkhold, .hi__go, .sec__a, .movebox{display:none}
+  .pjstat .choice__car, .hd__a, .td__hold, .hi__go, .pj__go, .pjadd, .movebox{display:none}
   .tk:hover, .prj:hover{background:none}
-  .tks, .prjs{break-inside:avoid}
-  .mile{break-inside:avoid}
+  .tds, .prjs{break-inside:avoid}
+  .td, .hd{break-inside:avoid}
 }
 
 /* ============================== AN ORGANIZATION'S LOCATIONS, IN PLACE =====

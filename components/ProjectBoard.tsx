@@ -3,7 +3,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import Choice from '@/components/Choice'
 import CrumbTail from '@/components/CrumbTail'
-import { StatusKey, WORD, PROGRESS } from '@/components/ProjectBits'
+import { WORD } from '@/components/ProjectBits'
 import type { Milestone, Task, LogEntry, PStatus } from '@/lib/projects'
 import {
   addMilestone, addNote, addTask, blockTask, closeMilestone, closeTask,
@@ -45,100 +45,100 @@ export default function ProjectBoard({ project, milestones, loose, log, people, 
     <>
       <CrumbTail>{project.name}</CrumbTail>
 
-      <div className="hi">
-        <div className="hi__t">
-          <h1>{project.name}</h1>
-          <p className="scopeline"><span>
-            {[project.entity, project.owner, project.startedOn ? `started ${day(project.startedOn)}` : null]
-              .filter(Boolean).join(' · ')}
-          </span></p>
-        </div>
-        <div className="hi__go">
-          {/* Email goes through the same outbox as everything else. Print is a
-              print stylesheet, so the PDF is the browser's job rather than a
-              library's. */}
-          <button className="btn" type="button" disabled title="Not built yet">
-            {I(MAIL, '1.8')}Email
-          </button>
-          <button className="btn" type="button" onClick={() => window.print()}>
-            {I(PRINT, '1.8')}Print
-          </button>
-          {mayEdit && <AddTask project={project.id} milestones={milestones}
-                               people={people} tasks={everyTask} />}
-        </div>
-      </div>
-
-      {/* Where it stands, in one line, before anything else. */}
-      <div className="came pstate" style={{ marginTop: 16 }}>
-        <div className="came__h">
-          {mayEdit ? (
-            <span className="pstate__pick">
-              <StatusKey status={status} />
-              <Choice name="status" defaultValue={status} filterFrom={99}
-                      options={(['on_track', 'at_risk', 'blocked', 'complete'] as PStatus[])
-                        .map((k) => ({ value: k, label: WORD[k] }))}
-                      onPick={(k) => {
-                        const was = status
-                        setStatus(k as PStatus); setSaid(null)
-                        go(async () => {
-                          const r = await setProjectStatus(project.id, k)
-                          if (!r.ok) { setStatus(was); setSaid(r.message) }
-                        })
-                      }} />
-            </span>
-          ) : <><StatusKey status={status} /><b style={{ marginLeft: 8 }}>{WORD[status]}</b></>}
-          <span>
-            {project.total === 0 ? 'No tasks yet'
-              : `${project.done} of ${project.total} tasks done`}
-            {project.next && <> · next milestone <b>{project.next.name}</b>
-              {project.next.dueOn ? `, ${day(project.next.dueOn)}` : ''}</>}
-            {project.blocked > 0 && <> · {project.blocked} blocked</>}
-          </span>
-        </div>
-        <PROGRESS done={project.done} total={project.total} status={status} />
-      </div>
-      {said && <p className="swhy">{said}</p>}
-
-      <section className="sec" style={{ marginTop: 22 }}>
-        <div className="sec__h">
-          <div className="sec__t">
-            <h2>Milestones</h2>
-            <p>What has to be true, by when. Every date move is kept, with the reason.</p>
+      {/* Things has almost no boxes. What separates one thing from the next is
+          space and, at most, one hairline -- never a border round everything.
+          So the status card, the progress bar and the milestone rail are gone,
+          and what they were carrying moved into a single quiet line under the
+          title. */}
+      <div className="pjcol">
+        <div className="pj__h">
+          <div className="pj__id">
+            <h1>{project.name}</h1>
+            <p className="pjline">
+              {/* The one number worth keeping, as a ring. A bar with 0% written
+                  inside it is three ways of saying nothing. */}
+              <Ring done={project.done} total={project.total} status={status} />
+              {mayEdit ? (
+                <span className="pjstat">
+                  <Choice name="status" defaultValue={status} filterFrom={99}
+                          options={(['on_track', 'at_risk', 'blocked', 'complete'] as PStatus[])
+                            .map((k) => ({ value: k, label: WORD[k] }))}
+                          onPick={(k) => {
+                            const was = status
+                            setStatus(k as PStatus); setSaid(null)
+                            go(async () => {
+                              const r = await setProjectStatus(project.id, k)
+                              if (!r.ok) { setStatus(was); setSaid(r.message) }
+                            })
+                          }} />
+                </span>
+              ) : <b>{WORD[status]}</b>}
+              {[project.total === 0 ? 'No tasks yet' : `${project.done} of ${project.total} done`,
+                project.blocked > 0 ? `${project.blocked} blocked` : null,
+                project.entity, project.owner,
+                project.startedOn ? `started ${day(project.startedOn)}` : null]
+                .filter(Boolean).map((bit, i) => (
+                  <span key={i}><span className="sep">·</span>{bit}</span>
+                ))}
+            </p>
           </div>
-          {mayEdit && <div className="sec__a"><AddMilestone project={project.id} /></div>}
+          <div className="pj__go">
+            {/* Email goes through the same outbox as everything else. Print is a
+                print stylesheet, so the PDF is the browser's job rather than a
+                library's. */}
+            {/* The words go to font-size:0 on a phone, so the tip is what a
+                finger gets and the accessible name is untouched. */}
+            <button className="btn" type="button" disabled title="Not built yet">
+              {I(MAIL, '1.8')}Email
+            </button>
+            <button className="btn" type="button" data-tip="Print this page"
+                    onClick={() => window.print()}>
+              {I(PRINT, '1.8')}Print
+            </button>
+            {mayEdit && <AddTask project={project.id} milestones={milestones}
+                                 people={people} tasks={everyTask} />}
+          </div>
         </div>
+        {said && <p className="swhy">{said}</p>}
 
         {milestones.length === 0 && loose.length === 0 ? (
-          <p className="empty">
-            Nothing yet. A milestone is what has to be TRUE by a date; a task is a thing one
-            person does to make it true.
-          </p>
-        ) : milestones.map((m) => (
-          <Mile key={m.id} m={m} people={people} tasks={everyTask}
-                mayEdit={mayEdit} mePersonId={mePersonId} project={project.id} />
-        ))}
-
-        {loose.length > 0 && (
-          <div className="mile mile--loose">
-            <span className="mile__k" />
-            <div className="mile__h"><span className="mile__t">Not under a milestone</span></div>
-            <Tasks rows={loose} tasks={everyTask} mayEdit={mayEdit} mePersonId={mePersonId} />
-          </div>
+          <>
+            <div className="hd"><h3>Milestones</h3>
+              {mayEdit && <span className="hd__a"><AddMilestone project={project.id} /></span>}
+            </div>
+            <div className="hd__r" />
+            <p className="pjnone">
+              Nothing yet. A milestone is what has to be TRUE by a date; a task is a thing
+              one person does to make it true.
+            </p>
+          </>
+        ) : (
+          <>
+            {milestones.map((m) => (
+              <Mile key={m.id} m={m} people={people} tasks={everyTask}
+                    mayEdit={mayEdit} mePersonId={mePersonId} project={project.id} />
+            ))}
+            {loose.length > 0 && (
+              <>
+                <div className="hd"><h3 className="hd--loose">Not under a milestone</h3></div>
+                <div className="hd__r" />
+                <Tasks rows={loose} tasks={everyTask} mayEdit={mayEdit} mePersonId={mePersonId} />
+              </>
+            )}
+            {mayEdit && (
+              <p className="pjadd"><AddMilestone project={project.id} /></p>
+            )}
+          </>
         )}
-      </section>
 
-      <section className="sec">
-        <div className="sec__h">
-          <div className="sec__t">
-            <h2>The log</h2>
-            <p>Every date that moved, every task that closed, and why — in the words of
-              whoever did it.</p>
-          </div>
-          <div className="sec__a"><AddNote project={project.id} /></div>
+        <div className="hd hd--far">
+          <h3>The log</h3>
+          <span className="hd__a hd--far__a"><AddNote project={project.id} /></span>
         </div>
+        <div className="hd__r" />
         {log.length === 0
-          ? <p className="empty">Nothing has happened yet.</p>
-          : <div className="log">
+          ? <p className="pjnone">Nothing has happened yet.</p>
+          : <div className="log pjlog">
               {log.map((e) => (
                 <div className="log__e" key={e.id}>
                   <p className="log__m">
@@ -150,8 +150,35 @@ export default function ProjectBoard({ project, milestones, loose, log, people, 
                 </div>
               ))}
             </div>}
-      </section>
+      </div>
     </>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────────── the ring */
+
+/**
+ * How much is done, as a ring.
+ *
+ * It replaces a full-width bar that carried the same number twice -- once as a
+ * width, once as "0%" printed inside it -- above a line that had already said
+ * "0 of 1 tasks done". Things puts this on the title and nowhere else, at about
+ * the size of a letter, and that turns out to be all the room the fact needs.
+ */
+const RING: Record<PStatus, string> = {
+  on_track: 'var(--steel)', at_risk: 'var(--amber)',
+  blocked: 'var(--bad)', complete: 'var(--good)',
+}
+function Ring({ done, total, status }: { done: number; total: number; status: PStatus }) {
+  const pct = total > 0 ? done / total : 0
+  const C = 2 * Math.PI * 8
+  return (
+    <svg className="pjring" viewBox="0 0 20 20" aria-hidden="true"
+         data-tip={total === 0 ? 'No tasks yet' : `${Math.round(pct * 100)}% done`}>
+      <circle className="t" cx="10" cy="10" r="8" />
+      <circle className="v" cx="10" cy="10" r="8" stroke={RING[status]}
+              strokeDasharray={C} strokeDashoffset={C * (1 - pct)} />
+    </svg>
   )
 }
 
@@ -164,24 +191,26 @@ function Mile({ m, people, tasks, mayEdit, mePersonId, project }: {
   const [moving, setMoving] = useState(false)
   const [, go] = useTransition()
   const late = !m.doneAt && m.dueOn && m.dueOn < today()
-  const cls = m.doneAt ? ' mile--done' : m.blockedBy ? ' mile--block' : late ? ' mile--late' : ' mile--now'
+  const cls = m.doneAt ? ' hd--done' : m.blockedBy ? ' hd--block' : late ? ' hd--late' : ''
 
   return (
-    <div className={`mile${cls}`}>
-      <span className="mile__k" />
-      <div className="mile__h">
-        <span className="mile__t">{m.name}</span>
-        {m.dueOn && <span className="mile__d">{m.doneAt ? '' : 'due '}<b>{day(m.dueOn)}</b></span>}
+    <>
+      <div className={`hd${cls}`}>
+        <h3>{m.name}</h3>
+        {m.dueOn && <span className="hd__d">{m.doneAt ? 'closed ' : 'due '}<b>{day(m.dueOn)}</b></span>}
         {/* Total drift, not the last hop: a date that went out ten days and came
             back three has moved seven, and seven is the number anybody arguing
             about the schedule wants. */}
         {m.moves > 0 && (
-          <span className="mile__moved" data-tip={`${m.slipDays > 0 ? '+' : ''}${m.slipDays} days in total`}>
+          <span className="hd__moved" data-tip={`${m.slipDays > 0 ? '+' : ''}${m.slipDays} days in total`}>
             moved {m.moves === 1 ? 'once' : m.moves === 2 ? 'twice' : `${m.moves} times`}
           </span>
         )}
+        {/* On hover, because a milestone that is not being changed does not need
+            two links sitting on it. Focus counts as hover, so a keyboard finds
+            them too. */}
         {mayEdit && (
-          <span className="mile__a">
+          <span className="hd__a">
             <button className="lnk" type="button" onClick={() => setMoving(!moving)}>
               {m.dueOn ? 'Move the date' : 'Give it a date'}
             </button>
@@ -192,10 +221,11 @@ function Mile({ m, people, tasks, mayEdit, mePersonId, project }: {
           </span>
         )}
       </div>
+      <div className="hd__r" />
 
-      {m.detail && <p className="mile__s">{m.detail}</p>}
+      {m.detail && <p className="hd__s">{m.detail}</p>}
       {m.blockedByName && (
-        <p className="mile__s mile__s--block">
+        <p className="hd__s hd__s--block">
           Waiting on <b>{m.blockedByName}</b>. Nothing under this can start until that closes.
         </p>
       )}
@@ -205,7 +235,7 @@ function Mile({ m, people, tasks, mayEdit, mePersonId, project }: {
       {m.tasks.length > 0 && (
         <Tasks rows={m.tasks} tasks={tasks} mayEdit={mayEdit} mePersonId={mePersonId} />
       )}
-    </div>
+    </>
   )
 }
 
@@ -249,7 +279,7 @@ function Tasks({ rows, tasks, mayEdit, mePersonId }: {
   rows: Task[]; tasks: Task[]; mayEdit: boolean; mePersonId: string | null
 }) {
   return (
-    <div className="tks">
+    <div className="tds">
       {rows.map((t) => (
         <Row key={t.id} t={t} tasks={tasks} mayEdit={mayEdit} mePersonId={mePersonId} />
       ))}
@@ -257,6 +287,14 @@ function Tasks({ rows, tasks, mayEdit, mePersonId }: {
   )
 }
 
+/**
+ * One to-do.
+ *
+ * A row on paper: no card, no border, no stripe. The hover is what says it is
+ * a thing you can act on, and it is also where the controls live -- a list of
+ * twelve tasks each wearing a permanent "Waits on…" dropdown is a list you
+ * cannot read.
+ */
 function Row({ t, tasks, mayEdit, mePersonId }: {
   t: Task; tasks: Task[]; mayEdit: boolean; mePersonId: string | null
 }) {
@@ -271,8 +309,8 @@ function Row({ t, tasks, mayEdit, mePersonId }: {
   const late = !done && t.dueOn && t.dueOn < today()
 
   return (
-    <div className={`tk${done ? ' tk--done' : ''}${blocked ? ' tk--block' : ''}`}>
-      <button className="tkbox" type="button" disabled={!canTick}
+    <div className={`td${done ? ' td--done' : ''}${blocked ? ' td--block' : ''}`}>
+      <button className="td__box" type="button" disabled={!canTick}
               aria-pressed={done} aria-label={done ? `Reopen ${t.name}` : `Close ${t.name}`}
               title={blocked ? 'It is blocked. Clear what is holding it first.'
                 : canTick ? undefined : 'This one is not yours to tick.'}
@@ -284,29 +322,34 @@ function Row({ t, tasks, mayEdit, mePersonId }: {
                   if (!r.ok) { setDone(!next); setWhy(r.message) }
                 })
               }}>
-        {done && I(TICK, '3')}
+        {I(TICK, '3.4')}
       </button>
 
-      <span className="tkt">
-        {t.name}
-        {blocked && <small>{I(LOCK, '2')}Blocked by <b>{t.blockedByName}</b></small>}
-        {why && <small className="tkt__why">{why}</small>}
+      <span className="td__t">{t.name}</span>
+
+      <span className="td__m">
+        {why && <span className="td__why">{why}</span>}
+        {/* The words come from the ::before, the same as the editable one below. */}
+        {blocked && !mayEdit && (
+          <span className="td__hold is-set">{I(LOCK, '2')}{t.blockedByName}</span>
+        )}
+        {mayEdit && (
+          <span className={`td__hold${t.blockedBy ? ' is-set' : ''}`}>
+            {/* The padlock is the whole control on a phone, where an unset
+                "Waits on…" on every row is a row you cannot read past. */}
+            {I(LOCK, '2')}
+            <Choice name={`blk-${t.id}`} defaultValue={t.blockedBy ?? ''} placeholder="Waits on…"
+                    filterFrom={8}
+                    options={[{ value: '', label: 'Nothing' },
+                      ...tasks.filter((x) => x.id !== t.id)
+                        .map((x) => ({ value: x.id, label: x.name }))]}
+                    onPick={(v) => go(async () => { await blockTask(t.id, v || null) })} />
+          </span>
+        )}
+        {t.tags.map((g) => <span className="td__tag" key={g}>{g}</span>)}
+        {t.initials && <span className="td__who" title={t.assignee ?? ''}>{t.initials}</span>}
+        {t.dueOn && <span className={`td__due${late ? ' is-late' : ''}`}>{day(t.dueOn)}</span>}
       </span>
-
-      {t.tags.map((g) => <span className="tktag" key={g}>{g}</span>)}
-      {t.initials && <span className="pwho"><span className="pav" title={t.assignee ?? ''}>{t.initials}</span></span>}
-      {t.dueOn && <span className={`tkdue${late ? ' is-late' : ''}`}>{day(t.dueOn)}</span>}
-
-      {mayEdit && (
-        <span className={`tkhold${t.blockedBy ? ' tkhold--set' : ''}`}>
-          <Choice name={`blk-${t.id}`} defaultValue={t.blockedBy ?? ''} placeholder="Waits on…"
-                  filterFrom={8}
-                  options={[{ value: '', label: 'Nothing' },
-                    ...tasks.filter((x) => x.id !== t.id)
-                      .map((x) => ({ value: x.id, label: x.name }))]}
-                  onPick={(v) => go(async () => { await blockTask(t.id, v || null) })} />
-        </span>
-      )}
     </div>
   )
 }
@@ -324,8 +367,8 @@ function AddMilestone({ project }: { project: string }) {
   useEffect(() => { if (state?.ok) setOpen(false) }, [state])
   return (
     <>
-      <button className="btn btn--sm" type="button" onClick={() => setOpen(!open)}>
-        {I(PLUS, '2.2')}Add a milestone
+      <button className="lnk lnk--add" type="button" onClick={() => setOpen(!open)}>
+        {I(PLUS, '2.4')}Add a milestone
       </button>
       {open && (
         <div className="addpop" role="dialog" aria-label="New milestone">
@@ -372,7 +415,7 @@ function AddTask({ project, milestones, people, tasks }: {
   // one."
   useEffect(() => { if (state?.ok) setOpen(false) }, [state])
   return (
-    <span className="sec__a">
+    <span className="pjaddtask">
       <button className="btn btn--amber" type="button" aria-expanded={open}
               onClick={(e) => { e.stopPropagation(); setOpen(!open) }}>
         {I(PLUS, '2.2')}Add a task
@@ -433,8 +476,8 @@ function AddNote({ project }: { project: string }) {
   useEffect(() => { if (state?.ok) setOpen(false) }, [state])
   return (
     <>
-      <button className="btn btn--sm" type="button" onClick={() => setOpen(!open)}>
-        {I(PLUS, '2.2')}Add a note
+      <button className="lnk lnk--add" type="button" onClick={() => setOpen(!open)}>
+        {I(PLUS, '2.4')}Add a note
       </button>
       {open && (
         <div className="addpop" role="dialog" aria-label="Add a note">
