@@ -7037,3 +7037,8 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
    the chart still has air under it and the table still starts where it did. */
 .card--joined{border-bottom:0}
 .card--joins{border-top:0}
+
+/* The invitation, in the slot the filter state will take. Quieter than the
+   filter bar it makes way for: one is a thing you did, the other is a thing
+   you could do. */
+.pickbar--idle{background:transparent; color:var(--ink-3); border-bottom-color:var(--rule-soft)}

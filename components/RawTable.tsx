@@ -259,14 +259,23 @@ export default function RawTable({ reportId, name, everRead, bleed = true,
         )}
       </div>
 
-      {linked && chosen.size > 0 && (
+      {linked && (chosen.size > 0
         // What a filter is hiding, said where the rows are, with the way out
         // next to it. A filtered table that does not say it is filtered is a
         // table that lies about how much data there is.
-        <p className="pickbar">
-          <b>{order.length}</b> of {all.length} rows &middot; {[...chosen].sort().map(dayLabel).join(', ')}
-          <button className="lnk" type="button" onClick={picked!.clear}>Clear</button>
-        </p>
+        ? <p className="pickbar">
+            <b>{order.length}</b> of {all.length} rows &middot; {[...chosen].sort().map(dayLabel).join(', ')}
+            <button className="lnk" type="button" onClick={picked!.clear}>Clear</button>
+          </p>
+        // The same slot when nothing is chosen yet, because the linking used to
+        // be announced by the section heading above the table and that heading
+        // is gone -- the rows sit directly under the chart now. An interaction
+        // nobody is told about is an interaction nobody uses, and putting the
+        // invitation where the filter state will appear means the table does
+        // not jump when somebody accepts it.
+        : <p className="pickbar pickbar--idle">
+            Click a point on the chart, or a row here — the two follow each other.
+          </p>
       )}
 
       <div className="rawbox" ref={boxEl}>
