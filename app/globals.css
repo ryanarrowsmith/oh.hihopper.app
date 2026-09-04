@@ -7646,8 +7646,11 @@ a.td__tk:hover{ background:var(--todo); border-color:var(--todo); color:#fff; }
 .dkfil--dash{ align-items:center; }
 /* Scope and range are two different questions, and side by side in one row of
    identical buttons they read as one seven-button control. The range hangs off
-   the right instead. */
+   the right instead -- unless it is the only thing in the row, which happens
+   whenever this person is offered a single scope. Pushed right with nothing to
+   be pushed away from, it just leaves a hole. */
 .dkfil--dash .dkfil__pick{ margin-left:auto; }
+.dkfil--dash .dkfil__pick:first-child{ margin-left:0; }
 .dksay{ margin:2px 0 0; color:var(--ink-2); font-size:15px; max-width:70ch; }
 .dksay b{ color:var(--ink); font-weight:800; }
 .dksay a{ color:var(--steel); font-weight:700; text-decoration:none;

@@ -347,7 +347,7 @@ function Promise({ label, now, was, note }: {
           </p>
         </>
       )}
-      <p className="dkprom__note">{note}</p>
+      {now !== null && <p className="dkprom__note">{note}</p>}
     </div>
   )
 }
