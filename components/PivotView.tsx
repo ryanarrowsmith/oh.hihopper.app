@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Chart, { Legend, type Picked, type Series } from '@/components/Chart'
 import {
-  ALL_KEY, cellKey, fromLong, keyWord, pivot, valueWord, whyNothing,
-  type LongRow, type Spec, type Tab,
+  ALL_KEY, COLOR_CAP, cellKey, drawnCols, fromLong, keyWord, pivot, valueWord,
+  whyNothing, type LongRow, type Spec, type Tab,
 } from '@/lib/pivot'
 import { figure } from '@/components/PivotBits'
 
@@ -72,9 +72,6 @@ function useFar(report: string | undefined, spec: Spec, tab: Tab, total?: number
 
   return { far, waiting, failed }
 }
-
-/** How many column keys one plot can color. */
-const COLOR_CAP = 3
 
 export default function PivotView({ tab, spec, height = 300, tabs = true, only,
                                     report, total, stored, seed, seedKey, picked }: {
@@ -218,9 +215,7 @@ export default function PivotView({ tab, spec, height = 300, tabs = true, only,
    * that quietly drops a series somebody put in a well is a chart that lies.
    */
   const dated = Boolean(p.colGrain) || at(spec.columns[0]?.field ?? '')?.type === 'date'
-  const drawn = p.colKeys.length > COLOR_CAP
-    ? (dated ? p.colKeys.slice(-COLOR_CAP) : p.colKeys.slice(0, COLOR_CAP))
-    : p.colKeys
+  const drawn = drawnCols(p, spec, tab.columns)
   const dropped = p.colKeys.length - drawn.length
 
   const plots = spec.values.map((v, vi) => ({

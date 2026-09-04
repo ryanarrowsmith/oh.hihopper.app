@@ -2,8 +2,8 @@ import 'server-only'
 import { supabaseServer } from '@/lib/supabase/server'
 import type { Card } from '@/components/Reports'
 import { freshnessOf, lateBy } from '@/lib/freshness'
-import { dateShaped, fromLong, readSpec, valueWord,
-         type Col, type Grain, type LongRow } from '@/lib/pivot'
+import { dateShaped, drawnCols, fromLong, keyWord, readSpec, valueWord,
+         type Col, type LongRow } from '@/lib/pivot'
 
 /**
  * Every report this reader may see, as cards.
@@ -103,9 +103,15 @@ export async function loadCards(): Promise<Card[]> {
  *
  * Its number is the grand total -- which the pivot already worked out with the
  * right arithmetic, so an average stays an average rather than becoming a sum
- * of averages. Its shape is the margin along whichever axis it has: the column
- * totals where there are columns (months, usually, which is a real shape over
- * time), and the row totals where there are none.
+ * of averages.
+ *
+ * Its picture is the REPORT'S OWN CHART, small. The first version drew the
+ * column margins instead -- three month totals where the report draws five
+ * accounts by three months -- and it was numerically perfect and the wrong
+ * picture: a card is the small version of the thing you get when you click it,
+ * and this one summarised a chart it was supposed to be a thumbnail of. Same
+ * row keys along the axis, same three columns colored, same rule for choosing
+ * which three, because drawnCols() is the one that decides for both.
  *
  * Null for anything that is not a pivot, or whose kept answer is not current --
  * the view only hands back one that still answers the report's own spec over
@@ -119,21 +125,23 @@ function pivotCard(id: string, raw: unknown, cells?: LongRow[], cols?: Col[]) {
   if (dateShaped(spec) !== null) return null
 
   const p = fromLong(cells, spec, cols ?? [])
-  const wide = p.colKeys.length > 0
-  const keys = wide ? p.colKeys : p.rowKeys
-  if (keys.length === 0) return null
-  const grain = wide ? p.colGrain : p.rowGrain
-  const total = (k: string) => (wide ? p.colTotal(k, 0) : p.rowTotal(k, 0))
+  if (p.rowKeys.length === 0) return null
 
-  const points = keys
-    .map((k) => ({ on: k, v: total(k) }))
-    .filter((q): q is { on: string; v: number } => q.v !== null)
-  if (points.length === 0) return null
+  // Exactly what PivotView builds for the first measure. Nothing in Columns
+  // means the row totals ARE the series, which is what p.cell falls back to.
+  const drawn = drawnCols(p, spec, cols ?? [])
+  const series = (drawn.length ? drawn : ['']).map((c) => ({
+    measure: drawn.length ? keyWord(c, p.colGrain) : valueWord(spec.values[0]),
+    points: p.rowKeys
+      .map((r) => ({ on: r, v: p.cell(r, c, 0) }))
+      .filter((q): q is { on: string; v: number } => q.v !== null),
+  })).filter((s) => s.points.length > 0)
+  if (series.length === 0) return null
 
   return {
     value: p.grand(0),
     type: spec.type,
-    series: [{ measure: valueWord(spec.values[0]), points }],
+    series,
     // The order the pivot put them in, so a card does not re-sort a category
     // axis alphabetically behind the chart's back.
     //
@@ -142,7 +150,7 @@ function pivotCard(id: string, raw: unknown, cells?: LongRow[], cols?: Col[]) {
     // cross that boundary -- it throws at render, which is a 500 on the home
     // page rather than a type error at build. The client writes the label; it
     // has keyWord() too, and this way the two cannot disagree either.
-    axis: { order: keys, grain: grain ?? null },
+    axis: { order: p.rowKeys, grain: p.rowGrain ?? null },
   }
 }
 

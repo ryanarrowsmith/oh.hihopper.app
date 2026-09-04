@@ -162,7 +162,8 @@ export default async function Home() {
       const c = byReport.get(h.object_id)
       return c ? { kind: 'report', id: c.id, label: c.name, sub: c.entity,
         href: `/reporting/${c.id}`,
-        chart: { type: c.chartType, series: c.series.slice(0, 1), axis: c.axis } } : null
+        chart: { type: c.chartType, axis: c.axis,
+                 series: c.axis ? c.series : c.series.slice(0, 1) } } : null
     }
     if (h.object === 'entity') {
       const e = all.find((x: any) => x.id === h.object_id)
@@ -226,7 +227,8 @@ export default async function Home() {
           : att === 'never' ? null
           : c.valueOn ? `Since ${new Date(`${c.valueOn}T00:00:00`)
               .toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : null,
-        chart: { type: c.chartType, series: c.series.slice(0, 1), axis: c.axis },
+        chart: { type: c.chartType, axis: c.axis,
+                 series: c.axis ? c.series : c.series.slice(0, 1) },
       }
     })
     .sort((a, b) =>

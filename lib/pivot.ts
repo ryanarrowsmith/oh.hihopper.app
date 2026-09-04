@@ -633,6 +633,28 @@ export type LongRow = {
  * null -- so a key that exists and holds nothing stays a different fact from a
  * key that does not exist, and the table can draw a dash.
  */
+/** How many column keys one plot can color. Past three, a color can no longer
+ *  say which is which -- only the first three separate for every kind of color
+ *  vision. */
+export const COLOR_CAP = 3
+
+/**
+ * Which column keys get drawn, and in which order.
+ *
+ * On a date axis the interesting three are the most recent three. On a category
+ * axis the keys are already biggest-first, so the interesting three are the
+ * first. Shared, because a card and the report it links to drawing a different
+ * three would be two pictures of one report -- and a card is supposed to be the
+ * small version of the thing you get when you click it.
+ */
+export function drawnCols(p: Pivot, spec: Spec, cols: Col[]): string[] {
+  const at = (label: string) => cols.find((c) => c.key === label || c.label === label)
+  const dated = Boolean(p.colGrain) || at(spec.columns[0]?.field ?? '')?.type === 'date'
+  return p.colKeys.length > COLOR_CAP
+    ? (dated ? p.colKeys.slice(-COLOR_CAP) : p.colKeys.slice(0, COLOR_CAP))
+    : p.colKeys
+}
+
 export function fromLong(long: LongRow[], spec: Spec, cols: Col[]): Pivot {
   const at = new Map<string, number | null>()
   const hit = new Map<string, number>()

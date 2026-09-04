@@ -420,7 +420,14 @@ function ReportCard({ c, onOpen, onRows, selected, onSelect }: {
           never silently shorter than the one next to it. */}
       {(c.series[0]?.points.length ?? 0) > 0 ? (
         <span className="rcard__chart">
-          <Chart type={c.chartType} series={c.series.slice(0, 1)}
+{/* Every series, not just the first, when they are COLUMNS rather
+              than measures. A classic report's series are measures and only
+              the headline one belongs on a card -- it is the number printed
+              above it. A pivot's are the columns of one measure, and dropping
+              two of three would make the card a different picture from the
+              report it links to. `axis` is set only by a pivot, so it is the
+              thing that knows which kind these are. */}
+          <Chart type={c.chartType} series={c.axis ? c.series : c.series.slice(0, 1)}
                  axis={c.axis ?? undefined}
                  height={64} labels={false} bare compact />
         </span>
