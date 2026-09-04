@@ -15,6 +15,13 @@ type Dept = { id: string; name: string; entity_id: string }
 type Cat = { id: string; name: string; department_id: string }
 type Col = { key: string; label: string; type: 'text' | 'number' | 'date' }
 
+/** How many rows to say there are, when the honest answer is "more than this".
+ *  Counting a Google sheet means reading it, and the form does not. */
+const rows = (count: number | null, sample: number, capped: boolean) =>
+  count === null ? `${sample.toLocaleString()}+`
+  : capped ? `${count.toLocaleString()}+`
+  : count.toLocaleString()
+
 const SOURCES = [
   { k: 'google_sheet', t: 'Google Sheets', s: 'A link-shared sheet. No key needed.', live: true },
   { k: 'link', t: 'A link', s: 'Any https address that answers with CSV or JSON.', live: true },
@@ -90,13 +97,19 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
    *  the workbook would not say. */
   const [tabs, setTabs] = useState<string[] | null>(null)
   const [tabbing, setTabbing] = useState(false)
+  /** Why there is no list to choose from, when there is a reason worth saying. */
+  const [whyTabs, setWhyTabs] = useState<string | null>(null)
   /** Set when the sheet was PICKED rather than pasted: a private sheet, read
    *  through the account's Google connection. */
   const [file, setFile] = useState<Picked | null>(null)
 
   const [cols, setCols] = useState<Col[] | null>(null)
   const [sample, setSample] = useState<(string | number | null)[][]>([])
-  const [rowCount, setRowCount] = useState(0)
+  /** How many rows the source has, when Hopper asked. It does not ask a Google
+   *  sheet any more: counting them means reading them, and reading eighty
+   *  thousand rows to show a preview of five hundred is what got the reader
+   *  killed for exceeding its memory. Null means "more than the sample". */
+  const [rowCount, setRowCount] = useState<number | null>(0)
   // Whether the look stopped early. A big sheet is looked at, not swallowed.
   const [capped, setCapped] = useState(false)
   const [looking, setLooking] = useState(false)
@@ -150,8 +163,9 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
       })
       const out = await res.json()
       if (out.ok) {
-        setCols(out.columns); setSample(out.rows ?? []); setRowCount(out.row_count ?? 0)
-        setCapped(out.capped === true)
+        setCols(out.columns); setSample(out.rows ?? [])
+        setRowCount(out.row_count ?? null)
+        setCapped(out.capped === true || out.more === true)
         // Hopper's guess at the two that matter, from what is actually in the
         // columns rather than from what their headings hope. It is a guess and
         // the person can move it -- but a form that opens already right is a
@@ -235,7 +249,12 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, file_id: file?.id ?? null }),
       }).then((x) => x.json())
-      if (r.ok) setTabs(r.tabs)
+      // An empty list is an ANSWER, not a failure: the free door reads one tab
+      // and will not enumerate the others, so the tab becomes a name you type
+      // and Hopper checks. Saying why is worth a line; saying it in red, next
+      // to an address somebody has just pasted, is telling them the address is
+      // wrong when it is not.
+      if (r.ok) { setTabs(r.tabs); if (r.why && !r.tabs?.length) setWhyTabs(r.why) }
       else { setTabs([]); setFailure(r.failure ?? 'Hopper could not read the tab list.') }
     } catch { setTabs([]); setFailure('Hopper could not reach the reader.') }
     finally { setTabbing(false) }
@@ -369,7 +388,7 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
             )}
             {cols && (
               <span className="readsaid">
-                <b>{cols.length}</b> columns, <b>{rowCount.toLocaleString()}{capped && '+'}</b> rows
+                <b>{cols.length}</b> columns, <b>{rows(rowCount, sample.length, capped)}</b> rows
                 {tabbing && <> · looking for tabs…</>}
               </span>
             )}
@@ -392,8 +411,8 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
           ) : (tabs?.length ?? 0) === 0 ? (
             <>
               <p className="empty" style={{ marginBottom: 12 }}>
-                That workbook would not give up its tab list, so this one is by hand.
-                Names are case-sensitive.
+                {whyTabs ?? 'That workbook would not give up its tab list, so this one is by hand.'}
+                {' '}Names are case-sensitive.
               </p>
               <div className="formrow formrow--one">
                 <div>
@@ -440,7 +459,7 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
             {tab && (
               <span className="readsaid">
                 {cols
-                  ? <><b>{cols.length}</b> columns, <b>{rowCount.toLocaleString()}{capped && '+'}</b> rows from <b>{tab}</b></>
+                  ? <><b>{cols.length}</b> columns, <b>{rows(rowCount, sample.length, capped)}</b> rows from <b>{tab}</b></>
                   : <>Reading <b>{tab}</b> is the next thing.</>}
               </span>
             )}
@@ -452,12 +471,12 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
         <>
           <div className="came">
             <div className="came__h">
-              <b>{cols.length}</b> columns, <b>{rowCount.toLocaleString()}{capped && '+'}</b> rows
+              <b>{cols.length}</b> columns, <b>{rows(rowCount, sample.length, capped)}</b> rows
               {/* A look at a big sheet is the first few hundred rows, so that
                   the columns can be picked without dragging the whole file
                   across. Once a date column is chosen, every real read asks
                   Google for the most recent rows instead. */}
-              {capped && <em className="came__cut">the first {rowCount.toLocaleString()}, so you can pick your columns</em>}
+              {capped && <em className="came__cut">the first {sample.length.toLocaleString()}, so you can pick your columns</em>}
               <span className="ok">Read</span>
             </div>
             <div className="cols">
@@ -502,8 +521,8 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
                   broken when it was telling the truth badly. */}
               <span className="came__cut">
                 {!cols ? 'nothing read yet'
-                  : rowCount > sample.length
-                    ? `the first ${sample.length.toLocaleString()} of ${rowCount.toLocaleString()} rows — the saved report reads all of them`
+                  : capped
+                    ? `the first ${sample.length.toLocaleString()} rows — the saved report reads all of them`
                     : `all ${sample.length.toLocaleString()} row${sample.length === 1 ? '' : 's'}`}
               </span>
             </div>
