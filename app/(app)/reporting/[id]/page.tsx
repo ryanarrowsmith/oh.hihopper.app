@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import ReportPage from '@/components/ReportPage'
+import { readSpec } from '@/lib/pivot'
 import Remember from '@/components/Remember'
 
 export const dynamic = 'force-dynamic'
@@ -30,7 +31,7 @@ export default async function Page({ params }: { params: { id: string } }) {
   // going back to the sheet: Hopper already stored them, and making somebody
   // wait on a network round-trip to open a form is a form that feels broken.
   const { data: shape } = await db.schema('hopper').from('report_rows')
-    .select('columns').eq('report_id', params.id).maybeSingle()
+    .select('columns, rows').eq('report_id', params.id).maybeSingle()
 
   const [{ data: state }, { data: readings }, { data: notes }, { data: checks },
          { data: ents }, { data: depts }, { data: cats }, { data: rights }, { data: siblings },
@@ -112,6 +113,8 @@ export default async function Page({ params }: { params: { id: string } }) {
         points: rep.chart_points ?? null,
         together: rep.chart_together === true,
       }}
+      rows={(shape?.rows as any[]) ?? []}
+      spec={readSpec(rep.chart_spec)}
       state={{
         value: state?.value == null ? null : Number(state.value),
         valueOn: state?.value_on ?? null,

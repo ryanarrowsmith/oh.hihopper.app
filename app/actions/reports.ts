@@ -7,6 +7,7 @@ import { liveToken } from '@/lib/supabase/token'
 import { currentSession } from '@/lib/tenant'
 import { logAudit } from '@/lib/audit'
 import { CHART_KINDS } from '@/lib/charts'
+import { dateShaped, readSpec, whyNothing, type Spec } from '@/lib/pivot'
 
 /** The set the database will take, derived from the catalogue rather than
  *  typed out a second time next to it. */
@@ -33,6 +34,41 @@ const MEASURE_MAX = 10
 
 const str = (f: FormData, k: string) => (f.get(k) ?? '').toString().trim()
 const nul = (f: FormData, k: string) => str(f, k) || null
+
+/**
+ * The spec off the form, and the four old columns derived from it.
+ *
+ * chart_spec is the truth now. date_column and chart_measures stay because the
+ * nightly reader and hopper.reading run on them -- and so does every card, every
+ * favorite and the report's own history. They are written here as a PROJECTION
+ * of the spec, and only when the spec still describes the shape they can hold:
+ * one date down the side, day by day, values taken as they are.
+ *
+ * A pivot that is not that shape gets nulls, which the reader already handles
+ * -- it stores the rows and keeps no series, and says so rather than failing.
+ * Teaching the reader to speak spec is the next piece of work; guessing a date
+ * column out of a pivot that has none would be the wrong kind of clever.
+ */
+function specColumns(form: FormData) {
+  const raw = str(form, 'chart_spec')
+  if (!raw) return null
+  let parsed: unknown
+  try { parsed = JSON.parse(raw) } catch { return null }
+  const spec: Spec = readSpec(parsed)
+  if (!CHART_TYPES.has(spec.type)) spec.type = 'line'
+  spec.values = spec.values.slice(0, MEASURE_MAX)
+  const old = dateShaped(spec)
+  return {
+    chart_spec: spec,
+    chart_type: spec.type,
+    chart_points: spec.points,
+    chart_together: spec.together,
+    date_column: old?.date ?? null,
+    chart_x: old?.date ?? null,
+    chart_measures: old?.measures.length ? old.measures : null,
+  }
+}
+
 
 /**
  * Postgres speaks for itself where it can. These are the two refusals a person
@@ -121,7 +157,8 @@ export async function createReport(_p: Result | null, form: FormData): Promise<R
   const snapshot = source_kind === 'upload' || source_kind === 'paste'
   if (!snapshot && !source_url) return { ok: false, message: 'Where does the data live?' }
 
-  const measures = form.getAll('measure').map((m) => m.toString().trim()).filter(Boolean).slice(0, MEASURE_MAX)
+  const drawn = specColumns(form)
+  if (!drawn) return { ok: false, message: 'Hopper could not read what this report draws.' }
 
   const { data, error } = await db.schema('hopper').from('report').insert({
     account_id: account, entity_id, department_id, category_id, name,
@@ -132,23 +169,10 @@ export async function createReport(_p: Result | null, form: FormData): Promise<R
     refresh: snapshot ? 'none' : (str(form, 'refresh') || 'daily'),
     snapshot_at: snapshot ? new Date().toISOString() : null,
     restricted: form.get('restricted') === 'on',
-    chart_type: str(form, 'chart_type') || 'line',
-    chart_x: nul(form, 'chart_x'),
-    chart_measures: measures.length ? measures : null,
     // A picked file, when the sheet is private. Null keeps the open door, which
     // is still the one to prefer: no credential is involved in it at all.
     google_file_id: nul(form, 'google_file_id'),
-    // How many of the most recent readings the chart draws. Empty means every
-    // reading the date range holds, which is what every report meant before
-    // this existed -- so an untouched form changes nothing.
-    chart_points: (() => {
-      const n = Number(str(form, 'chart_points'))
-      return Number.isFinite(n) && n >= 2 && n <= 500 ? Math.round(n) : null
-    })(),
-    date_column: nul(form, 'date_column'),
-    // Null and false both mean "decide for me", which is what every report
-    // meant before this column existed.
-    chart_together: form.get('chart_together') === 'on',
+    ...drawn,
     created_by: person, updated_by: person,
   }).select('id').single()
 
@@ -172,7 +196,7 @@ export async function updateReport(_p: Result | null, form: FormData): Promise<R
   if (!id || !name) return { ok: false, message: 'Nothing to save.' }
   if (!note) return { ok: false, message: 'Say what changed before saving it.' }
 
-  const measures = form.getAll('measure').map((m) => m.toString().trim()).filter(Boolean).slice(0, MEASURE_MAX)
+  const drawn = specColumns(form)
 
   const { error } = await db.schema('hopper').from('report').update({
     name,
@@ -180,26 +204,13 @@ export async function updateReport(_p: Result | null, form: FormData): Promise<R
     source_tab: nul(form, 'source_tab'),
     refresh: str(form, 'refresh') || 'daily',
     restricted: form.get('restricted') === 'on',
-    chart_type: str(form, 'chart_type') || 'line',
-    // What goes along the bottom is the date column in every path there is, so
-    // a form that only asks once is not hiding a second question. Without this
-    // the edit form -- which has no chart_x field -- silently cleared it.
-    chart_x: nul(form, 'chart_x') ?? nul(form, 'date_column'),
-    chart_measures: measures.length ? measures : null,
     // A picked file, when the sheet is private. Null keeps the open door, which
     // is still the one to prefer: no credential is involved in it at all.
     google_file_id: nul(form, 'google_file_id'),
-    // How many of the most recent readings the chart draws. Empty means every
-    // reading the date range holds, which is what every report meant before
-    // this existed -- so an untouched form changes nothing.
-    chart_points: (() => {
-      const n = Number(str(form, 'chart_points'))
-      return Number.isFinite(n) && n >= 2 && n <= 500 ? Math.round(n) : null
-    })(),
-    date_column: nul(form, 'date_column'),
-    // Null and false both mean "decide for me", which is what every report
-    // meant before this column existed.
-    chart_together: form.get('chart_together') === 'on',
+    // Only when the form carried one. An edit form that does not ask what the
+    // report draws must not clear what it draws -- which is exactly how chart_x
+    // used to get silently wiped.
+    ...(drawn ?? {}),
     updated_by: person, updated_at: new Date().toISOString(),
   }).eq('id', id)
 

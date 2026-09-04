@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { useCallback, useMemo, useState, useTransition } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import Chart, { Legend, isSplit, splitWhy, type Series } from '@/components/Chart'
+import PivotView from '@/components/PivotView'
+import { dateShaped, type Cell, type Spec } from '@/lib/pivot'
 import ChartPick from '@/components/ChartPick'
 import { setChartTogether } from '@/app/actions/reports'
 import { EditableSection } from '@/components/RowEdit'
@@ -35,8 +37,12 @@ const sourceName = (k: string) => k === 'google_sheet' ? 'Google Sheets'
   : k === 'airtable' ? 'Airtable' : k === 'microsoft' ? 'Microsoft 365'
   : k === 'link' ? 'A link' : k === 'upload' ? 'An uploaded file' : 'Pasted data'
 
-export default function ReportPage({ report, state, series: all, notes, roster, checks, related, mayEdit, columns }: {
+export default function ReportPage({ report, state, series: all, notes, roster, checks, related, mayEdit, columns, rows, spec }: {
   columns: { key: string; label: string; type: 'text' | 'number' | 'date' }[]
+  /** The tab as it was last read. What the pivot draws from when the report is
+   *  not one date down the side. */
+  rows: Cell[][]
+  spec: Spec
   report: {
     id: string; name: string; entity: string; department: string; category: string | null
     sourceKind: string; sourceUrl: string | null; sourceTab: string | null
@@ -67,16 +73,28 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
    * and by the edit form below -- before either has reached the server, so the
    * chart answers the question the control is asking while it is being asked.
    */
-  const [drawAs, setDrawAs] = useState(report.chartType)
-  const [drawOrder, setDrawOrder] = useState<string[]>(report.measures)
-  const [drawPoints, setDrawPoints] = useState<number | null>(report.points ?? null)
-  const [drawTogether, setDrawTogether] = useState(report.together === true)
+  const [drawSpec, setDrawSpec] = useState<Spec>(spec)
+  const drawAs = drawSpec.type
+  const drawOrder = drawSpec.values.map((v) => v.field)
+  const drawPoints = drawSpec.points
+  const drawTogether = drawSpec.together
   const [swapping, swap] = useTransition()
-  const preview = useCallback(
-    (d: { measures: string[]; chartType: string; points: number | null; together: boolean }) => {
-      setDrawOrder(d.measures); setDrawAs(d.chartType)
-      setDrawPoints(d.points); setDrawTogether(d.together)
-    }, [])
+  const preview = useCallback((s: Spec) => setDrawSpec(s), [])
+  const setDrawAs = useCallback((t: string) => setDrawSpec((sp) => ({ ...sp, type: t })), [])
+  const setDrawTogether = useCallback(
+    (on: boolean) => setDrawSpec((sp) => ({ ...sp, together: on })), [])
+  /**
+   * Which of the two renderings this report gets.
+   *
+   * A report that is one date down the side, taken as it is, keeps the one it
+   * has had all along: readings, which carry more history than the stored rows
+   * do, and which the day-picker and the range are built on. Anything else --
+   * anything the pivot made possible -- is drawn from the rows themselves,
+   * because there are no readings for it to draw from. Two paths, because they
+   * are answering two different questions about what a report IS, and pretending
+   * otherwise would cost the four live reports their history.
+   */
+  const asPivot = dateShaped(drawSpec) === null
   const windowed = useMemo(() => {
     if (!dated) return all
     return all
@@ -217,7 +235,9 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
 
         <div className="card" style={{ padding: 18 }}><div className="shape">
           <div className="shape__c">
-          {head.length < 2
+          {asPivot
+            ? <PivotView tab={{ columns, rows }} spec={drawSpec} height={400} />
+            : head.length < 2
             ? <p className="empty" style={{ margin: 0 }}>
                 {!state.lastLook
                   ? 'Hopper has not read this one yet. Refresh it and the shape appears.'
@@ -307,7 +327,7 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
         blurb="A report is a pointer, not data. This is the other end of it."
         editLabel="Change this report"
         editForm={mayEdit
-          ? <EditReport report={report} columns={columns} onPreview={preview} />
+          ? <EditReport report={report} columns={columns} spec={drawSpec} onPreview={preview} />
           : undefined}
         editOpen={editing} onEditOpen={setEditing}
       >

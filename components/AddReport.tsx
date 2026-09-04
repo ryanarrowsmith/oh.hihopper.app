@@ -4,10 +4,10 @@ import { useRouter } from 'next/navigation'
 import Choice from '@/components/Choice'
 import GooglePick, { type Picked } from '@/components/GooglePick'
 import Fold from '@/components/Fold'
-import Chart, {
-  Legend, CHART_KINDS, KIND_NAME, KIND_ICON, KIND_SAY, measureCap, isSplit, splitWhy,
-  type Series, type ChartKind,
-} from '@/components/Chart'
+import { CHART_KINDS, KIND_NAME, KIND_ICON, KIND_SAY, type ChartKind } from '@/lib/charts'
+import PivotBuild from '@/components/PivotBuild'
+import PivotView from '@/components/PivotView'
+import { EMPTY, dateShaped, whyNothing, type Spec } from '@/lib/pivot'
 import { createReport, createCategory } from '@/app/actions/reports'
 
 type Org = { id: string; name: string }
@@ -90,8 +90,6 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
    *  the workbook would not say. */
   const [tabs, setTabs] = useState<string[] | null>(null)
   const [tabbing, setTabbing] = useState(false)
-  const [points, setPoints] = useState('')
-  const [together, setTogether] = useState(false)
   /** Set when the sheet was PICKED rather than pasted: a private sheet, read
    *  through the account's Google connection. */
   const [file, setFile] = useState<Picked | null>(null)
@@ -104,9 +102,16 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
   const [looking, setLooking] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
 
-  const [chartType, setChartType] = useState<ChartKind>('line')
-  const [dateCol, setDateCol] = useState('')
-  const [measures, setMeasures] = useState<string[]>([])
+  /**
+   * What this report draws, as one object.
+   *
+   * It used to be four pieces of state -- a mark, a date column, a list of
+   * measures and a window -- which between them could describe exactly one
+   * shape. This can describe every shape, and it is the same object the
+   * database stores and the report page reads, so nothing has to be
+   * reassembled anywhere.
+   */
+  const [spec, setSpec] = useState<Spec>({ ...EMPTY, type: 'col' })
 
   const [org, setOrg] = useState(orgs[0]?.id ?? '')
   const [dept, setDept] = useState('')
@@ -120,37 +125,10 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
 
   const snapshot = kind === 'upload' || kind === 'paste'
 
-  /**
-   * What this chart will actually look like, drawn from the rows that came back
-   * — not a stock picture of a bar chart.
-   *
-   * It goes through the same chart kit the card and the report page use, so
-   * what you approve here is what gets drawn later. A preview rendered by
-   * something else is a preview that can be wrong in a way nobody finds until
-   * the report is live.
-   */
-  const preview = useMemo<Series[]>(() => {
-    if (!cols || !dateCol || measures.length === 0) return []
-    const di = cols.findIndex((c) => c.label === dateCol)
-    if (di < 0) return []
-    const cut = Number(points)
-    const keep = Number.isFinite(cut) && cut >= 2 ? Math.round(cut) : null
-    return measures.map((m) => {
-      const mi = cols.findIndex((c) => c.label === m)
-      return {
-        measure: m,
-        points: (() => {
-          const all = sample
-            .map((r) => ({ on: String(r[di] ?? ''), v: Number(r[mi]) }))
-            .filter((p) => /^\d{4}-\d{2}-\d{2}/.test(p.on) && Number.isFinite(p.v))
-          // The preview obeys the window too. A preview that ignored it would
-          // be showing a chart the saved report is not going to draw, which is
-          // the one thing a preview must never do.
-          return keep ? all.slice(-keep) : all
-        })(),
-      }
-    }).filter((s) => s.points.length > 0)
-  }, [cols, dateCol, measures, sample, points])
+  /** The tab as the pivot reads it: what came back from the look, nothing more.
+   *  The preview and the saved report run the same arithmetic over the same
+   *  shape, which is the only way a preview can be trusted. */
+  const sheet = useMemo(() => ({ columns: cols ?? [], rows: sample }), [cols, sample])
   const myDepts = useMemo(() => depts.filter((d) => d.entity_id === org), [depts, org])
   /** Categories made here, in this form, without leaving it. */
   const [made, setMade] = useState<Cat[]>([])
@@ -180,8 +158,14 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
         // form most people never have to touch.
         const d = out.columns.find((c: Col) => c.type === 'date')
         const m = out.columns.find((c: Col) => c.type === 'number')
-        if (d) setDateCol(d.label)
-        if (m) setMeasures([m.label])
+        setSpec((sp) => ({
+          ...sp,
+          rows: sp.rows.length ? sp.rows : d ? [{ field: d.label, grain: 'day' as const }] : [],
+          // Taken as it is, not summed: that is what Hopper has always done
+          // with a sheet that is already one row per day, and a guess that
+          // changes the numbers is worse than no guess.
+          values: sp.values.length ? sp.values : m ? [{ field: m.label, agg: 'as-is' as const }] : [],
+        }))
         // Deliberately does not move the step. Reading a sheet used to carry you
         // straight to what came back -- past the tab picker, which is on this
         // step -- so if you had read the wrong tab you had to go back to
@@ -202,12 +186,11 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
     f.set('name', name); f.set('entity_id', org); f.set('department_id', dept)
     f.set('category_id', cat); f.set('source_kind', kind); f.set('source_url', url)
     f.set('source_tab', tab); f.set('refresh', refresh); f.set('note', note)
-    f.set('chart_points', points)
     if (file) f.set('google_file_id', file.id)
-    f.set('chart_type', chartType); f.set('date_column', dateCol); f.set('chart_x', dateCol)
-    if (together) f.set('chart_together', 'on')
+    // One field carries the whole of what this draws. The action derives the
+    // old date_column / chart_measures from it, for the reader and the cards.
+    f.set('chart_spec', JSON.stringify(spec))
     if (restricted) f.set('restricted', 'on')
-    for (const m of measures) f.append('measure', m)
     const out = await createReport(null, f)
     setSaving(false)
     setSaid(out.message)
@@ -255,7 +238,7 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
     finally { setTabbing(false) }
   }
 
-  const canLeave3 = snapshot || (dateCol !== '' && measures.length > 0)
+  const canLeave3 = snapshot || whyNothing(spec) === null
   const canSave = name.trim() && org && dept && cat && note.trim()
 
   const STEPS = ['Source', 'Which tab', 'What came back', 'The chart', 'Where it hangs']
@@ -509,47 +492,52 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
           <div className="came came--stick" style={{ marginBottom: 18 }}>
             <div className="came__h">
               <b>Live preview</b>
-              <span style={{ color: 'var(--ink-3)' }}>
-                {preview.length
-                  ? `the first ${preview[0].points.length} row${preview[0].points.length === 1 ? '' : 's'} of your sheet`
-                  : 'choose a date column and a measure'}
+              <span className="came__cut">
+                {cols
+                  ? `${sample.length.toLocaleString()} row${sample.length === 1 ? '' : 's'} of your sheet`
+                  : 'nothing read yet'}
               </span>
             </div>
-            <div style={{ padding: 14 }}>
-              {preview.length
-                ? <>
-                    {/* Splitting was the right call and looked like a fault:
-                        three plots appear where one was asked for and nothing
-                        says why. */}
-                    {splitWhy(preview, chartType, together) &&
-                      <p className="splitwhy">{splitWhy(preview, chartType, together)}</p>}
-                    <Chart type={chartType} series={preview} height={220} together={together} />
-                    {(together || !isSplit(preview, chartType)) && <Legend series={preview} />}
-                  </>
-                : <p className="empty" style={{ margin: 0 }}>
-                    Nothing to draw yet — a chart needs something along the bottom
-                    and something to measure.
-                  </p>}
-            </div>
+            {cols
+              ? <PivotView tab={sheet} spec={spec} height={230} />
+              : <div style={{ padding: 14 }}>
+                  <p className="empty" style={{ margin: 0 }}>
+                    Nothing to draw yet — go back and read the sheet.
+                  </p>
+                </div>}
           </div>
 
-          {/* Grouped by the question each type answers rather than by shape.
-              Nobody arrives wanting "a stacked column"; they arrive wanting to
-              know what a total is made of. Choosing a type also trims the
-              measures to what that type can draw, so the form cannot hold an
-              answer the chart would refuse. */}
-          {/* Grouped by the question each type answers rather than by shape.
-              Nobody arrives wanting "a stacked column"; they arrive wanting to
-              know what a total is made of. Choosing a type also trims the
-              measures to what that type can draw, so the form cannot hold an
-              answer the chart would refuse. */}
-          <Fold title="How it draws" note={KIND_NAME[chartType] ?? 'Choose a mark'}>
+          {/* Four boxes instead of two questions. The old form asked which
+              column dates the rows and which numbers to measure, because that
+              was the only shape it could describe -- so a sheet with no dates
+              in it could not be charted at all. Any field goes anywhere now,
+              and what it DOES lives on the chip that carries it. */}
+          <Fold title="What goes where"
+                note={[
+                  spec.rows.map((r) => r.field).join(', '),
+                  spec.columns.map((c) => c.field).join(', '),
+                  spec.values.map((v) => v.field).join(', '),
+                ].filter(Boolean).join(' · ') || 'Nothing chosen yet'}>
+            {cols
+              ? <>
+                  <PivotBuild cols={cols} spec={spec} onSpec={setSpec} />
+                  <p className="hint" style={{ marginTop: 12 }}>
+                    Drag a field into a box, or tap it and pick where it goes.
+                    {' '}<b>Aa</b> is text, <b>12</b> a number, <b>31</b> a date — that is what it
+                    holds, not where it may go. A date in Rows or Columns gets a by day / week /
+                    month / quarter / year on its chip, the way a number gets Sum.
+                  </p>
+                </>
+              : <p className="empty" style={{ margin: 0 }}>
+                  The fields appear once the sheet has been read.
+                </p>}
+          </Fold>
+
+          <Fold title="How it draws" note={KIND_NAME[spec.type as ChartKind] ?? 'Choose a mark'}>
             {/* Above the marks, not under them. It is the sentence explaining
                 the thing you are about to choose, so it belongs in front of the
-                choosing rather than as a footnote to it -- and it says the name
-                by being lit next to the tile that is lit, so it does not need
-                to say the name again. */}
-            <p className="kinds__say">{KIND_SAY[chartType]}</p>
+                choosing rather than as a footnote to it. */}
+            <p className="kinds__say">{KIND_SAY[spec.type as ChartKind]}</p>
 
             <div className="kinds">
               {CHART_KINDS.map((g) => (
@@ -557,15 +545,12 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
                   <span className="kinds__g">{g.group}</span>
                   <div className="kinds__r">
                     {g.kinds.map((c) => (
-                      <button key={c.k} className="kind" type="button"
-                              aria-pressed={chartType === c.k}
-                              onClick={() => {
-                                setChartType(c.k)
-                                setMeasures((m) => m.slice(0, measureCap(c.k)))
-                              }}>
+                      <button key={c.k} className="kind kind--ico" type="button"
+                              aria-pressed={spec.type === c.k} data-tip={c.t}
+                              aria-label={c.t}
+                              onClick={() => setSpec({ ...spec, type: c.k })}>
                         <svg viewBox="0 0 24 24" aria-hidden="true"
                              dangerouslySetInnerHTML={{ __html: KIND_ICON[c.k] }} />
-                        {c.t}
                       </button>
                     ))}
                   </div>
@@ -573,87 +558,39 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
               ))}
             </div>
 
-            {/* Only a question when there is something to answer. */}
-            {splitWhy(preview, chartType) && (
+            {/* Only a question when there is something to answer: one thing
+                being measured is already on one plot. */}
+            {spec.values.length > 1 && (
               <div className="togline" style={{ marginTop: 14 }}>
                 <span className="tog">
-                  <input id="ar-together" type="checkbox" checked={together}
+                  <input id="ar-together" type="checkbox" checked={spec.together}
                          aria-label="Keep them on one plot"
-                         onChange={(e) => setTogether(e.target.checked)} />
+                         onChange={(e) => setSpec({ ...spec, together: e.target.checked })} />
                   <span className="tog__track" /><span className="tog__knob" />
                 </span>
-                <span className="togstate">{together ? 'On' : 'Off'}</span>
-                <span className="togsay">{together
-                  ? 'One plot, one scale. The smaller measures will be close to flat — that is the trade you have made.'
-                  : 'Keep them on one plot anyway. Turn this on when you are comparing shapes rather than sizes.'}</span>
+                <span className="togstate">{spec.together ? 'On' : 'Off'}</span>
+                <span className="togsay">{spec.together
+                  ? 'One plot, one scale. The smaller values will be close to flat — that is the trade you have made.'
+                  : 'A plot each. Turn this on when you are comparing shapes rather than sizes.'}</span>
               </div>
             )}
 
             <div className="inline1" style={{ marginTop: 16 }}>
-              <label htmlFor="ar-pts">How many readings to draw</label>
+              <label htmlFor="ar-pts">How many rows to draw</label>
               <input className="field" id="ar-pts" type="number" min={2} max={500}
-                     value={points} onChange={(e) => setPoints(e.target.value)}
+                     value={spec.points ?? ''}
+                     onChange={(e) => setSpec({
+                       ...spec,
+                       points: e.target.value === '' ? null : Number(e.target.value),
+                     })}
                      placeholder="All of them" />
               <p className="hint">
-                The most recent this many. Empty draws every reading the date range holds,
-                which is what a chart does until somebody says otherwise.
+                On a date axis this is the most recent this many; on any other it is the
+                biggest. Empty draws every row the pivot makes, which is what a chart does
+                until somebody says otherwise. The table is never cut.
               </p>
             </div>
           </Fold>
-
-          <Fold title="What it draws"
-                note={measures.length
-                  ? `${dateCol || 'no date column'} · ${measures.join(', ')}`
-                  : 'Choose a date column and what to measure'}>
-          <div className="formrow formrow--lean">
-            <div>
-              <label htmlFor="ar-date">What dates the rows</label>
-              <Choice id="ar-date" name="date_column" defaultValue={dateCol} placeholder="Choose a column"
-                      options={(cols ?? []).filter((c) => c.type === 'date')
-                        .map((c) => ({ value: c.label, label: c.label }))} />
-              <p className="hint">The date range filters on this. A source with no dates says so
-                rather than pretending to be filtered.</p>
-            </div>
-            <div>
-              <label>What is measured</label>
-              <div className="chips">
-                {(cols ?? []).filter((c) => c.type === 'number').map((c) => {
-                  const on = measures.includes(c.label)
-                  const cap = measureCap(chartType)
-                  const full = !on && measures.length >= cap
-                  return (
-                    <button key={c.key} type="button" className={`chip${on ? ' chip--on' : ''}`}
-                      disabled={full}
-                      title={full ? (chartType === 'pie'
-                        ? 'A pie shows one measure.'
-                        : chartType === 'scatter' ? 'A scatter is exactly two measures.'
-                        : chartType === 'combo' ? 'Columns and a line is two measures.'
-                        : chartType === 'col' || chartType === 'barh' ? 'This type draws one measure.'
-                        : cap === 6 ? 'Six is the cap for a stacked chart — its segments only ever touch their neighbours.'
-                        : 'Ten is the cap.') : undefined}
-                      onClick={() => setMeasures(on
-                        ? measures.filter((m) => m !== c.label)
-                        : [...measures, c.label])}>{c.label}</button>
-                  )
-                })}
-              </div>
-              <p className="hint">
-                {(() => {
-                  const cap = measureCap(chartType)
-                  return cap === 1 ? 'This one draws a single measure.'
-                    : `Up to ${cap}. ${measures.length} chosen.`
-                })()}
-                {measures.length > 3 &&
-                  ' Past three, each gets a plot of its own — a heading rather than a colour says which is which.'}
-              </p>
-            </div>
-          </div>
-          </Fold>
-
-          {(cols ?? []).every((c) => c.type !== 'date') &&
-            <p className="note note--err" style={{ marginTop: 14 }}>
-              Nothing in this tab reads as a date, so Hopper cannot keep a series for it. The rows
-              will still be stored and shown.</p>}
 
           <div className="formgrid__go" style={{ marginTop: 18 }}>
             <button className="btn" type="button" onClick={() => setStep(3)}>Back</button>

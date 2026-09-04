@@ -19,6 +19,17 @@ import { CHART_KINDS, appliesTo, measureCap, type ChartKind } from '@/lib/charts
 
 export type Series = { measure: string; points: { on: string; v: number }[] }
 
+/**
+ * What runs along the bottom.
+ *
+ * The kit was built when the answer was always "days", so `on` was an ISO date
+ * and the axis sorted and formatted itself accordingly. Once any field may go
+ * on any axis, `on` is just a key: the pivot decides the ORDER (chronological
+ * for a date, biggest-first for a category) and how one is written. Absent,
+ * everything behaves exactly as it did -- the union of the days, sorted, dated.
+ */
+export type Axis = { order: string[]; label: (k: string) => string }
+
 const SERIES_VAR = ['--s1', '--s2', '--s3'] as const
 const PIE_VAR = ['--s1', '--s2', '--s3', '--steel', '--amber', '--canvas-3'] as const
 
@@ -49,6 +60,8 @@ const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
  * wide enough that a rounded figure is still a distinct figure.
  */
 function axisFigure(n: number, span: number) {
+  // Zero is zero. "0.0k" is an abbreviation of nothing.
+  if (n === 0) return '0'
   if (span >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
   if (span >= 1_000) return `${(n / 1_000).toFixed(1)}k`
   if (Number.isInteger(n) || span >= 10) return nf.format(Math.round(n))
@@ -169,10 +182,12 @@ export type Picked = {
 
 export default function Chart({
   type, series, height = 250, labels = true, compact = false, bare = false, picked,
-  together = false,
+  together = false, axis,
 }: {
   type: string; series: Series[]; height?: number
   labels?: boolean; compact?: boolean
+  /** Categories along the bottom instead of days. See Axis. */
+  axis?: Axis
   /** Keep every measure on ONE plot, whatever the arithmetic says. The split is
    *  right often enough to be the default and wrong often enough to need an
    *  override: somebody comparing shapes rather than sizes wants one picture
@@ -187,10 +202,12 @@ export default function Chart({
 }) {
   const live = series.filter((s) => s.points.length > 0)
   if (live.length === 0) return null
-  if (type === 'pie') return <Pie series={live} height={height} compact={compact} />
-  if (type === 'big') return <Big series={live} />
-  if (type === 'barh') return <BarH series={live} height={height} bare={bare} />
-  if (type === 'scatter') return <Scatter series={live} height={height} bare={bare} labels={labels} />
+  const fmt = axis?.label ?? day
+  const order = axis?.order ?? unionDays(live)
+  if (type === 'pie') return <Pie series={live} height={height} compact={compact} fmt={fmt} />
+  if (type === 'big') return <Big series={live} fmt={fmt} />
+  if (type === 'barh') return <BarH series={live} height={height} bare={bare} fmt={fmt} order={order} />
+  if (type === 'scatter') return <Scatter series={live} height={height} bare={bare} labels={labels} fmt={fmt} />
 
   // 'bar' is what 'col' was called before the kit had twelve types, and every
   // report that already says so still means this.
@@ -233,7 +250,7 @@ export default function Chart({
             </p>
             <Axes type={kind === 'colg' ? 'col' : kind} series={[s]} height={each} colourFrom={i}
                   labels={labels && i === live.length - 1}
-                  days={unionDays(live)} picked={picked} />
+                  days={order} fmt={fmt} picked={picked} />
           </div>
         )})}
       </div>
@@ -241,7 +258,7 @@ export default function Chart({
   }
 
   return <Axes type={kind} series={live} height={height} labels={labels && !bare} bare={bare}
-                days={unionDays(live)} picked={picked} />
+                days={order} fmt={fmt} picked={picked} />
 }
 
 /**
@@ -262,8 +279,10 @@ function unionDays(series: Series[]) {
  * Bars and lines share an axis, a scale and a set of gridlines, so they share
  * a component. Only the marks differ, which is the only thing that should.
  */
-function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked }: {
+function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked,
+                fmt = day }: {
   type: string; series: Series[]; height: number; labels: boolean; bare?: boolean
+  fmt?: (k: string) => string
   /** Which palette slot this plot starts at, so a series keeps its colour when
    *  it is pulled out onto a plot of its own. */
   colourFrom?: number
@@ -315,7 +334,20 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
 
   const n = days.length
   const at = new Map(days.map((d, i) => [d, i]))
-  const x = (i: number) => padL + (n === 1 ? (w - padL - padR) / 2 : (i / (n - 1)) * (w - padL - padR))
+  const slot = (w - padL - padR) / Math.max(1, n)
+  /**
+   * Where a key sits along the bottom.
+   *
+   * A line is a point ON the axis, so the first sits at the left edge and the
+   * last at the right. A bar OCCUPIES a slice of it, so it belongs in the
+   * middle of its own slice -- putting one at the edge hangs half of it off
+   * the plot. That was survivable while a column chart meant thirty narrow
+   * days; with four regions it is a bar drawn at x = -5.71.
+   */
+  const banded = SLOTTED.has(type) || STACKED.has(type)
+  const x = (i: number) => banded
+    ? padL + slot * (i + 0.5)
+    : padL + (n === 1 ? (w - padL - padR) / 2 : (i / (n - 1)) * (w - padL - padR))
   const y = (v: number) => h - padB - ((v - lo) / span) * (h - padT - padB)
   const chosen = picked?.days
   const anyChosen = (chosen?.size ?? 0) > 0
@@ -325,7 +357,6 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
   // narrow card and stranded them on a wide page.
   const room = Math.max(2, Math.floor((w - padL - padR) / 110))
   const every = Math.max(1, Math.ceil(days.length / room))
-  const slot = (w - padL - padR) / Math.max(1, n)
 
   return (
     <div className="chartbox" ref={ref} style={{ height: h }}>
@@ -350,6 +381,26 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
           <text className="chart__ax" x={padL - 8} y={y(t) + 3.5} textAnchor="end">
             {axisFigure(t, span)}</text>
         </g>
+      ))}
+
+      {/* What is along the bottom, said out loud.
+          The room for these was already being reserved -- padB grows by 18px
+          when labels is on -- and nothing was ever drawn in it, which was
+          survivable while the axis was always days you could infer. On a
+          category axis it is not: four unlabelled columns are four bars.
+          One label per ~110px, so they thin out rather than collide. */}
+      {/* Counted back from the END, so the last key is always labelled and the
+          gaps stay even. Counting forward and then adding the last one anyway
+          put two labels side by side whenever the count did not divide -- four
+          regions on a phone, where there is room for two. */}
+      {labels && !bare && days.map((d, i) => (
+        (n - 1 - i) % every === 0 ? (
+          <text key={`x${d}`} className="chart__ax" x={x(i)} y={h - padB + 19}
+                textAnchor={banded || (i > 0 && i < days.length - 1) ? 'middle'
+                  : i === 0 ? 'start' : 'end'}>
+            {fmt(d)}
+          </text>
+        ) : null
       ))}
 
       {/* A chosen day gets a guide the whole height of the plot, drawn UNDER the
@@ -492,7 +543,7 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
         <rect key={`h${d}`} className="chart__hit" x={x(i) - slot / 2} width={slot}
               y={padT} height={h - padT - padB}
               onClick={(e) => picked.pick(d, e.shiftKey)}>
-          <title>{day(d)}</title>
+          <title>{fmt(d)}</title>
         </rect>
       ))}
 
@@ -508,7 +559,7 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
  * A single figure drawn as a one-point line is a chart apologising for having
  * nothing to show. Some reports are a number; this is what they look like.
  */
-function Big({ series }: { series: Series[] }) {
+function Big({ series, fmt = day }: { series: Series[]; fmt?: (k: string) => string }) {
   const s = series[0]
   const last = s.points[s.points.length - 1]
   const prev = s.points[s.points.length - 2]
@@ -517,7 +568,7 @@ function Big({ series }: { series: Series[] }) {
     <div className="bignum">
       <b className="tnum">{nf.format(last.v)}</b>
       <span>
-        {s.measure} · {day(last.on)}
+        {s.measure} · {fmt(last.on)}
         {move !== null && move !== 0 && (
           <em className={move > 0 ? 'up' : 'down'}>
             {move > 0 ? '▲' : '▼'} {nf.format(Math.abs(move))}
@@ -535,31 +586,53 @@ function Big({ series }: { series: Series[] }) {
  * of it and gets real room. Reads newest-first down the page, because that is
  * the order somebody scans a list.
  */
-function BarH({ series, height, bare }: { series: Series[]; height: number; bare?: boolean }) {
+function BarH({ series, height, bare, fmt = day, order }: {
+  series: Series[]; height: number; bare?: boolean
+  fmt?: (k: string) => string
+  /** The axis order, so a category axis is drawn in the order the pivot put it
+   *  in rather than in the order the rows happened to arrive. */
+  order?: string[]
+}) {
+  /**
+   * Measured, like every other plot here.
+   *
+   * This one was still drawing into a 400-unit viewBox with
+   * preserveAspectRatio="none" -- the exact stretching useWidth was written to
+   * end. On a card it was a squeeze nobody noticed; on a page it turned every
+   * label into l e t t e r s p a c e d text, because a horizontal-only scale
+   * stretches the type as well as the bars.
+   */
+  const { ref, w } = useWidth()
   const s = series[0]
-  const pts = s.points.slice(-12).reverse()
+  const inOrder = order
+    ? order.map((k) => s.points.find((p) => p.on === k)).filter((p): p is typeof s.points[0] => !!p)
+    : s.points
+  const pts = inOrder.slice(-12).reverse()
   const max = Math.max(...pts.map((p) => Math.abs(p.v)), 1)
   const rowH = Math.max(18, Math.min(34, height / Math.max(1, pts.length)))
-  const labelW = bare ? 0 : 74
+  const h = rowH * pts.length + 4
+  // Room for the longest label rather than a fixed 74, which cut "Southeast"
+  // in half the moment the axis stopped being dates.
+  const labelW = bare ? 0 : Math.min(Math.round(w * 0.34),
+    Math.max(74, ...pts.map((p) => fmt(p.on).length * 7 + 14)))
   const figW = bare ? 0 : 62
   return (
-    <div className="chartbox" style={{ height: rowH * pts.length + 4 }}>
-      <svg className="chart" viewBox={`0 0 400 ${rowH * pts.length + 4}`} preserveAspectRatio="none"
-           role="img" aria-label={s.measure}>
+    <div className="chartbox" ref={ref} style={{ height: h }}>
+      <svg className="chart" viewBox={`0 0 ${w} ${h}`} role="img" aria-label={s.measure}>
         {pts.map((p, i) => {
-          const w = (Math.abs(p.v) / max) * (400 - labelW - figW - 8)
+          const bw = (Math.abs(p.v) / max) * Math.max(10, w - labelW - figW - 8)
           const y = i * rowH + rowH * 0.18
           return (
             <g key={p.on}>
               {!bare && (
                 <text className="chart__ax" x={labelW - 8} y={y + rowH * 0.42} textAnchor="end">
-                  {day(p.on)}
+                  {fmt(p.on)}
                 </text>
               )}
-              <rect x={labelW} y={y} width={Math.max(1, w)} height={rowH * 0.62}
+              <rect x={labelW} y={y} width={Math.max(1, bw)} height={rowH * 0.62}
                     style={{ fill: 'var(--s1)' }} />
               {!bare && (
-                <text className="chart__ax" x={labelW + w + 6} y={y + rowH * 0.42}>
+                <text className="chart__ax" x={labelW + bw + 6} y={y + rowH * 0.42}>
                   {nf.format(p.v)}
                 </text>
               )}
@@ -580,8 +653,9 @@ function BarH({ series, height, bare }: { series: Series[]; height: number; bare
  * would quietly compare Monday's sales with Tuesday's count the moment one
  * measure missed a day.
  */
-function Scatter({ series, height, bare, labels }: {
+function Scatter({ series, height, bare, labels, fmt = day }: {
   series: Series[]; height: number; bare?: boolean; labels?: boolean
+  fmt?: (k: string) => string
 }) {
   const { ref, w } = useWidth()
   const [ax, ay] = series
@@ -610,7 +684,7 @@ function Scatter({ series, height, bare, labels }: {
         {pairs.map((p) => (
           <circle key={p.on} cx={sx(p.x)} cy={sy(p.y)} r={bare ? 3 : 5}
                   style={{ fill: 'var(--s1)' }} opacity=".75">
-            <title>{`${day(p.on)} · ${nf.format(p.x)} / ${nf.format(p.y)}`}</title>
+            <title>{`${fmt(p.on)} · ${nf.format(p.x)} / ${nf.format(p.y)}`}</title>
           </circle>
         ))}
         {!bare && <>
@@ -627,7 +701,9 @@ function Scatter({ series, height, bare, labels }: {
  * rest become "Other (n)" — past six, adjacent wedges start wearing colours
  * nobody can tell apart, and a pie's wedges are adjacent by construction.
  */
-function Pie({ series, height, compact }: { series: Series[]; height: number; compact?: boolean }) {
+function Pie({ series, height, compact, fmt = day }: {
+  series: Series[]; height: number; compact?: boolean; fmt?: (k: string) => string
+}) {
   const s = series[0]
   const pts = s.points.slice(-12)
   const total = pts.reduce((t, p) => t + Math.max(0, p.v), 0)
@@ -636,7 +712,7 @@ function Pie({ series, height, compact }: { series: Series[]; height: number; co
   const named = pts.slice(-6)
   const restV = pts.slice(0, Math.max(0, pts.length - 6)).reduce((t, p) => t + Math.max(0, p.v), 0)
   const slices = [
-    ...named.map((p) => ({ label: day(p.on), v: Math.max(0, p.v) })),
+    ...named.map((p) => ({ label: fmt(p.on), v: Math.max(0, p.v) })),
     ...(restV > 0 ? [{ label: `Other (${pts.length - named.length})`, v: restV }] : []),
   ]
 

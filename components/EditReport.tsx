@@ -2,10 +2,10 @@
 import { useEffect, useState } from 'react'
 import Choice from '@/components/Choice'
 import { RowForm } from '@/components/RowEdit'
+import PivotBuild from '@/components/PivotBuild'
 import { updateReport } from '@/app/actions/reports'
-import { CHART_KINDS, KIND_ICON, appliesTo, measureCap } from '@/lib/charts'
-
-type Col = { key: string; label: string; type: 'text' | 'number' | 'date' }
+import { CHART_KINDS, KIND_ICON, KIND_NAME, type ChartKind } from '@/lib/charts'
+import { type Col, type Spec } from '@/lib/pivot'
 
 /**
  * Changing a report.
@@ -28,55 +28,29 @@ type Col = { key: string; label: string; type: 'text' | 'number' | 'date' }
  * tab, a schedule. Changed once a year, and no amount of staring at the chart
  * tells you whether it is right.
  */
-export default function EditReport({ report, columns, onPreview }: {
+export default function EditReport({ report, columns, spec: saved, onPreview }: {
   report: {
     id: string; name: string; sourceUrl: string | null; sourceTab: string | null
-    refresh: string; restricted: boolean; chartType: string
-    dateColumn: string | null; measures: string[]; points?: number | null
-    together?: boolean
+    refresh: string; restricted: boolean
   }
   columns: Col[]
+  spec: Spec
   /** Moves the real chart above this form, live, before anything is saved. */
-  onPreview?: (d: { measures: string[]; chartType: string; points: number | null
-                    together: boolean }) => void
+  onPreview?: (s: Spec) => void
 }) {
-  const [chartType, setChartType] = useState(report.chartType)
-  const [measures, setMeasures] = useState<string[]>(report.measures)
-  const [points, setPoints] = useState<string>(report.points ? String(report.points) : '')
-  const [together, setTogether] = useState(report.together === true)
+  const [spec, setSpec] = useState<Spec>(saved)
   const [restricted, setRestricted] = useState(report.restricted)
 
-  const dates = columns.filter((c) => c.type === 'date')
-  const numbers = columns.filter((c) => c.type === 'number')
-  // measureCap, not a number typed out here. The cap was 3 long after the kit
-  // went to ten, because the rule lived in three places and only two of them
-  // were updated -- the third quietly refused a fourth measure and said the
-  // reason was colour.
-  const cap = measureCap(chartType)
-
   // Whatever is in this form is what the chart above shows. Not on save: the
-  // whole question -- is this the right headline, is this the right mark -- is
-  // one you answer by seeing it.
-  useEffect(() => {
-    const n = Number(points)
-    onPreview?.({ measures, chartType, together,
-      points: Number.isFinite(n) && n >= 2 ? Math.round(n) : null })
-  }, [measures, chartType, points, together, onPreview])
-
-  const moveMeasure = (i: number, by: number) => setMeasures((m) => {
-    const j = i + by
-    if (j < 0 || j >= m.length) return m
-    const next = [...m]
-    ;[next[i], next[j]] = [next[j], next[i]]
-    return next
-  })
+  // whole question -- is this the right cut, is this the right mark -- is one
+  // you answer by seeing it.
+  useEffect(() => { onPreview?.(spec) }, [spec, onPreview])
 
   return (
     <RowForm action={updateReport} label="Save the change" busy="Saving…">
       <input type="hidden" name="id" value={report.id} />
-      {/* The chips are the control; these carry what they chose. */}
-      {measures.map((m) => <input key={m} type="hidden" name="measure" value={m} />)}
-      <input type="hidden" name="chart_type" value={chartType} />
+      {/* The boxes are the control; this carries what they said. */}
+      <input type="hidden" name="chart_spec" value={JSON.stringify(spec)} />
 
       <p className="edh">How it shows</p>
 
@@ -87,98 +61,47 @@ export default function EditReport({ report, columns, onPreview }: {
         </div>
         <div>
           <label htmlFor="er-kind">Drawn as</label>
-          <Choice id="er-kind" name="chart_kind_display" defaultValue={chartType}
+          <Choice id="er-kind" name="chart_kind_display" defaultValue={spec.type}
                   filterFrom={99} placeholder="How to draw it"
-                  onPick={(k) => {
-                    setChartType(k)
-                    // A kind that draws fewer than are chosen takes the first
-                    // ones, rather than leaving a selection the chart will
-                    // silently ignore.
-                    setMeasures((m) => m.slice(0, measureCap(k)))
-                  }}
+                  onPick={(k) => setSpec({ ...spec, type: k })}
                   options={CHART_KINDS.flatMap((g) =>
-                    g.kinds.filter((k) => appliesTo(k.k, Math.max(measures.length, 1)))
-                      .map((k) => ({ value: k.k as string, label: k.t as string,
-                                     hint: k.s as string, icon: KIND_ICON[k.k],
-                                     group: g.group as string })))} />
+                    g.kinds.map((k) => ({ value: k.k as string, label: k.t as string,
+                                          hint: k.s as string, icon: KIND_ICON[k.k],
+                                          group: g.group as string })))} />
         </div>
       </div>
 
+      {/* The four boxes, in the edit form for the same reason they are in the
+          add form: what a report draws is one question, and answering half of
+          it in one place and half in another is how a report ends up drawing
+          something nobody chose. */}
       <div className="formrow formrow--one" style={{ marginTop: 12 }}>
         <div>
-          <label>What is drawn, and in what order</label>
-          {numbers.length === 0
+          <label>What goes where</label>
+          {columns.length === 0
             ? <p className="hint" style={{ marginTop: 0 }}>
                 Hopper has not read this source yet, so it does not know what columns it has.
                 Refresh it and they appear here.
               </p>
             : <>
-                {/* The chosen ones, ORDERED. The first is the headline -- the
-                    big number on the card and at the top of the page -- and
-                    until now the only way to change which one that was, was to
-                    unpick everything and pick it again in the right order.
-                    Nobody discovered that. They just lived with a report whose
-                    headline was the week number. */}
-                {measures.length > 0 && (
-                  <ol className="mord">
-                    {measures.map((m, i) => (
-                      <li className="mord__r" key={m}>
-                        <span className="mord__n">{i + 1}</span>
-                        <span className="mord__l">{m}</span>
-                        {i === 0 && <span className="mord__h">Headline</span>}
-                        <span className="mord__b">
-                          <button type="button" className="mord__x" aria-label={`Move ${m} up`}
-                                  disabled={i === 0} onClick={() => moveMeasure(i, -1)}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                 strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M6 15l6-6 6 6" /></svg>
-                          </button>
-                          <button type="button" className="mord__x" aria-label={`Move ${m} down`}
-                                  disabled={i === measures.length - 1}
-                                  onClick={() => moveMeasure(i, 1)}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                 strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M6 9l6 6 6-6" /></svg>
-                          </button>
-                          <button type="button" className="mord__x mord__x--off"
-                                  aria-label={`Take ${m} off the chart`}
-                                  onClick={() => setMeasures(measures.filter((x) => x !== m))}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                 strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M18 6 6 18M6 6l12 12" /></svg>
-                          </button>
-                        </span>
-                      </li>
-                    ))}
-                  </ol>
-                )}
-                <div className="chips" style={{ marginTop: measures.length ? 10 : 0 }}>
-                  {numbers.filter((c) => !measures.includes(c.label)).map((c) => {
-                    const full = measures.length >= cap
-                    return (
-                      <button key={c.key} type="button" disabled={full} className="chip"
-                        title={full ? `${chartType === 'pie' || chartType === 'big'
-                          ? 'This one draws a single measure.'
-                          : `This one draws ${cap}.`}` : undefined}
-                        onClick={() => setMeasures([...measures, c.label])}>+ {c.label}</button>
-                    )
-                  })}
-                </div>
+                <PivotBuild cols={columns} spec={spec} onSpec={setSpec} />
                 <p className="hint">
-                  The first is the headline — it is the number on the card and at the top of
-                  this page. {cap === 1 ? 'This chart draws one.' : `This chart draws up to ${cap}.`}
+                  Drag a field into a box, or tap it and pick where it goes. The first thing in
+                  Values is the headline — the number on the card and at the top of this page.
                 </p>
               </>}
         </div>
       </div>
 
       <div className="inline1" style={{ marginTop: 14 }}>
-        <label htmlFor="er-points">How many readings the chart draws</label>
-        <input className="field" id="er-points" name="chart_points" type="number"
-               min={2} max={500} value={points} placeholder="Every one in the range"
-               onChange={(e) => setPoints(e.target.value)} />
-        <p className="hint">The most recent this many. Empty draws every reading the date
-          range holds, which is what a report meant before this existed.</p>
+        <label htmlFor="er-points">How many rows the chart draws</label>
+        <input className="field" id="er-points" type="number"
+               min={2} max={500} value={spec.points ?? ''} placeholder="Every one"
+               onChange={(e) => setSpec({
+                 ...spec, points: e.target.value === '' ? null : Number(e.target.value),
+               })} />
+        <p className="hint">On a date axis the most recent this many; on any other the biggest.
+          Empty draws every row the pivot makes. The table is never cut.</p>
       </div>
 
       <div className="formrow formrow--one" style={{ marginTop: 12 }}>
@@ -186,15 +109,15 @@ export default function EditReport({ report, columns, onPreview }: {
           <label htmlFor="er-together">Keep them on one plot</label>
           <div className="togline">
             <span className="tog">
-              <input id="er-together" name="chart_together" type="checkbox" checked={together}
+              <input id="er-together" type="checkbox" checked={spec.together}
                      aria-label="Keep them on one plot"
-                     onChange={(e) => setTogether(e.target.checked)} />
+                     onChange={(e) => setSpec({ ...spec, together: e.target.checked })} />
               <span className="tog__track" /><span className="tog__knob" />
             </span>
-            <span className="togstate">{together ? 'On' : 'Off'}</span>
-            <span className="togsay">{together
-              ? 'One plot, one scale. Measures much smaller than the biggest will be close to flat — that is the trade.'
-              : 'Off, Hopper gives each measure its own plot when they are orders of magnitude apart, because one scale would flatten the small ones.'}</span>
+            <span className="togstate">{spec.together ? 'On' : 'Off'}</span>
+            <span className="togsay">{spec.together
+              ? 'One plot, one scale. Values much smaller than the biggest will be close to flat — that is the trade.'
+              : 'Off, each thing being measured gets its own plot, because one scale would flatten the small ones.'}</span>
           </div>
         </div>
       </div>
@@ -229,16 +152,14 @@ export default function EditReport({ report, columns, onPreview }: {
                   ]} />
         </div>
         <div>
-          <label htmlFor="er-date">What dates the rows</label>
-          {dates.length
-            ? <Choice id="er-date" name="date_column" defaultValue={report.dateColumn ?? ''}
-                      placeholder="Choose a column"
-                      options={dates.map((c) => ({ value: c.label, label: c.label }))} />
-            : <input className="field" id="er-date" name="date_column"
-                     defaultValue={report.dateColumn ?? ''}
-                     placeholder="Nothing in this source reads as a date" />}
-          <p className="hint">Hopper keeps one reading per date per measure, and this is the
-            column it dates them by.</p>
+          <label>What dates the rows</label>
+          {/* Not a question any more. It is whatever is in Rows, above, and
+              asking it twice is how the two answers get to disagree. */}
+          <p className="picked">
+            <b>{spec.rows.map((r) => r.field).join(' · ') || 'Nothing — nothing is in Rows yet'}</b>
+            <span>Hopper still keeps one reading per date per value when the report is one
+              date down the side, taken as it is. That is what the card draws.</span>
+          </p>
         </div>
       </div>
 

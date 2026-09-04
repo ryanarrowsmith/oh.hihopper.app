@@ -4832,6 +4832,12 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
 .kind:hover{border-color:var(--canvas-3); color:var(--ink); background:var(--canvas-2)}
 .kind[aria-pressed="true"]{border-color:var(--amber); background:var(--warmbg); color:var(--ink)}
 .kind[aria-pressed="true"] svg{color:var(--amber)}
+/* Icon only, with a floating label. A row of twelve tiles each carrying its
+   own word is a wall of words you read once and then never again -- the mark
+   itself is the label, and the name comes back on hover and on focus. */
+.kind--ico{padding:8px 9px; gap:0}
+.kind--ico svg{width:17px; height:17px}
+
 .kinds__say{
   background:var(--warmbg); border:1px solid var(--warmrule); border-radius:var(--r);
   padding:10px 13px; margin:0 0 13px;
@@ -6809,4 +6815,177 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
 
 @media print{
   .nbandwrap, .nband__x, .nstatus, .markpick{display:none}
+}
+
+/* ========================================== THE PIVOT =======================
+   Any field on any axis. The old builder asked two questions -- which column
+   dates the rows, and which numbers to measure -- because that was the only
+   shape it could describe. These four boxes describe every shape, which is
+   why they replace it rather than sit next to it.
+   ========================================================================== */
+
+.pv{display:grid; grid-template-columns:206px minmax(0,1fr); gap:14px; align-items:start}
+
+/* ---- the fields you have ---- */
+.pvf{border:1px solid var(--rule); background:var(--sunken); padding:8px}
+.pvf__h{
+  display:block; font-family:var(--mono); font-size:9.5px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-3); padding:3px 4px 8px;
+}
+/* The field and its "where does this go" panel. Position lives here so the
+   panel hangs off the field rather than off the list. */
+.pvfw{position:relative; display:block}
+.pvfield{
+  display:flex; align-items:center; gap:8px; width:100%; text-align:left;
+  padding:6px 7px; border:1px solid transparent; background:none; cursor:grab;
+  font:inherit; font-size:13.5px; color:var(--ink-2); border-radius:var(--r);
+}
+.pvfield:hover, .pvfield[aria-expanded="true"]{
+  background:var(--surface); border-color:var(--rule); color:var(--ink);
+}
+.pvfield:active{cursor:grabbing}
+.pvfield__t{
+  flex:none; width:21px; height:16px; display:grid; place-items:center;
+  border:1px solid var(--rule); background:var(--surface); border-radius:var(--r);
+  font:700 9px/1 var(--mono); color:var(--ink-3);
+}
+.pvfield__t--number{color:var(--s1); border-color:var(--s1)}
+.pvfield__t--date{color:var(--s3); border-color:var(--s3)}
+
+/* ---- where they go ---- */
+.pvwells{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px}
+.pvwell{
+  border:1px dashed var(--canvas-3); background:var(--surface);
+  padding:9px 10px 10px; min-height:66px;
+}
+.pvwell--values, .pvwell--filters{grid-column:1 / -1}
+.pvwell--values{background:var(--warmbg); border-color:var(--amber)}
+.pvwell.is-over{border-style:solid; border-color:var(--steel); background:var(--steelwash)}
+.pvwell__h{display:flex; align-items:baseline; gap:8px; margin-bottom:8px; flex-wrap:wrap}
+.pvwell__h b{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-2);
+}
+.pvwell__h em{font-style:normal; font-size:11.5px; color:var(--ink-3)}
+.pvwell__in{display:flex; flex-wrap:wrap; gap:6px; align-items:center}
+.pvwell__none{font-size:12.5px; color:var(--ink-3)}
+
+/* ---- a chip is a field and the thing it does ----
+   The aggregation lives INSIDE the chip because "Sum of Deal size" is one
+   decision. Two controls in two places is how a person ends up with a field
+   in a box and no idea what it is doing there. */
+.pvchip{
+  display:inline-flex; align-items:stretch; background:var(--sunken);
+  border:1px solid var(--rule); border-radius:var(--r); font-size:13px; color:var(--ink);
+}
+.pvchip__n{padding:5px 9px; font-weight:700; white-space:nowrap; align-self:center}
+.pvhow{position:relative; display:flex}
+.pvchip__how{
+  appearance:none; border:0; border-left:1px solid var(--rule); cursor:pointer;
+  background:var(--surface); color:var(--steel-ink);
+  font:700 11.5px/1 var(--mono); padding:6px 7px;
+  display:inline-flex; gap:5px; align-items:center; white-space:nowrap;
+}
+.pvchip__how:hover, .pvchip__how[aria-expanded="true"]{background:var(--steelwash); color:var(--ink)}
+.pvchip__how svg{
+  width:11px; height:11px; flex:none; fill:none; stroke:currentColor;
+  stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round; transition:transform .16s;
+}
+.pvchip__how[aria-expanded="true"] svg{transform:rotate(180deg)}
+.pvchip__a{
+  appearance:none; border:0; border-left:1px solid var(--rule); background:var(--surface);
+  font:inherit; font-size:12.5px; color:var(--ink); padding:5px 8px; min-width:52px;
+}
+.pvchip__a:focus{outline:none; box-shadow:var(--focus)}
+.pvchip__x{
+  appearance:none; border:0; border-left:1px solid var(--rule); background:none;
+  cursor:pointer; color:var(--ink-3); padding:0 7px; display:inline-flex; align-items:center;
+}
+.pvchip__x svg{
+  width:12px; height:12px; fill:none; stroke:currentColor;
+  stroke-width:2.4; stroke-linecap:round;
+}
+.pvchip__x:hover{color:var(--bad)}
+
+/* ---- the small panel hung off a chip ---- */
+.pvpop{
+  position:absolute; top:calc(100% + 7px); left:0; z-index:40;
+  min-width:190px; max-width:min(300px, 84vw); padding:4px 0;
+  background:var(--surface); border:1px solid var(--rule); border-radius:var(--r);
+  box-shadow:0 20px 44px -16px rgba(35,31,32,.42), 0 3px 10px -4px rgba(35,31,32,.2);
+}
+.pvpop::before{
+  content:''; position:absolute; top:-5px; left:16px; width:9px; height:9px;
+  background:var(--surface); border-left:1px solid var(--rule); border-top:1px solid var(--rule);
+  transform:rotate(45deg);
+}
+.pvpop--go{left:auto; right:0}
+.pvpop--go::before{left:auto; right:16px}
+.pvpop__o{
+  display:block; width:100%; text-align:left; appearance:none; border:0; background:none;
+  cursor:pointer; padding:8px 13px; font:inherit; font-size:13px; color:var(--ink-2);
+  border-left:2px solid transparent;
+}
+.pvpop__o:hover{background:var(--sunken); color:var(--ink)}
+.pvpop__o[aria-current]{border-left-color:var(--amber); color:var(--ink); font-weight:700}
+.pvpop__o b{display:block; font-weight:700; color:var(--ink)}
+.pvpop__o em{display:block; font-style:normal; font-size:11.5px; color:var(--ink-3); margin-top:2px}
+
+/* ---- the two renderings ---- */
+.pvtabs{
+  display:flex; align-items:center; gap:2px; padding:0 13px;
+  border-bottom:1px solid var(--rule); background:var(--surface);
+}
+.pvtabs button{
+  appearance:none; background:none; border:0; cursor:pointer; font:inherit;
+  padding:10px 3px 9px; margin-right:16px; font-size:13px; font-weight:700;
+  color:var(--ink-3); border-bottom:2px solid transparent;
+}
+.pvtabs button:hover{color:var(--ink-2)}
+.pvtabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--amber)}
+.pvtabs__r{
+  margin-left:auto; font-family:var(--mono); font-size:11.5px; color:var(--ink-3);
+}
+.pvbody{padding:15px 14px 8px}
+.pvbody--table{padding:0}
+
+/* A wide grid scrolls inside its own box. It holds no popover, so it is
+   allowed to clip. */
+.pvscroll{overflow-x:auto; max-width:100%}
+.pvgrid{width:100%; border-collapse:collapse; font-size:13.5px}
+.pvgrid th, .pvgrid td{
+  padding:8px 12px; border-bottom:1px solid var(--rule-soft); text-align:right; white-space:nowrap;
+}
+.pvgrid th:first-child, .pvgrid td:first-child{text-align:left}
+.pvgrid thead th{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); border-bottom:1px solid var(--rule); font-weight:700;
+}
+.pvgrid__grp{text-align:center !important; border-bottom:1px solid var(--rule-soft)}
+.pvgrid tbody td{font-variant-numeric:tabular-nums; color:var(--ink-2)}
+.pvgrid tbody td:first-child{font-weight:700; color:var(--ink); white-space:normal}
+.pvgrid td.pv-tot, .pvgrid th.pv-tot{background:var(--sunken); color:var(--ink); font-weight:700}
+.pvgrid tr.pv-tot td{
+  background:var(--sunken); font-weight:700; color:var(--ink);
+  border-bottom:0; border-top:1px solid var(--rule);
+}
+.pvnote{
+  font-size:12.5px; line-height:1.5; color:var(--ink-3);
+  margin:12px 14px 14px; padding-top:11px; border-top:1px solid var(--rule-soft);
+}
+
+@media (max-width:860px){
+  /* No dragging with a thumb, so the fields become a block you tap and the
+     wells stack in the order the question is asked. The strip WRAPS rather
+     than scrolling: it holds the "where does this go" panel, and a box that
+     clips must not be a box that contains a popover. */
+  .pv{grid-template-columns:minmax(0,1fr)}
+  .pvwells{grid-template-columns:minmax(0,1fr)}
+  .pvf{display:flex; flex-wrap:wrap; gap:6px; padding:8px}
+  .pvf__h{flex:1 0 100%; padding:0 2px 2px}
+  .pvfw{display:inline-block; width:auto}
+  .pvfield{width:auto; border-color:var(--rule); background:var(--surface); cursor:pointer}
+  .pvwell{min-height:0}
+  .pvbody{padding:12px 10px 6px}
+  .pvpop{max-width:min(300px, 74vw)}
 }
