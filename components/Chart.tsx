@@ -353,9 +353,16 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
   const anyChosen = (chosen?.size ?? 0) > 0
 
   const ticks = [lo, lo + span / 2, hi]
-  // One label per ~110px of plot. Guessing a fixed count crowded them on a
-  // narrow card and stranded them on a wide page.
-  const room = Math.max(2, Math.floor((w - padL - padR) / 110))
+  /**
+   * How many labels fit, from how wide the labels actually are.
+   *
+   * A flat 110px was a guess made when every label was a date -- "Aug 26" is
+   * six characters and they all cost the same. A category axis holds "Fees"
+   * next to "Sanitation Revenue", and charging both 110px thinned an axis of
+   * eight short words down to four for no reason.
+   */
+  const widest = days.reduce((n, d) => Math.max(n, fmt(d).length), 3)
+  const room = Math.max(2, Math.floor((w - padL - padR) / (widest * 6.6 + 16)))
   const every = Math.max(1, Math.ceil(days.length / room))
 
   return (
@@ -603,39 +610,64 @@ function BarH({ series, height, bare, fmt = day, order }: {
    * stretches the type as well as the bars.
    */
   const { ref, w } = useWidth()
-  const s = series[0]
-  const inOrder = order
-    ? order.map((k) => s.points.find((p) => p.on === k)).filter((p): p is typeof s.points[0] => !!p)
-    : s.points
-  const pts = inOrder.slice(-12).reverse()
-  const max = Math.max(...pts.map((p) => Math.abs(p.v)), 1)
-  const rowH = Math.max(18, Math.min(34, height / Math.max(1, pts.length)))
-  const h = rowH * pts.length + 4
+  const live = series.filter((s) => s.points.length > 0)
+  if (live.length === 0) return null
+
+  /**
+   * Every series, side by side in each slot -- not just the first one.
+   *
+   * This drew series[0] and silently dropped the rest, which was survivable
+   * while a horizontal bar meant one measure over time. The moment Columns
+   * became the colour, "three months of secondary revenue lines, drawn across"
+   * was a chart that showed June and threw July and August away without a
+   * word. A chart that quietly drops a series somebody put in a well is the
+   * one thing this kit must never be.
+   */
+  const keys = (order ?? unionDays(live)).filter((k) =>
+    live.some((s) => s.points.some((p) => p.on === k)))
+  const shown = keys.slice(-12)
+  const max = Math.max(...live.flatMap((s) => s.points.map((p) => Math.abs(p.v))), 1)
+  const band = Math.max(20, Math.min(38, height / Math.max(1, shown.length)))
+  const barH = Math.max(3, (band * 0.72) / live.length)
+  const h = band * shown.length + 4
   // Room for the longest label rather than a fixed 74, which cut "Southeast"
   // in half the moment the axis stopped being dates.
   const labelW = bare ? 0 : Math.min(Math.round(w * 0.34),
-    Math.max(74, ...pts.map((p) => fmt(p.on).length * 7 + 14)))
-  const figW = bare ? 0 : 62
+    Math.max(74, ...shown.map((k) => fmt(k).length * 7 + 14)))
+  // One figure per bar only when there is one bar; three numbers stacked in a
+  // slot is a slot nobody can read. The legend says which colour is which.
+  const figW = bare || live.length > 1 ? 0 : 62
+
   return (
     <div className="chartbox" ref={ref} style={{ height: h }}>
-      <svg className="chart" viewBox={`0 0 ${w} ${h}`} role="img" aria-label={s.measure}>
-        {pts.map((p, i) => {
-          const bw = (Math.abs(p.v) / max) * Math.max(10, w - labelW - figW - 8)
-          const y = i * rowH + rowH * 0.18
+      <svg className="chart" viewBox={`0 0 ${w} ${h}`} role="img"
+           aria-label={live.map((s) => s.measure).join(', ')}>
+        {shown.map((k, i) => {
+          const top = i * band + band * 0.14
           return (
-            <g key={p.on}>
+            <g key={k}>
               {!bare && (
-                <text className="chart__ax" x={labelW - 8} y={y + rowH * 0.42} textAnchor="end">
-                  {fmt(p.on)}
-                </text>
+                <text className="chart__ax" x={labelW - 8}
+                      y={top + (barH * live.length) / 2 + 4}
+                      textAnchor="end">{fmt(k)}</text>
               )}
-              <rect x={labelW} y={y} width={Math.max(1, bw)} height={rowH * 0.62}
-                    style={{ fill: 'var(--s1)' }} />
-              {!bare && (
-                <text className="chart__ax" x={labelW + bw + 6} y={y + rowH * 0.42}>
-                  {nf.format(p.v)}
-                </text>
-              )}
+              {live.map((s, si) => {
+                const pt = s.points.find((q) => q.on === k)
+                if (!pt) return null
+                const bw = (Math.abs(pt.v) / max) * Math.max(10, w - labelW - figW - 8)
+                const y = top + si * barH
+                return (
+                  <g key={s.measure}>
+                    <rect x={labelW} y={y} width={Math.max(1, bw)} height={Math.max(2, barH - 1)}
+                          style={{ fill: `var(${SERIES_VAR[si % 3]})` }} />
+                    {figW > 0 && (
+                      <text className="chart__ax" x={labelW + bw + 6} y={y + barH * 0.78}>
+                        {nf.format(pt.v)}
+                      </text>
+                    )}
+                  </g>
+                )
+              })}
             </g>
           )
         })}

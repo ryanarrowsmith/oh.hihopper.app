@@ -88,7 +88,11 @@ export function measureCap(kind: string) {
   if (kind === 'pie' || kind === 'big') return 1
   if (kind === 'scatter') return 2
   if (kind === 'combo') return 2
-  if (kind === 'col' || kind === 'barh') return 1
+  // 'col' is the plain single-measure column. 'barh' groups now -- the same
+  // three the vertical grouped columns take -- because a horizontal bar exists
+  // for long labels, and long labels are exactly what a category axis has.
+  if (kind === 'col') return 1
+  if (kind === 'barh') return 3
   // Stacked marks touch only their neighbours in a fixed order, so they carry
   // six; everything else past three is split into a plot each, where a heading
   // rather than a colour says which is which.

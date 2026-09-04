@@ -72,7 +72,38 @@ export const OP_WORD: Record<FilterOp, string> = {
   is: 'is', not: 'is not', has: 'contains', gte: 'is at least', lte: 'is at most',
   empty: 'is empty', filled: 'is not empty',
 }
-export type Filter = { field: string; op: FilterOp; a?: string }
+export type Filter = {
+  field: string
+  op: FilterOp
+  a?: string
+  /**
+   * Ask the reader rather than deciding for them.
+   *
+   * A report's filters are part of what the report IS -- change one and you
+   * have changed it for everybody. But some of them are not the report, they
+   * are the question somebody has while looking at it: which rep, which
+   * location, count the fuel surcharge or not. Marked ask, a filter becomes a
+   * control above the chart instead of a setting inside it, and the answer
+   * lives in that person's screen rather than on the report.
+   */
+  ask?: boolean
+}
+
+/**
+ * What decides the order of the row axis.
+ *
+ * 'value' -- biggest first, which is what somebody scanning a list of regions
+ * is asking for, and what this did before there was a choice.
+ * 'label'  -- alphabetical.
+ * 'by'     -- by another column entirely. This is the one a real sheet needs:
+ * DASH-Revenue Activity carries a PL Display Order beside every account name,
+ * because the order those five lines belong in is a fact about the business
+ * and not a fact about this month's numbers.
+ */
+export type Sort = 'value' | 'label' | 'by'
+export const SORT_WORD: Record<Sort, string> = {
+  value: 'Biggest first', label: 'A to Z', by: 'By another column',
+}
 
 export type Spec = {
   v: 1
@@ -80,6 +111,13 @@ export type Spec = {
   columns: Placed[]
   values: Value[]
   filters: Filter[]
+  sort: Sort
+  /** The column 'by' sorts on. Ignored otherwise. */
+  sortBy: string | null
+  /** What `points` cuts becomes one "Others" row rather than disappearing.
+   *  Only offered when every value is one that can be added up -- an average
+   *  of averages is not an average, and Others must not quietly become one. */
+  other: boolean
   /** Which mark. Kept here so the whole of "what this report draws" is one object. */
   type: string
   /** The most recent this many row keys. Null draws every one. */
@@ -90,8 +128,14 @@ export type Spec = {
 
 export const EMPTY: Spec = {
   v: 1, rows: [], columns: [], values: [], filters: [],
+  sort: 'value', sortBy: null, other: false,
   type: 'line', points: null, together: false,
 }
+
+/** Whether "Others" is even offerable: adding up what was cut only means
+ *  something when the values are sums and counts. */
+export const canRollUp = (s: Spec) =>
+  s.values.length > 0 && s.values.every((v) => v.agg === 'sum' || v.agg === 'count')
 
 /** A spec that will not draw anything yet, said in one sentence, or null. */
 export function whyNothing(s: Spec): string | null {
@@ -133,16 +177,22 @@ export function readSpec(raw: unknown): Spec {
         const ops: FilterOp[] = ['is', 'not', 'has', 'gte', 'lte', 'empty', 'filled']
         const op = ops.includes(q.op as FilterOp) ? (q.op as FilterOp) : 'is'
         const a = typeof q.a === 'string' ? q.a : undefined
-        return field ? { field, op, ...(a === undefined ? {} : { a }) } : null
+        return field
+          ? { field, op, ...(a === undefined ? {} : { a }), ...(q.ask === true ? { ask: true } : {}) }
+          : null
       }).filter((p): p is Filter => p !== null)
     : []
   const pts = Number(o.points)
+  const sort: Sort = o.sort === 'label' || o.sort === 'by' ? o.sort : 'value'
   return {
     v: 1,
     rows: placed(o.rows),
     columns: placed(o.columns),
     values,
     filters,
+    sort,
+    sortBy: sort === 'by' && typeof o.sortBy === 'string' && o.sortBy ? o.sortBy : null,
+    other: o.other === true,
     type: typeof o.type === 'string' && o.type ? o.type : 'line',
     points: Number.isFinite(pts) && pts >= 2 ? Math.round(pts) : null,
     together: o.together === true,
@@ -191,6 +241,7 @@ const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
 
 /** How a key is written where a person reads it. */
 export function keyWord(k: string, g?: Grain): string {
+  if (k === OTHERS_KEY) return 'Others'
   if (!g) return k
   if (g === 'year') return k
   if (g === 'quarter') return k.replace('-', ' ')
@@ -241,6 +292,9 @@ export type Pivot = {
 
 const ALL = ' all'
 export const ALL_KEY = ALL
+/** The row that stands for everything the window cut. A leading space so it
+ *  can never collide with a real key out of a spreadsheet. */
+export const OTHERS_KEY = ' others'
 
 function keyOf(row: Cell[], at: number[], grains: (Grain | undefined)[]): string {
   if (at.length === 0) return ALL
@@ -256,6 +310,10 @@ function passes(row: Cell[], f: Filter, i: number): boolean {
   const raw = row[i]
   const s = text(raw).trim()
   const want = (f.a ?? '').trim().toLowerCase()
+  // A question nobody has answered filters nothing. Without this, an empty
+  // "Sales Rep is ___" would mean "rows with no sales rep", which is the
+  // opposite of what an empty box looks like it means.
+  if (f.ask && want === '' && f.op !== 'empty' && f.op !== 'filled') return true
   switch (f.op) {
     case 'empty': return s === ''
     case 'filled': return s !== ''
@@ -306,6 +364,8 @@ export function pivot(tab: Tab, spec: Spec): Pivot {
   const rowSeen = new Set<string>()
   const colSeen = new Set<string>()
   const rowSort = new Map<string, number>()
+  const rowBy = new Map<string, number>()
+  const byAt = spec.sortBy ? at(spec.sortBy) : -1
   let collided = 0
 
   const put = (k: string, v: Cell, agg: Agg, own: boolean) => {
@@ -326,6 +386,17 @@ export function pivot(tab: Tab, spec: Spec): Pivot {
     const ck = keyOf(r, colAt, colGrains)
     rowSeen.add(rk)
     colSeen.add(ck)
+    // Sorting by another column: the SMALLEST value that column takes for this
+    // key. PL Display Order is the same on every row of an account, so min is
+    // just "what order is this one" -- and if a sheet is inconsistent about it,
+    // taking the smallest is at least an answer that does not move.
+    if (spec.sort === 'by' && byAt >= 0) {
+      const n = num(r[byAt])
+      if (n !== null) {
+        const had = rowBy.get(rk)
+        if (had === undefined || n < had) rowBy.set(rk, n)
+      }
+    }
     spec.values.forEach((v, vi) => {
       const i = valAt[vi]
       if (i < 0) return
@@ -346,9 +417,9 @@ export function pivot(tab: Tab, spec: Spec): Pivot {
       one(`${rk} ${ALL} ${vi}`, false)
       one(`${ALL} ${ck} ${vi}`, false)
       one(`${ALL} ${ALL} ${vi}`, false)
-      // The first value decides the order of a text axis: biggest first is
-      // what somebody scanning a list of regions is actually asking for.
-      if (vi === 0) {
+      // Biggest-first weight, from the first value. Only used when that is
+      // what the spec asked for.
+      if (vi === 0 && spec.sort === 'value') {
         const n = num(r[i])
         if (n !== null) rowSort.set(rk, (rowSort.get(rk) ?? 0) + Math.abs(n))
       }
@@ -369,53 +440,192 @@ export function pivot(tab: Tab, spec: Spec): Pivot {
     }
   }
 
-  const typeOf = (p?: Placed) => {
-    if (!p) return undefined
-    const i = at(p.field)
-    return i < 0 ? undefined : tab.columns[i].type
-  }
-  const rowType = spec.rows.length === 1 ? typeOf(spec.rows[0]) : undefined
-  const colType = spec.columns.length === 1 ? typeOf(spec.columns[0]) : undefined
-
-  const order = (keys: string[], type: FieldType | undefined, grain: Grain | undefined,
-                 weight?: Map<string, number>) => {
-    const ks = keys.filter((k) => k !== ALL)
-    if (grain || type === 'date') return ks.sort()
-    if (type === 'number') return ks.sort((a, b) => Number(a) - Number(b))
-    if (weight && weight.size) {
-      return ks.sort((a, b) => (weight.get(b) ?? 0) - (weight.get(a) ?? 0) || a.localeCompare(b))
-    }
-    return ks.sort((a, b) => a.localeCompare(b))
-  }
-
-  let rowKeys = order([...rowSeen], rowType, rowGrains[0], rowSort)
-  const colKeys = order([...colSeen], colType, colGrains[0])
-  const matched = rowKeys.length
-  // The most recent this many, which on a date axis is the end of it and on
-  // anything else is the tail of "biggest first" -- so a window on a text axis
-  // is the SMALL ones, which is not what anybody means. Take the head there.
-  if (spec.points && rowKeys.length > spec.points) {
-    const dated = Boolean(rowGrains[0]) || rowType === 'date'
-    rowKeys = dated ? rowKeys.slice(-spec.points) : rowKeys.slice(0, spec.points)
-  }
-
   const agg = (v: number) => spec.values[v]?.agg ?? 'sum'
-  return {
-    rowKeys,
-    colKeys,
-    values: spec.values,
-    rowGrain: rowGrains[0],
-    colGrain: colGrains[0],
+  return order(spec, tab.columns, {
+    rowSeen, colSeen, rowSort, rowBy,
     cell: (r, c, v) => read(`${r} ${c || ALL} ${v}`, agg(v)),
     rowTotal: (r, v) => read(`${r} ${ALL} ${v}`, agg(v)),
     colTotal: (c, v) => read(`${ALL} ${c || ALL} ${v}`, agg(v)),
     grand: (v) => read(`${ALL} ${ALL} ${v}`, agg(v)),
     kept: rows.length,
-    matched,
     collided,
+  })
+}
+
+/** What the two producers hand over: the keys they saw and how to read a cell. */
+type Parts = {
+  rowSeen: Set<string>
+  colSeen: Set<string>
+  /** Biggest-first weight per row key, for sort: 'value'. */
+  rowSort: Map<string, number>
+  /** The sort column's value per row key, for sort: 'by'. */
+  rowBy: Map<string, number>
+  cell: (r: string, c: string, v: number) => number | null
+  rowTotal: (r: string, v: number) => number | null
+  colTotal: (c: string, v: number) => number | null
+  grand: (v: number) => number | null
+  kept: number
+  collided: number
+}
+
+/**
+ * Ordering, the window and the roll-up — written once and read by both
+ * producers.
+ *
+ * The arithmetic can live in two places because it is checkable: the same
+ * spec over the same rows has one right answer, and a test can hold the two
+ * against each other. The ORDER of a text axis cannot be checked that way, it
+ * is a decision, so it is made here and only here.
+ */
+function order(spec: Spec, cols: Col[], p: Parts): Pivot {
+  const at = (label: string) => cols.findIndex((c) => c.key === label || c.label === label)
+  const typeOf = (q?: Placed) => {
+    if (!q) return undefined
+    const i = at(q.field)
+    return i < 0 ? undefined : cols[i].type
+  }
+  const rowGrain = spec.rows[0]?.grain
+  const colGrain = spec.columns[0]?.grain
+  const rowType = spec.rows.length === 1 ? typeOf(spec.rows[0]) : undefined
+  const colType = spec.columns.length === 1 ? typeOf(spec.columns[0]) : undefined
+
+  const sorted = (keys: Set<string>, type: FieldType | undefined, grain: Grain | undefined,
+                  axis?: 'row') => {
+    const ks = [...keys].filter((k) => k !== ALL)
+    // A date and a number order themselves, whatever anybody asked for: there
+    // is no reading of "A to Z" that puts October before June.
+    if (grain || type === 'date') return ks.sort()
+    if (type === 'number') return ks.sort((a, b) => Number(a) - Number(b))
+    if (axis !== 'row' || spec.sort === 'label') return ks.sort((a, b) => a.localeCompare(b))
+    if (spec.sort === 'by') {
+      // A key the sort column says nothing about goes last rather than first:
+      // an unranked row is not rank zero.
+      const by = (k: string) => p.rowBy.get(k) ?? Number.POSITIVE_INFINITY
+      return ks.sort((a, b) => by(a) - by(b) || a.localeCompare(b))
+    }
+    return ks.sort((a, b) => (p.rowSort.get(b) ?? 0) - (p.rowSort.get(a) ?? 0) || a.localeCompare(b))
+  }
+
+  let rowKeys = sorted(p.rowSeen, rowType, rowGrain, 'row')
+  const colKeys = sorted(p.colSeen, colType, colGrain)
+  const matched = rowKeys.length
+  let rolled: string[] = []
+  // The most recent this many, which on a date axis is the end of it and on
+  // anything else is the head of whatever order was asked for -- taking the
+  // TAIL of "biggest first" would be a window on the small ones, which is not
+  // what anybody means.
+  if (spec.points && rowKeys.length > spec.points) {
+    const dated = Boolean(rowGrain) || rowType === 'date'
+    const keep = dated ? rowKeys.slice(-spec.points) : rowKeys.slice(0, spec.points)
+    rolled = rowKeys.filter((k) => !keep.includes(k))
+    rowKeys = keep
+  }
+
+  return finish({
+    rowKeys, colKeys, rolled, spec, values: spec.values, rowGrain, colGrain,
+    cell: p.cell, rowTotal: p.rowTotal, colTotal: p.colTotal, grand: p.grand,
+    kept: p.kept, matched, collided: p.collided,
+  })
+}
+
+/**
+ * The last step both producers share: roll up what the window cut, if the
+ * spec asked and the arithmetic allows.
+ *
+ * Adding up what was cut only means something when the values are sums and
+ * counts. An average of averages is not an average and a distinct count of
+ * distinct counts is not one either, so Others is simply not offered there --
+ * rather than offered and quietly wrong, which is the version of this feature
+ * every spreadsheet ships.
+ */
+function finish(p: Omit<Pivot, 'rowKeys'> & { rowKeys: string[]; rolled: string[]; spec: Spec }): Pivot {
+  const { rolled, spec, ...rest } = p
+  const can = spec.other && rolled.length > 0 && canRollUp(spec)
+  if (!can) return { ...rest, rowKeys: p.rowKeys }
+
+  const add = (get: (k: string, v: number) => number | null, v: number) =>
+    rolled.reduce<number | null>((n, k) => {
+      const x = get(k, v)
+      return x === null ? n : (n ?? 0) + x
+    }, null)
+
+  return {
+    ...rest,
+    rowKeys: [...p.rowKeys, OTHERS_KEY],
+    cell: (r, c, v) => (r === OTHERS_KEY ? add((k, i) => p.cell(k, c, i), v) : p.cell(r, c, v)),
+    rowTotal: (r, v) => (r === OTHERS_KEY ? add(p.rowTotal, v) : p.rowTotal(r, v)),
   }
 }
+
+/** The filters a reader gets to answer, with where they sit in the spec. */
+export const asked = (s: Spec) =>
+  s.filters.map((f, i) => ({ f, i })).filter((x) => x.f.ask === true)
 
 /** What a value chip is called where it is read. */
 export const valueWord = (v: Value) =>
   v.agg === 'as-is' ? v.field : `${AGG_WORD[v.agg]} of ${v.field}`
+
+// ------------------------------------------------- the same shape, from SQL
+
+/** One cell of hopper.pivot()'s answer. */
+export type LongRow = {
+  row_key: string
+  col_key: string
+  v_idx: number
+  val: number | string | null
+  hits: number
+}
+
+/**
+ * The database's answer, assembled into the same Pivot object the browser
+ * builds.
+ *
+ * This is the whole reason hopper.pivot() returns the long form rather than a
+ * grid: every renderer, every ordering rule, the Others roll-up and the window
+ * are written once and read both answers. Two pivots that could disagree about
+ * the ORDER of a text axis would be two pivots, whatever they agreed about the
+ * numbers.
+ *
+ * v_idx = -1 carries the count of source rows in each cell, which is how a row
+ * key whose every value is null still gets a line in the table. A key that
+ * exists and holds nothing is a different fact from a key that does not exist.
+ */
+export function fromLong(long: LongRow[], spec: Spec, cols: Col[]): Pivot {
+  const at = new Map<string, number | null>()
+  const hit = new Map<string, number>()
+  const rowSeen = new Set<string>()
+  const colSeen = new Set<string>()
+  const rowSort = new Map<string, number>()
+  const rowBy = new Map<string, number>()
+  // The sort column rides along as one extra value chip the renderers never
+  // see; the route appends it, so its index is always the one past the end.
+  const byIdx = spec.sort === 'by' && spec.sortBy ? spec.values.length : -1
+  let kept = 0
+
+  for (const r of long) {
+    const v = r.val === null ? null : Number(r.val)
+    at.set(`${r.row_key} ${r.col_key} ${r.v_idx}`, v)
+    hit.set(`${r.row_key} ${r.col_key} ${r.v_idx}`, Number(r.hits) || 0)
+    if (r.row_key !== ALL) rowSeen.add(r.row_key)
+    if (r.col_key !== ALL) colSeen.add(r.col_key)
+    if (r.v_idx === -1 && r.row_key === ALL && r.col_key === ALL) kept = v ?? 0
+    if (r.col_key === ALL && r.row_key !== ALL) {
+      if (r.v_idx === 0 && v !== null) rowSort.set(r.row_key, Math.abs(v))
+      if (r.v_idx === byIdx && v !== null) rowBy.set(r.row_key, v)
+    }
+  }
+
+  const read = (k: string) => at.get(k) ?? null
+  return order(spec, cols, {
+    rowSeen, colSeen, rowSort, rowBy,
+    cell: (r, c, v) => read(`${r} ${c || ALL} ${v}`),
+    rowTotal: (r, v) => read(`${r} ${ALL} ${v}`),
+    colTotal: (c, v) => read(`${ALL} ${c || ALL} ${v}`),
+    grand: (v) => read(`${ALL} ${ALL} ${v}`),
+    kept,
+    // Only 'as-is' can collide, and only in the cell itself.
+    collided: spec.values.reduce((n, v, vi) => v.agg !== 'as-is' ? n : n + [...rowSeen]
+      .reduce((m, r) => m + [...colSeen, ALL]
+        .reduce((q, c) => q + Math.max(0, (hit.get(`${r} ${c} ${vi}`) ?? 0) - 1), 0), 0), 0),
+  })
+}

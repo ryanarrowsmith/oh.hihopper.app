@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState, useTransition } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import Chart, { Legend, isSplit, splitWhy, type Series } from '@/components/Chart'
 import PivotView from '@/components/PivotView'
+import PivotAsk from '@/components/PivotAsk'
 import { dateShaped, type Cell, type Spec } from '@/lib/pivot'
 import ChartPick from '@/components/ChartPick'
 import { setChartTogether } from '@/app/actions/reports'
@@ -37,11 +38,14 @@ const sourceName = (k: string) => k === 'google_sheet' ? 'Google Sheets'
   : k === 'airtable' ? 'Airtable' : k === 'microsoft' ? 'Microsoft 365'
   : k === 'link' ? 'A link' : k === 'upload' ? 'An uploaded file' : 'Pasted data'
 
-export default function ReportPage({ report, state, series: all, notes, roster, checks, related, mayEdit, columns, rows, spec }: {
+export default function ReportPage({ report, state, series: all, notes, roster, checks, related, mayEdit, columns, rows, rowCount, spec }: {
   columns: { key: string; label: string; type: 'text' | 'number' | 'date' }[]
-  /** The tab as it was last read. What the pivot draws from when the report is
-   *  not one date down the side. */
+  /** The tab as it was last read -- the SAMPLE. What the pivot draws from when
+   *  the whole sheet is small enough to fit in it. */
   rows: Cell[][]
+  /** How many rows the source actually has. Past the sample, the pivot runs in
+   *  the database instead. */
+  rowCount: number
   spec: Spec
   report: {
     id: string; name: string; entity: string; department: string; category: string | null
@@ -236,7 +240,16 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
         <div className="card" style={{ padding: 18 }}><div className="shape">
           <div className="shape__c">
           {asPivot
-            ? <PivotView tab={{ columns, rows }} spec={drawSpec} height={400} />
+            ? <>
+                {/* The questions this report hands to whoever is reading it.
+                    Above the chart, because they are asked before it is read
+                    and answered while it is. Nothing here is saved: the report
+                    is the same report for everybody, and this is one person
+                    looking at it. */}
+                <PivotAsk tab={{ columns, rows }} spec={drawSpec} onSpec={setDrawSpec} />
+                <PivotView tab={{ columns, rows }} spec={drawSpec} height={400}
+                           report={report.id} total={rowCount} />
+              </>
             : head.length < 2
             ? <p className="empty" style={{ margin: 0 }}>
                 {!state.lastLook

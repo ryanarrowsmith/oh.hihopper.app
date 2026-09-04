@@ -6929,6 +6929,11 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
 .pvpop__o:hover{background:var(--sunken); color:var(--ink)}
 .pvpop__o[aria-current]{border-left-color:var(--amber); color:var(--ink); font-weight:700}
 .pvpop__o b{display:block; font-weight:700; color:var(--ink)}
+.pvpop__grp{
+  display:block; padding:9px 13px 4px; margin-top:3px; border-top:1px solid var(--rule-soft);
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ink-3);
+}
 .pvpop__o em{display:block; font-style:normal; font-size:11.5px; color:var(--ink-3); margin-top:2px}
 
 /* ---- the two renderings ---- */
@@ -6988,4 +6993,34 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
   .pvwell{min-height:0}
   .pvbody{padding:12px 10px 6px}
   .pvpop{max-width:min(300px, 74vw)}
+}
+
+/* Whose question a filter is. Lit means the reader answers it. */
+.pvchip__ask{
+  appearance:none; border:0; border-left:1px solid var(--rule); background:none;
+  cursor:pointer; color:var(--ink-3); padding:0 7px; display:inline-flex; align-items:center;
+}
+.pvchip__ask svg{width:14px; height:14px; fill:none; stroke:currentColor;
+  stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round}
+.pvchip__ask:hover{color:var(--ink)}
+.pvchip__ask.is-on{background:var(--steelwash); color:var(--steel-ink)}
+
+/* The controls a report hands to whoever is reading it. */
+.pvask{
+  display:flex; flex-wrap:wrap; gap:10px 14px; align-items:flex-end;
+  padding:12px 14px; margin:0 0 14px;
+  background:var(--sunken); border:1px solid var(--rule); border-radius:var(--r);
+}
+.pvask__one{display:flex; flex-direction:column; gap:5px; min-width:0; flex:0 1 190px}
+.pvask__l{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.pvask__l em{font-style:normal; color:var(--ink-2)}
+.pvask .field{font-size:13.5px; padding:7px 10px}
+.pvask__clear{margin-left:auto; flex:none}
+@media (max-width:860px){
+  .pvask{gap:10px}
+  .pvask__one{flex:1 1 100%}
+  .pvask__clear{margin-left:0; width:100%}
 }

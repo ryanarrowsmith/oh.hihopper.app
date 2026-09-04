@@ -7,7 +7,7 @@ import Fold from '@/components/Fold'
 import { CHART_KINDS, KIND_NAME, KIND_ICON, KIND_SAY, type ChartKind } from '@/lib/charts'
 import PivotBuild from '@/components/PivotBuild'
 import PivotView from '@/components/PivotView'
-import { EMPTY, dateShaped, whyNothing, type Spec } from '@/lib/pivot'
+import { EMPTY, canRollUp, dateShaped, whyNothing, type Spec } from '@/lib/pivot'
 import { createReport, createCategory } from '@/app/actions/reports'
 
 type Org = { id: string; name: string }
@@ -194,7 +194,10 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
     const out = await createReport(null, f)
     setSaving(false)
     setSaid(out.message)
-    if (out.ok) router.push('/reporting')
+    // The report itself, not the list. The thing you were making is the thing
+    // to land on -- and it is the only screen that pivots the whole sheet
+    // rather than the rows the form could hold.
+    if (out.ok) router.push(out.id ? (`/reporting/${out.id}` as never) : '/reporting')
   }
 
   const canLeave1 = snapshot || (url.trim().length > 0 && cols !== null)
@@ -492,10 +495,16 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
           <div className="came came--stick" style={{ marginBottom: 18 }}>
             <div className="came__h">
               <b>Live preview</b>
+              {/* What this is drawn FROM, not just how many rows there are.
+                  "8 rows of your sheet" reads like the sheet has eight rows in
+                  it, and the first rows of a real sheet are all one account in
+                  one month -- so the preview drew one bar and the form looked
+                  broken when it was telling the truth badly. */}
               <span className="came__cut">
-                {cols
-                  ? `${sample.length.toLocaleString()} row${sample.length === 1 ? '' : 's'} of your sheet`
-                  : 'nothing read yet'}
+                {!cols ? 'nothing read yet'
+                  : rowCount > sample.length
+                    ? `the first ${sample.length.toLocaleString()} of ${rowCount.toLocaleString()} rows — the saved report reads all of them`
+                    : `all ${sample.length.toLocaleString()} row${sample.length === 1 ? '' : 's'}`}
               </span>
             </div>
             {cols
@@ -572,6 +581,24 @@ export default function AddReport({ orgs, depts, cats }: { orgs: Org[]; depts: D
                 <span className="togsay">{spec.together
                   ? 'One plot, one scale. The smaller values will be close to flat — that is the trade you have made.'
                   : 'A plot each. Turn this on when you are comparing shapes rather than sizes.'}</span>
+              </div>
+            )}
+
+            {/* Only a question when the window is actually cutting something,
+                and only offerable when adding up what was cut means anything:
+                an average of averages is not an average. */}
+            {spec.points !== null && canRollUp(spec) && (
+              <div className="togline" style={{ marginTop: 14 }}>
+                <span className="tog">
+                  <input id="ar-other" type="checkbox" checked={spec.other}
+                         aria-label="Roll the rest into Others"
+                         onChange={(e) => setSpec({ ...spec, other: e.target.checked })} />
+                  <span className="tog__track" /><span className="tog__knob" />
+                </span>
+                <span className="togstate">{spec.other ? 'On' : 'Off'}</span>
+                <span className="togsay">{spec.other
+                  ? 'Everything past the window becomes one Others row rather than disappearing.'
+                  : 'Roll everything past the window into one Others row.'}</span>
               </div>
             )}
 

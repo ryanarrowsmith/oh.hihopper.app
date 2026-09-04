@@ -2,10 +2,11 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   AGGS_FOR, AGG_SHORT, AGG_SAY, AGG_WORD, GRAINS, GRAIN_WORD, OP_WORD,
+  SORT_WORD, canRollUp,
   type Agg, type Col, type Filter, type FilterOp, type Grain, type Placed,
-  type Spec, type Value,
+  type Sort, type Spec, type Value,
 } from '@/lib/pivot'
-import { TYPE_MARK, TYPE_WORD, WELLS, WELL_SAY, WELL_WORD, I, CARET, X, type Well }
+import { TYPE_MARK, TYPE_WORD, WELLS, WELL_SAY, WELL_WORD, I, ASK, CARET, X, type Well }
   from '@/components/PivotBits'
 
 /**
@@ -79,6 +80,9 @@ export default function PivotBuild({ cols, spec, onSpec }: {
 
   const typeOf = (label: string) =>
     cols.find((c) => c.key === label || c.label === label)?.type ?? 'text'
+  /** What a row axis can be ordered BY: a number is the only kind of column
+   *  that says "this one comes third". */
+  const numbers = cols.filter((c) => c.type === 'number')
 
   const put = (well: Well, field: string) => {
     const t = typeOf(field)
@@ -133,6 +137,39 @@ export default function PivotBuild({ cols, spec, onSpec }: {
           ))}
         </Pop>
       )}
+      {/* What order these go in. Only on the first Rows chip, and only there:
+          a date orders itself and a column axis is not a list anybody scans.
+          The choice that matters is the third one -- a sheet that carries a
+          display order beside the name is a sheet whose author has already
+          decided what order these belong in. */}
+      {well === 'rows' && i === 0 && typeOf(p.field) !== 'date' && (
+        <Pop label="What order the rows go in" cur={SORT_WORD[spec.sort]}>
+          {(close) => <>
+            {(['value', 'label', 'by'] as Sort[]).map((k) => (
+              <button key={k} type="button" className="pvpop__o" role="menuitem"
+                      aria-current={spec.sort === k || undefined}
+                      onClick={() => {
+                        onSpec({ ...spec, sort: k,
+                          sortBy: k === 'by' ? (spec.sortBy ?? numbers[0]?.label ?? null) : null })
+                        if (k !== 'by') close()
+                      }}>
+                <b>{SORT_WORD[k]}</b>
+                <em>{k === 'value' ? 'By the first thing being measured.'
+                  : k === 'label' ? 'Alphabetical.'
+                  : 'By a column that says what order they belong in.'}</em>
+              </button>
+            ))}
+            {spec.sort === 'by' && <span className="pvpop__grp">Which column</span>}
+            {spec.sort === 'by' && numbers.map((c) => (
+              <button key={c.key} type="button" className="pvpop__o" role="menuitem"
+                      aria-current={spec.sortBy === c.label || undefined}
+                      onClick={() => { onSpec({ ...spec, sortBy: c.label }); close() }}>
+                {c.label}
+              </button>
+            ))}
+          </>}
+        </Pop>
+      )}
     </Chip>
   ))
 
@@ -166,8 +203,22 @@ export default function PivotBuild({ cols, spec, onSpec }: {
         </Pop>
         {NEEDS_A(f.op) && (
           <input className="pvchip__a" value={f.a ?? ''} aria-label={`What ${f.field} is tested against`}
-                 placeholder="what" size={Math.max(4, (f.a ?? '').length + 1)}
+                 placeholder={f.ask ? 'their answer' : 'what'}
+                 size={Math.max(4, (f.a ?? '').length + 1)}
                  onChange={(e) => setFilter(i, { ...f, a: e.target.value })} />
+        )}
+        {/* Whose question is this. A filter the report answers is part of what
+            the report is; a filter the reader answers is a control above the
+            chart and changes nothing for anybody else. */}
+        {NEEDS_A(f.op) && (
+          <button type="button"
+                  className={`pvchip__ask${f.ask ? ' is-on' : ''}`}
+                  aria-pressed={f.ask === true}
+                  data-tip={f.ask ? 'The reader answers this' : 'The report answers this'}
+                  aria-label={f.ask ? 'The reader answers this' : 'The report answers this'}
+                  onClick={() => setFilter(i, { ...f, ask: !f.ask })}>
+            {I(ASK)}
+          </button>
         )}
       </Chip>
     ))

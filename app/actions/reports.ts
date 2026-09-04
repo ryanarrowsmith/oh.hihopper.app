@@ -14,7 +14,7 @@ import { dateShaped, readSpec, whyNothing, type Spec } from '@/lib/pivot'
 const CHART_TYPES = new Set(CHART_KINDS.flatMap((g) => g.kinds.map((k) => k.k as string)))
 import { tellMentioned } from '@/lib/notify'
 
-export type Result = { ok: boolean; message: string }
+export type Result = { ok: boolean; message: string; id?: string }
 
 async function ctx() {
   const session = await currentSession()
@@ -185,7 +185,8 @@ export async function createReport(_p: Result | null, form: FormData): Promise<R
     object_id: data.id, summary: `Registered the report ${name}`, note })
 
   revalidatePath('/reporting')
-  return { ok: true, message: `${name} registered. Nothing has been read yet — refresh it to fetch the first numbers.` }
+  return { ok: true, id: data.id,
+    message: `${name} registered. Nothing has been read yet — refresh it to fetch the first numbers.` }
 }
 
 export async function updateReport(_p: Result | null, form: FormData): Promise<Result> {

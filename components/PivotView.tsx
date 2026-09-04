@@ -1,9 +1,9 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Chart, { Legend, type Series } from '@/components/Chart'
 import {
-  keyWord, pivot, valueWord, whyNothing,
-  type Col, type Spec, type Tab,
+  fromLong, keyWord, pivot, valueWord, whyNothing,
+  type LongRow, type Spec, type Tab,
 } from '@/lib/pivot'
 import { figure } from '@/components/PivotBits'
 
@@ -22,19 +22,78 @@ import { figure } from '@/components/PivotBits'
  * capped at three drawn with a sentence saying which three and why.
  */
 
+
+/**
+ * The database's answer, when the browser does not hold enough rows to give
+ * one.
+ *
+ * report_rows keeps 500; DASH-Revenue Activity has 84,419. Pivoting the 500
+ * and labelling the answer "three months" is not a smaller version of the
+ * right answer, so past the sample the same spec goes to hopper.pivot() and
+ * the whole table answers it.
+ *
+ * Debounced, because this runs while somebody is dragging a chip around, and a
+ * request per keystroke in a filter box is a request per keystroke.
+ */
+function useFar(report: string | undefined, spec: Spec, tab: Tab, total?: number) {
+  const [far, setFar] = useState<ReturnType<typeof fromLong> | null>(null)
+  const [waiting, setWaiting] = useState(false)
+  const [failed, setFailed] = useState<string | null>(null)
+  // The sample IS the sheet when the sheet is small enough. Nothing to ask.
+  const need = Boolean(report) && (total ?? 0) > tab.rows.length
+  const key = JSON.stringify(spec)
+  const seq = useRef(0)
+
+  useEffect(() => {
+    if (!need) { setFar(null); setFailed(null); setWaiting(false); return }
+    const mine = ++seq.current
+    setWaiting(true)
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch('/api/report/pivot', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ report, spec: JSON.parse(key) }),
+        }).then((x) => x.json())
+        // An answer to a spec two edits ago is not an answer.
+        if (mine !== seq.current) return
+        if (r.ok) {
+          setFar(fromLong(r.long as LongRow[], JSON.parse(key), tab.columns))
+          setFailed(null)
+        } else setFailed(r.message ?? 'Hopper could not pivot that.')
+      } catch {
+        if (mine === seq.current) setFailed('Hopper could not reach the pivot.')
+      } finally {
+        if (mine === seq.current) setWaiting(false)
+      }
+    }, 260)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [need, report, key, tab.columns])
+
+  return { far, waiting, failed }
+}
+
 /** How many column keys one plot can color. */
 const COLOR_CAP = 3
 
-export default function PivotView({ tab, spec, height = 300, tabs = true, only }: {
+export default function PivotView({ tab, spec, height = 300, tabs = true, only,
+                                    report, total }: {
   tab: Tab
   spec: Spec
   height?: number
   /** Whether the strip is shown. A card has no room for it and shows the chart. */
   tabs?: boolean
   only?: 'table' | 'chart'
+  /** Which report these rows belong to. Given, and only when the sheet is
+   *  bigger than the sample, the pivot is run in the database instead. */
+  report?: string
+  /** How many rows the source actually has, as of the last read. */
+  total?: number
 }) {
   const [show, setShow] = useState<'table' | 'chart'>(only ?? 'chart')
-  const p = useMemo(() => pivot(tab, spec), [tab, spec])
+  const here = useMemo(() => pivot(tab, spec), [tab, spec])
+  const { far, waiting, failed } = useFar(report, spec, tab, total)
+  const p = far ?? here
   const nothing = whyNothing(spec)
 
   if (nothing) return <p className="empty" style={{ margin: 0 }}>{nothing}</p>
@@ -200,6 +259,19 @@ export default function PivotView({ tab, spec, height = 300, tabs = true, only }
       <div className={shown === 'table' ? 'pvbody pvbody--table' : 'pvbody'}>
         {shown === 'table' ? table : chart}
       </div>
+      {/* Which rows this was worked out from. The sample and the whole sheet
+          give different answers, and a screen that shows one while implying
+          the other is the whole reason report_row exists. */}
+      {report && (total ?? 0) > tab.rows.length && !far && (
+        <p className="pvnote">
+          {failed
+            ? `${failed} Drawn from the first ${tab.rows.length.toLocaleString()} rows instead.`
+            : waiting
+              ? `Working this out over all ${(total ?? 0).toLocaleString()} rows — showing the first ${tab.rows.length.toLocaleString()} in the meantime.`
+              : `Drawn from the first ${tab.rows.length.toLocaleString()} of ${(total ?? 0).toLocaleString()} rows.`}
+        </p>
+      )}
+
       {/* Said out loud rather than swallowed. "Value as it is" takes the last
           row in a cell, which is what a sheet means when the same day appears
           twice -- but only if somebody knows it happened. */}
