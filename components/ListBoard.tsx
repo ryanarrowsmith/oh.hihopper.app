@@ -5,9 +5,9 @@ import Choice from '@/components/Choice'
 import CrumbTail from '@/components/CrumbTail'
 import Log from '@/components/Log'
 import { WORD } from '@/components/ListBits'
-import { Tasks, Go, I, PLUS, REPEATS, day, type Person } from '@/components/TaskRows'
+import { AddTaskInline, Tasks, Go, I, day, type Person } from '@/components/TaskRows'
 import type { ListHead, Task, LogEntry, LStatus } from '@/lib/todo'
-import { addNote, addTask, setListDate, setListStatus } from '@/app/actions/todo'
+import { setListDate, setListStatus } from '@/app/actions/todo'
 
 const MAIL = '<path d="M3 6h18v12H3z"/><path d="m3 7 9 6 9-6"/>'
 const PRINT = '<path d="M7 8V3h10v5"/><rect x="3" y="8" width="18" height="8" rx="1.5"/><path d="M7 14h10v7H7z"/>'
@@ -20,9 +20,11 @@ const PRINT = '<path d="M7 8V3h10v5"/><rect x="3" y="8" width="18" height="8" rx
  * status card, no progress bar and no rail down the side: what they carried is
  * one quiet line under the title, and the tasks start immediately.
  */
-export default function ListBoard({ list, tasks, every, log, people, mayEdit, mePersonId }: {
+export default function ListBoard({ list, tasks, every, log, taskName, people,
+                                    mayEdit, mePersonId }: {
   list: ListHead; tasks: Task[]; every: { id: string; name: string }[]
-  log: LogEntry[]; people: Person[]; mayEdit: boolean; mePersonId: string | null
+  log: LogEntry[]; taskName: Map<string, string>
+  people: Person[]; mayEdit: boolean; mePersonId: string | null
 }) {
   const [status, setStatus] = useState<LStatus>(list.status)
   const [dating, setDating] = useState(false)
@@ -110,22 +112,17 @@ export default function ListBoard({ list, tasks, every, log, people, mayEdit, me
               {list.total === 0 ? 'Nothing yet'
                 : `${list.total - list.done} open of ${list.total}`}
             </span>
-            {mayEdit && (
-              <span className="tdcard__go">
-                <AddTask list={list.id} people={people} every={every} />
-              </span>
-            )}
+
           </div>
           <div className="tdcard__body">
-            {tasks.length === 0 ? (
-              <p className="pjnone pjnone--tight">
-                Nothing on it yet. A task is a thing one person does; a subtask is one of
-                the steps inside it.
-              </p>
-            ) : (
+            {tasks.length > 0 && (
               <Tasks rows={tasks} every={every} people={people} list={list.id}
                      mayEdit={mayEdit} mePersonId={mePersonId} />
             )}
+            {mayEdit
+              ? <AddTaskInline list={list.id} />
+              : tasks.length === 0 &&
+                  <p className="pjnone pjnone--tight">Nothing on it yet.</p>}
           </div>
         </section>
 
@@ -136,10 +133,14 @@ export default function ListBoard({ list, tasks, every, log, people, mayEdit, me
               {log.length === 0 ? 'Nothing yet'
                 : `${log.length} ${log.length === 1 ? 'entry' : 'entries'}`}
             </span>
-            <span className="tdcard__go"><AddNote list={list.id} /></span>
           </div>
           <div className="tdcard__body">
-            <Log entries={log} />
+            {/* Everything that happened on this list, its own dates included.
+                A to-do's history also shows under the to-do itself on the To Do
+                screen -- there it is read under the row, so the name is not in
+                the sentence; here it is, because here the entries are about
+                many different things. */}
+            <Log entries={log} names={taskName} />
           </div>
         </section>
       </div>
@@ -199,96 +200,3 @@ function ListDate({ list, onDone }: { list: ListHead; onDone: () => void }) {
   )
 }
 
-/* ────────────────────────────────────────────────────────────── the adders */
-
-function AddTask({ list, people, every }: {
-  list: string; people: Person[]; every: { id: string; name: string }[]
-}) {
-  const [open, setOpen] = useState(false)
-  const [state, action] = useFormState(addTask, null)
-  // Closes because the save worked, never during a render. useFormState keeps
-  // its last result for good, so setting state here would shut the popover on
-  // the very next render, for ever.
-  useEffect(() => { if (state?.ok) setOpen(false) }, [state])
-  return (
-    <span className="pjaddtask">
-      <button className="btn btn--amber" type="button" aria-expanded={open}
-              onClick={(e) => { e.stopPropagation(); setOpen(!open) }}>
-        {I(PLUS, '2.2')}Add a task
-      </button>
-      {open && (
-        <div className="addpop" role="dialog" aria-label="New task">
-          <div className="addpop__h"><b>New task</b>
-            <button className="addpop__x" type="button" onClick={() => setOpen(false)}>&times;</button></div>
-          <div className="addpop__body">
-            <form action={action}>
-              <input type="hidden" name="list_id" value={list} />
-              <div className="formrow formrow--one">
-                <div><label htmlFor="tk-n">What has to be done</label>
-                  <input className="field" id="tk-n" name="name" required maxLength={240}
-                         placeholder="Go to the dealership" autoFocus autoComplete="off" /></div>
-              </div>
-              <div className="formrow" style={{ marginTop: 12 }}>
-                <div><label htmlFor="tk-a">Who does it</label>
-                  <Choice id="tk-a" name="assignee_id" placeholder="Nobody yet"
-                          options={people.map((p) => ({ value: p.id, label: p.full_name }))} /></div>
-                <div><label htmlFor="tk-d">By when</label>
-                  <input className="field" id="tk-d" name="due_on" type="date" /></div>
-              </div>
-              <div className="formrow" style={{ marginTop: 12 }}>
-                <div><label htmlFor="tk-b">Waits on</label>
-                  <Choice id="tk-b" name="blocked_by" placeholder="Nothing" filterFrom={8}
-                          options={[{ value: '', label: 'Nothing' },
-                            ...every.map((t) => ({ value: t.id, label: t.name }))]} /></div>
-                <div><label htmlFor="tk-t">Tags</label>
-                  <input className="field" id="tk-t" name="tags" maxLength={120}
-                         placeholder="Car, Money" autoComplete="off" /></div>
-              </div>
-              <div className="formrow" style={{ marginTop: 12 }}>
-                <div><label htmlFor="tk-r">Repeats</label>
-                  {/* Needs a date to count from, which the database enforces --
-                      so the hint says so before the save does. */}
-                  <Choice id="tk-r" name="repeat" placeholder="Does not repeat"
-                          options={REPEATS} />
-                  <p className="fine">Give it a date above if it repeats.</p></div>
-                <div />
-              </div>
-              <div className="rowacts"><Go label="Add it" busy="Adding…" />
-                <button className="btn" type="button" onClick={() => setOpen(false)}>Cancel</button></div>
-              {state && !state.ok && <p className="swhy">{state.message}</p>}
-            </form>
-          </div>
-        </div>
-      )}
-    </span>
-  )
-}
-
-function AddNote({ list }: { list: string }) {
-  const [open, setOpen] = useState(false)
-  const [state, action] = useFormState(addNote, null)
-  useEffect(() => { if (state?.ok) setOpen(false) }, [state])
-  return (
-    <>
-      <button className="lnk lnk--add" type="button" onClick={() => setOpen(!open)}>
-        {I(PLUS, '2.4')}Add a note
-      </button>
-      {open && (
-        <div className="addpop" role="dialog" aria-label="Add a note">
-          <div className="addpop__h"><b>Add a note</b>
-            <button className="addpop__x" type="button" onClick={() => setOpen(false)}>&times;</button></div>
-          <div className="addpop__body">
-            <form action={action}>
-              <input type="hidden" name="list_id" value={list} />
-              <textarea className="field" name="body" rows={3} required maxLength={4000}
-                        placeholder="What happened, and what it means." autoFocus />
-              <div className="rowacts"><Go label="Save it" busy="Saving…" />
-                <button className="btn" type="button" onClick={() => setOpen(false)}>Cancel</button></div>
-              {state && !state.ok && <p className="swhy">{state.message}</p>}
-            </form>
-          </div>
-        </div>
-      )}
-    </>
-  )
-}

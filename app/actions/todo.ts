@@ -283,15 +283,94 @@ export async function blockTask(id: string, blockedBy: string | null): Promise<R
 
 /* ───────────────────────────────────────────────────────────────────── log */
 
+/** A note, on the to-do it is about. */
 export async function addNote(_p: Result | null, form: FormData): Promise<Result> {
   const { db, account, person } = await ctx()
-  const list_id = str(form, 'list_id')
+  const task_id = str(form, 'task_id')
   const body = str(form, 'body')
-  if (!list_id || !body) return { ok: false, message: 'Say something before saving it.' }
+  if (!task_id || !body) return { ok: false, message: 'Say something before saving it.' }
 
-  const { error } = await db.schema('hopper').from('list_note')
-    .insert({ account_id: account, list_id, body, kind: 'note', author_id: person })
+  const { data: t } = await db.schema('hopper').from('task')
+    .select('list_id').eq('id', task_id).maybeSingle()
+  if (!t) return { ok: false, message: 'That task is not there.' }
+
+  const { data: hit, error } = await db.schema('hopper').from('list_note')
+    .insert({ account_id: account, list_id: t.list_id, task_id,
+              body, kind: 'note', author_id: person })
+    .select('id')
   if (error) return { ok: false, message: error.message }
-  revalidatePath(`/todo/${list_id}`)
+  if (!hit || hit.length === 0) return { ok: false, message: 'That is not yours to write on.' }
+  touch(t.list_id)
   return { ok: true, message: 'Noted.' }
+}
+
+/**
+ * A file, on the to-do it belongs to.
+ *
+ * The bucket is private and the browser never talks to it -- this puts the
+ * bytes there with the signed-in person's own session, so the storage policy
+ * decides, and the row that records it is what every screen reads. If the row
+ * fails to write, the object is orphaned rather than the other way round: a
+ * file nobody can see beats a listing that points at nothing.
+ */
+export async function attachFile(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account, person } = await ctx()
+  const task_id = str(form, 'task_id')
+  const file = form.get('file')
+  if (!task_id) return { ok: false, message: 'Which to-do?' }
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, message: 'Choose a file first.' }
+  }
+  if (file.size > 15 * 1024 * 1024) {
+    return { ok: false, message: 'That one is over 15 MB. Put it somewhere and paste the link in a note.' }
+  }
+
+  const { data: t } = await db.schema('hopper').from('task')
+    .select('list_id').eq('id', task_id).maybeSingle()
+  if (!t) return { ok: false, message: 'That task is not there.' }
+
+  // The name a person sees and the name on disk are different things: the first
+  // can hold anything, and the second has to be safe to put in a URL.
+  const dot = file.name.lastIndexOf('.')
+  const ext = dot > 0 ? file.name.slice(dot + 1).toLowerCase().replace(/[^a-z0-9]/g, '') : ''
+  const path = `${account}/${task_id}/${crypto.randomUUID()}${ext ? `.${ext}` : ''}`
+
+  const up = await db.storage.from('todo-files')
+    .upload(path, file, { contentType: file.type || 'application/octet-stream' })
+  if (up.error) {
+    return { ok: false, message: /policy|row-level/i.test(up.error.message)
+      ? 'Attaching a file is limited to the people who run this list.'
+      : up.error.message }
+  }
+
+  const { error } = await db.schema('hopper').from('list_note').insert({
+    account_id: account, list_id: t.list_id, task_id, kind: 'file', author_id: person,
+    body: file.name.slice(0, 200),
+    file_path: path, file_name: file.name.slice(0, 200),
+    file_bytes: file.size, file_mime: file.type || null,
+  })
+  if (error) return { ok: false, message: error.message }
+
+  touch(t.list_id)
+  return { ok: true, message: 'Attached.' }
+}
+
+/** The name on a to-do, changed where it stands. */
+export async function renameTask(_p: Result | null, form: FormData): Promise<Result> {
+  const { db } = await ctx()
+  const id = str(form, 'id')
+  const name = str(form, 'name')
+  if (!id || !name) return { ok: false, message: 'It needs a name.' }
+  const { data: t } = await db.schema('hopper').from('task')
+    .select('list_id').eq('id', id).maybeSingle()
+  if (!t) return { ok: false, message: 'That task is not there.' }
+
+  const { data: hit, error } = await db.schema('hopper').from('task')
+    .update({ name: name.slice(0, 240) }).eq('id', id).select('id')
+  if (error) return { ok: false, message: error.message }
+  if (!hit || hit.length === 0) {
+    return { ok: false, message: 'Renaming is limited to the people who run this list.' }
+  }
+  touch(t.list_id)
+  return { ok: true, message: 'Renamed.' }
 }

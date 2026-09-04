@@ -26,6 +26,8 @@ export type Task = {
   order: number
   /** '' when it does not repeat; otherwise '1d', '2w', '3m' and so on. */
   repeat: string
+  /** Its own notes, changes and files, newest first. */
+  log: LogEntry[]
   /** Only ever populated on a task with no parent of its own. */
   subs: Task[]
 }
@@ -45,6 +47,9 @@ export type ListHead = {
 
 export type LogEntry = {
   id: string; body: string; kind: string; at: string; author: string | null
+  /** null on an entry about the list itself rather than about a to-do. */
+  taskId: string | null
+  file: { name: string; bytes: number; mime: string | null } | null
 }
 
 const initialsOf = (n: string | null) =>
@@ -57,6 +62,8 @@ const NOBODY = '00000000-0000-0000-0000-000000000000'
 
 const SELECT_LIST =
   'id, name, summary, entity_id, owner_id, status, started_on, due_on, tags, blocked_by'
+const SELECT_NOTE =
+  'id, list_id, task_id, body, kind, at, author_id, file_path, file_name, file_bytes, file_mime'
 const SELECT_TASK =
   'id, list_id, parent_id, name, detail, assignee_id, due_on, done_at, tags, sort_order,'
   + ' blocked_by, repeat_every, repeat_unit'
@@ -68,7 +75,15 @@ const SELECT_TASK =
  * screen that renders them wants them in reading order under the task they
  * belong to, and doing that twice is doing it differently twice.
  */
-function shape(rows: any[], who: Map<string, string>): Task[] {
+const entry = (n: any, who: Map<string, string>): LogEntry => ({
+  id: n.id, body: n.body, kind: n.kind, at: n.at, taskId: n.task_id ?? null,
+  author: who.get(n.author_id) ?? null,
+  file: n.file_path
+    ? { name: n.file_name, bytes: Number(n.file_bytes ?? 0), mime: n.file_mime ?? null }
+    : null,
+})
+
+function shape(rows: any[], who: Map<string, string>, notes: any[] = []): Task[] {
   const name = new Map(rows.map((t: any) => [t.id, t.name]))
   const one = (t: any): Task => {
     const a = who.get(t.assignee_id) ?? null
@@ -80,14 +95,21 @@ function shape(rows: any[], who: Map<string, string>): Task[] {
       blockedByName: t.blocked_by ? (name.get(t.blocked_by) ?? null) : null,
       order: t.sort_order ?? 0,
       repeat: t.repeat_every ? `${t.repeat_every}${String(t.repeat_unit)[0]}` : '',
+      log: [],
       subs: [],
     }
   }
   const by = (a: Task, b: Task) => a.order - b.order || a.name.localeCompare(b.name)
   const tops = rows.filter((t: any) => !t.parent_id).map(one).sort(by)
-  const mine = new Map(tops.map((t) => [t.id, t]))
-  for (const s of rows.filter((t: any) => t.parent_id).map(one).sort(by)) {
-    mine.get(s.parentId!)?.subs.push(s)
+  const subs = rows.filter((t: any) => t.parent_id).map(one).sort(by)
+  const mine = new Map([...tops, ...subs].map((t) => [t.id, t]))
+  for (const s of subs) mine.get(s.parentId!)?.subs.push(s)
+
+  // Its history, hung on the row it is about. One pass over the notes rather
+  // than one query per task: a list of forty to-dos should not cost forty trips.
+  for (const n of notes) {
+    if (!n.task_id) continue
+    mine.get(n.task_id)?.log.push(entry(n, who))
   }
   return tops
 }
@@ -123,12 +145,15 @@ const head = (l: any, ents: Map<string, string>, who: Map<string, string>,
  */
 export async function loadTodo(): Promise<{ list: ListHead; tasks: Task[] }[]> {
   const db = supabaseServer()
-  const [{ data: lists }, { data: tasks }, { data: ents }, { data: people }, { data: runs }] =
+  const [{ data: lists }, { data: tasks }, { data: ents }, { data: people },
+         { data: notes }, { data: runs }] =
     await Promise.all([
       db.schema('hopper').from('list').select(SELECT_LIST).order('name'),
       db.schema('hopper').from('task').select(SELECT_TASK).order('sort_order'),
       db.schema('hopper').from('entity').select('id, name'),
       db.schema('hopper').from('directory').select('id, full_name'),
+      db.schema('hopper').from('list_note').select(SELECT_NOTE)
+        .not('task_id', 'is', null).order('at', { ascending: false }),
       // Which of them this person runs, answered by the policy itself: a no-op
       // update returns only the rows it was allowed to touch. Asking the
       // database beats keeping a second copy of the rule in here that can drift
@@ -146,7 +171,7 @@ export async function loadTodo(): Promise<{ list: ListHead; tasks: Task[] }[]> {
     const rows = (tasks ?? []).filter((t: any) => t.list_id === l.id)
     return {
       list: { ...head(l, entName, who, lName, rows), mayEdit: runsIt.has(l.id) },
-      tasks: shape(rows, who),
+      tasks: shape(rows, who, (notes ?? []).filter((n: any) => n.list_id === l.id)),
     }
   })
 }
@@ -159,9 +184,8 @@ export async function loadList(id: string) {
     await Promise.all([
       db.schema('hopper').from('list').select(SELECT_LIST).eq('id', id).maybeSingle(),
       db.schema('hopper').from('task').select(SELECT_TASK).eq('list_id', id).order('sort_order'),
-      db.schema('hopper').from('list_note')
-        .select('id, body, kind, at, author_id')
-        .eq('list_id', id).order('at', { ascending: false }).limit(80),
+      db.schema('hopper').from('list_note').select(SELECT_NOTE)
+        .eq('list_id', id).order('at', { ascending: false }).limit(200),
       db.schema('hopper').from('entity').select('id, name'),
       db.schema('hopper').from('directory').select('id, full_name'),
       db.schema('hopper').from('list').select('id, name'),
@@ -174,12 +198,12 @@ export async function loadList(id: string) {
   return {
     list: head(l, new Map((ents ?? []).map((e: any) => [e.id, e.name])), who,
                new Map((lists ?? []).map((x: any) => [x.id, x.name])), rows),
-    tasks: shape(rows, who),
+    tasks: shape(rows, who, notes ?? []),
     /** Flat, for the pickers: what a task may wait on is any other task here. */
     every: rows.map((t: any) => ({ id: t.id, name: t.name })),
-    log: (notes ?? []).map((n: any): LogEntry => ({
-      id: n.id, body: n.body, kind: n.kind, at: n.at,
-      author: who.get(n.author_id) ?? null,
-    })),
+    /** Everything that happened on this list, task entries included, for the
+        printable single-list view. The names are put back on there. */
+    log: (notes ?? []).map((n: any) => entry(n, who)),
+    taskName: new Map(rows.map((t: any) => [t.id, t.name])),
   }
 }

@@ -21,14 +21,30 @@ const MARK: Record<string, string> = {
   blocked: '<path d="M6 11V8a6 6 0 1 1 12 0v3"/><rect x="4" y="11" width="16" height="10" rx="1.5"/>',
   status: '<path d="M4 16.5 9.5 11l3.5 3.5L20 7"/><path d="M15 7h5v5"/>',
   note: '<path d="M5 4h14v16l-7-3-7 3z"/>',
+  file: '<path d="M21.4 11.1 12.3 20a5 5 0 0 1-7-7l9-8.9a3.3 3.3 0 0 1 4.7 4.7l-9 8.9a1.7 1.7 0 0 1-2.4-2.4l8.4-8.3"/>',
 }
 const SAYS: Record<string, string> = {
   moved: 'A date changed', added: 'Something was added', assigned: 'Put on somebody',
   closed: 'Ticked off', blocked: 'Waiting on something', status: 'The list was called',
-  note: 'Somebody wrote this',
+  note: 'Somebody wrote this', file: 'A file was attached',
 }
 
-export default function Log({ entries }: { entries: LogEntry[] }) {
+/** Bytes, in the unit a person would say out loud. */
+const size = (n: number) =>
+  n >= 1_048_576 ? `${(n / 1_048_576).toFixed(1)} MB`
+  : n >= 1024 ? `${Math.round(n / 1024)} KB`
+  : `${n} bytes`
+
+const PAGE = '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>'
+
+/**
+ * @param names  On a list's own page the entries are about many to-dos, so the
+ *   name goes back in front of each line. Read under the to-do it belongs to,
+ *   that name is the name said twice -- so it is not stored in the sentence.
+ */
+export default function Log({ entries, names }: {
+  entries: LogEntry[]; names?: Map<string, string>
+}) {
   if (entries.length === 0) return <p className="pjnone">Nothing has happened yet.</p>
   return (
     <div className="log pjlog">
@@ -45,7 +61,29 @@ export default function Log({ entries }: { entries: LogEntry[] }) {
             <span>{new Date(e.at).toLocaleString('en-US',
               { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span>
           </p>
-          <p className="log__b">{e.body}</p>
+          {e.file ? (
+            /* The file itself, not a sentence about it. It opens through
+               Hopper rather than through storage, so the database decides who
+               may see it -- the URL is the log entry, which has to exist and
+               has to be one this person may read. */
+            <p className="tdfile">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+                   strokeLinecap="round" strokeLinejoin="round"
+                   dangerouslySetInnerHTML={{ __html: PAGE }} />
+              <b>{e.file.name}</b>
+              <span>{size(e.file.bytes)}</span>
+              <a className="lnk" href={`/api/todo/file/${e.id}`} target="_blank" rel="noreferrer">
+                Open
+              </a>
+            </p>
+          ) : (
+            <p className="log__b">
+              {names && e.taskId && names.get(e.taskId) && (
+                <b className="log__on">{names.get(e.taskId)}</b>
+              )}
+              {e.body}
+            </p>
+          )}
         </div>
       ))}
     </div>

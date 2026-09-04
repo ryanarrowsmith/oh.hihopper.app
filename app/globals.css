@@ -5560,6 +5560,7 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
 .tdcard__body .td{margin:0 -14px; padding-left:14px; padding-right:14px}
 .tdcard__body .tds .td + .td{border-top:1px solid var(--rule-soft)}
 .tdcard__body .tdsub{margin-left:34px}
+.tdcard__body .tdopen{margin:0 -14px}
 .tdcard__body .tdedit{margin-left:-7px; margin-right:-7px}
 .pjnone--tight{margin:8px 0 6px}
 
@@ -5571,6 +5572,99 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
      size of a button, not stretched across the card. Nothing else in Hopper is
      a full-width slab and this did not need to be the first. */
   .tdcard__go{margin-left:0}
+}
+
+/* ---- a list is a section inside the one container ---- */
+
+/* Ryan: "One container for all Lists." A card each turned five lists into five
+   boxes to look past on the way to the work, so a list is a heading with a
+   hairline above it instead. */
+.lst + .lst{margin-top:26px; border-top:1px solid var(--rule); padding-top:16px}
+.lst__h{display:flex; align-items:baseline; gap:12px; margin:2px 0 4px}
+.lst__h h3{margin:0; font-size:14px; font-weight:800; letter-spacing:-.02em; color:var(--ink)}
+.lst__d{font-family:var(--mono); font-size:11px; color:var(--ink-3)}
+.lst__a{margin-left:auto; flex:none; opacity:0; transition:opacity .15s}
+.lst:hover .lst__a, .lst:focus-within .lst__a{opacity:1}
+@media (hover:none){ .lst__a{opacity:1} }
+
+/* ---- adding one, inline ---- */
+
+/* A row shaped like the thing it makes: a dashed circle and a cursor. No
+   border, no button -- type and press Enter, and the cursor stays where it is,
+   because nobody adds exactly one task. */
+.tdnew{display:flex; align-items:center; gap:12px; padding:8px 0; position:relative}
+.tdnew__box{width:19px; height:19px; flex:none; border:1.5px dashed var(--canvas-3);
+  border-radius:var(--r); background:transparent}
+.tdnew input{flex:1 1 auto; border:0; background:none; padding:0; font:inherit;
+  font-size:14px; color:var(--ink); min-width:0}
+.tdnew input::placeholder{color:var(--ink-3)}
+.tdnew input:focus{outline:0}
+.tdnew:focus-within .tdnew__box{border-color:var(--ink-3); border-style:solid}
+.tdnew__hint{font-family:var(--mono); font-size:10.5px; color:var(--canvas-3);
+  white-space:nowrap; opacity:0; transition:opacity .15s}
+.tdnew:focus-within .tdnew__hint{opacity:1}
+.tdnew .swhy{position:absolute; left:31px; top:100%; margin:0}
+
+/* ---- a to-do, opened ---- */
+
+/* The name is what you press, so it has to look pressable without looking like
+   a button: the row is already the affordance, and a box round the words would
+   make every line a control. */
+.td__t--go{border:0; background:none; padding:0; font:inherit; font-size:14px;
+  color:inherit; text-align:left; cursor:pointer}
+.td__t--go:hover{text-decoration:underline; text-decoration-color:var(--rule);
+  text-underline-offset:3px}
+.td--open{background:var(--sunken)}
+.td--open .td__t--go{font-weight:700}
+
+/* How much there is to read, without opening it. */
+.td__n{display:inline-flex; align-items:center; gap:3px; flex:none; order:0;
+  font-family:var(--mono); font-size:10.5px; color:var(--ink-3)}
+.td__n svg{width:11px; height:11px; fill:none; stroke:currentColor}
+
+.tdopen{margin:0 -14px; padding:12px 14px 12px 48px; background:var(--sunken);
+  border-bottom:1px solid var(--rule)}
+.tdopen--sub{padding-left:65px}
+.tdopen__f{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:10px; align-items:end; margin-bottom:14px}
+.tdopen__f > div > label{display:block; margin-bottom:4px; font-size:11.5px}
+.tdopen .field{min-height:32px; height:32px; padding-top:0; padding-bottom:0; font-size:13px}
+.tdopen__t{font-family:var(--mono); font-size:9.5px; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3); margin:0 0 9px}
+.tdopen .pjlog{padding-left:21px}
+.tdopen__go{display:flex; gap:16px; margin-top:12px; flex-wrap:wrap; align-items:center}
+.tdopen__x{margin-left:auto}
+.tdnote{margin-top:10px}
+.tdnote .field{height:auto; min-height:56px; padding:8px 10px}
+.tdstep{display:flex; gap:9px; align-items:center; flex-wrap:wrap}
+.tdstep .field{flex:1 1 200px; min-width:0}
+
+/* The browser's own file button is the one control nobody can style and every
+   one of them looks different, so the input is hidden and the label is it. */
+.tdclip{display:inline-flex; align-items:center}
+.tdclip__in{position:absolute; width:1px; height:1px; opacity:0; pointer-events:none}
+.tdclip label{cursor:pointer}
+
+/* A file in the stream is the file, not a sentence about it. */
+.tdfile{display:flex; align-items:center; gap:9px; margin:4px 0 0; font-size:12.5px}
+.tdfile svg{width:15px; height:15px; flex:none}
+.tdfile b{font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; min-width:0}
+.tdfile span{font-family:var(--mono); font-size:10.5px; color:var(--ink-3); flex:none}
+.tdfile a{margin-left:auto; font-size:11.5px; flex:none}
+.log__e--file .log__k{color:var(--ink-2)}
+/* On a list's own page the entries are about many to-dos, so each says which. */
+.log__on{font-weight:800; color:var(--ink)}
+.log__on::after{content:" · "; font-weight:400; color:var(--ink-3)}
+
+@media (max-width:640px){
+  .tdopen{padding-left:26px}
+  .tdopen--sub{padding-left:34px}
+  .tdopen .pjlog{padding-left:21px}
+  .tdopen__x{margin-left:0}
+  .lst__h{flex-wrap:wrap; row-gap:2px}
+  .lst__h h3{flex:1 1 100%}
+  .lst__a{margin-left:0}
 }
 
 /* ---- the quiet adders ---- */
@@ -5638,6 +5732,8 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
      problems. */
   .pj__go{margin-left:0; width:100%; flex-wrap:nowrap; gap:9px}
   .pj__go > .btn{flex:1 1 0; min-width:0; white-space:nowrap}
+  /* Two share the line; one does not become a banner. */
+  .pj__go > .btn:only-child{flex:0 0 auto}
 
   /* The milestone name is the longest string on the page, so it takes the
      line; the date and the drift note drop underneath it. */
@@ -5724,7 +5820,7 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
    becomes the document it was already describing. */
 @media print{
   .pjstat .choice__car, .hd__a, .td__hold, .hi__go, .pj__go, .pjadd,
-  .td__pen, .tdsub, .tdedit{display:none}
+  .td__pen, .tdsub, .tdedit, .tdnew, .lst__a, .tdopen__go, .td__n{display:none}
   .tk:hover, .prj:hover{background:none}
   .tds, .prjs{break-inside:avoid}
   .td, .hd{break-inside:avoid}
