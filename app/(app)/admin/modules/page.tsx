@@ -13,7 +13,6 @@ const WORD: Record<string, string> = {
 }
 const BLURB: Record<string, string> = {
   reporting: 'Sheets, charts and the dashboards built on them',
-  projects: 'Projects, milestones and tasks',
   staffing: 'Rotas and who is on',
   meetings: 'Agendas and what was decided',
 }

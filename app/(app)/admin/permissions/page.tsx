@@ -114,7 +114,7 @@ export default async function Permissions({ searchParams }: {
               screen that is not obvious from the words on it. */}
           <div className="adminsay">{BULB}<div>
             <b>Admin does not delete.</b> Nothing in Hopper is destroyed — a location, a
-            department, a report or a project is made <b>inactive</b>, keeps its history, and
+            department, a report or a list is made <b>inactive</b>, keeps its history, and
             can be turned back on where you left it. Admin is the power to take something out
             of use, and to hand the same access to somebody else. That is why it is a level of
             its own rather than a tick beside Edit.

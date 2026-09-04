@@ -225,7 +225,7 @@ export async function importPeople(_p: Landed | null, form: FormData): Promise<L
  *
  * This used to DELETE, and deleting was wrong: Hopper's rule is that nothing is
  * destroyed. A person made inactive keeps their history, their notes, the
- * projects they closed and everything they wrote -- they simply stop appearing
+ * tasks they closed and everything they wrote -- they simply stop appearing
  * in the roster and stop being pickable. Deleting them would have quietly
  * orphaned every one of those rows.
  *

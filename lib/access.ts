@@ -52,13 +52,12 @@ export const PLACE_VERBS: Verb[] = ['view']
 
 export const MODULES = [
   { key: 'reporting',         label: 'Reporting' },
-  { key: 'projects',          label: 'Projects' },
   { key: 'staffing',          label: 'Staffing' },
   { key: 'meetings',          label: 'Meetings' },
 ] as const
 
 export const CORE_MODULES = [
-  'home', 'organizations', 'people', 'calendar', 'wiki', 'news',
+  'home', 'organizations', 'people', 'todo', 'calendar', 'wiki', 'news',
   'activity_log', 'support', 'profile', 'favorites',
 ] as const
 
@@ -85,7 +84,7 @@ export function held(grants: Grant[], object: string, verb: Verb, scope: string 
    always a lie about how permissions work.
 
    Admin does not delete. Nothing in Hopper is destroyed: a location, a
-   department, a report or a project is made INACTIVE, keeps its history, and
+   department, a report or a list is made INACTIVE, keeps its history, and
    can be turned back on where you left it. Admin is the power to take
    something out of use, and to hand the same access to somebody else -- which
    is why it is a level of its own rather than a tick beside Edit.
@@ -129,7 +128,6 @@ export const FLAT_MAX: Record<string, Level> = {
 
 export const LEVELLED_MODULES = [
   { key: 'reporting', label: 'Reporting', blurb: 'Sheets, charts and the dashboards built on them' },
-  { key: 'projects',  label: 'Projects',  blurb: 'Projects, milestones and tasks' },
   { key: 'wiki',      label: 'Wiki',      blurb: 'The handbook. Everybody reads it; Edit writes it' },
   { key: 'staffing',  label: 'Staffing',  blurb: 'Rotas and who is on' },
   { key: 'meetings',  label: 'Meetings',  blurb: 'Agendas and what was decided' },

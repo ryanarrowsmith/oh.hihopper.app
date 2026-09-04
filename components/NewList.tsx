@@ -2,17 +2,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import Choice from '@/components/Choice'
-import { createProject } from '@/app/actions/projects'
+import { createList } from '@/app/actions/todo'
 
 /**
  * Starting one, in the popover every other add in Hopper uses.
  *
- * Four questions and no more: what it is called, whose it is, who is
- * accountable, and when it is meant to be done. Milestones and tasks come
- * afterwards, on the project's own page, because a form that asks for the whole
- * plan before it will take a name is a form people close.
+ * Five questions and no more: what it is called, whose it is, who is
+ * accountable, when it is meant to be done, and what to file it under. The
+ * tasks come afterwards, on the list's own page, because a form that asks for
+ * the whole plan before it will take a name is a form people close.
  */
-export default function NewProject({ orgs, people }: {
+export default function NewList({ orgs, people }: {
   orgs: { id: string; name: string }[]
   people: { id: string; full_name: string }[]
 }) {
@@ -42,12 +42,12 @@ export default function NewProject({ orgs, people }: {
       <button className="btn btn--amber" type="button" ref={btn} aria-expanded={open}
               onClick={(e) => { e.stopPropagation(); setOpen(!open) }}>
         <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
-        New project
+        New list
       </button>
       {open && (
-        <div className="addpop" ref={pop} role="dialog" aria-label="New project">
+        <div className="addpop" ref={pop} role="dialog" aria-label="New list">
           <div className="addpop__h">
-            <b>New project</b>
+            <b>New list</b>
             <button className="addpop__x" type="button" aria-label="Close"
                     onClick={() => setOpen(false)}>&times;</button>
           </div>
@@ -64,14 +64,14 @@ function Form({ orgs, people }: {
   orgs: { id: string; name: string }[]
   people: { id: string; full_name: string }[]
 }) {
-  const [state, action] = useFormState(createProject, null)
+  const [state, action] = useFormState(createList, null)
   return (
     <form action={action}>
       <div className="formrow formrow--one">
         <div>
           <label htmlFor="np-name">What is it called</label>
           <input className="field" id="np-name" name="name" required maxLength={160}
-                 placeholder="Call Forward" autoFocus autoComplete="off" />
+                 placeholder="New Car" autoFocus autoComplete="off" />
         </div>
       </div>
       <div className="formrow formrow--one" style={{ marginTop: 12 }}>
@@ -100,8 +100,15 @@ function Form({ orgs, people }: {
           <input className="field" id="np-from" name="started_on" type="date" />
         </div>
         <div>
-          <label htmlFor="np-to">Meant to be done</label>
-          <input className="field" id="np-to" name="target_on" type="date" />
+          <label htmlFor="np-to">Due</label>
+          <input className="field" id="np-to" name="due_on" type="date" />
+        </div>
+      </div>
+      <div className="formrow formrow--one" style={{ marginTop: 12 }}>
+        <div>
+          <label htmlFor="np-tags">Tags</label>
+          <input className="field" id="np-tags" name="tags" maxLength={120}
+                 placeholder="Car, Personal — separated by commas" autoComplete="off" />
         </div>
       </div>
       <div className="rowacts">

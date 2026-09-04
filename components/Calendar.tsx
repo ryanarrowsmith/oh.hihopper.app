@@ -477,7 +477,7 @@ function CalSide({ feeds, off, toggle, address, min, fold }: {
       <div className="calside__body">
       <p className="calside__h">Showing</p>
       {row('event', 'Events', '--ink-2')}
-      {row('project', 'Project dates', '--steel')}
+      {row('todo', 'To Do dates', '--steel')}
       {row('sched', 'Report schedule', '--s1')}
       {row('late', 'Behind', '--amber')}
       {row('birthday', 'Birthdays', '--amber')}

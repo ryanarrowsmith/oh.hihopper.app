@@ -75,7 +75,7 @@ export async function updateEntity(_prev: Result | null, form: FormData): Promis
  * Retire an organization, or bring it back.
  *
  * status='inactive' rather than a delete: an organization holds departments,
- * offices, people, projects, reports and years of audit entries, and removing
+ * offices, people, lists, reports and years of audit entries, and removing
  * the row would orphan every one of them. Retired means it stops being offered
  * when anything is filed, and stops counting as somewhere work happens.
  *

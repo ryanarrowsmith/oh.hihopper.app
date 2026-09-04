@@ -2,7 +2,8 @@ import 'server-only'
 import { supabaseServer } from '@/lib/supabase/server'
 import { findMentions, type Named } from '@/lib/mentions'
 
-export type Kind = 'mention' | 'share' | 'grant' | 'admin' | 'source' | 'reply' | 'assigned' | 'status'
+export type Kind = 'mention' | 'share' | 'grant' | 'admin' | 'source' | 'reply' | 'assigned'
+  | 'status' | 'blocked' | 'unblocked' | 'moved' | 'due' | 'late'
 
 /**
  * Tell somebody. One call, so every feature raises a notification the same way.

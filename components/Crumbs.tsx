@@ -24,7 +24,7 @@ const NAMES: Record<string, string> = {
   links: 'Links',
   news: 'News',
   reporting: 'Reporting',
-  projects: 'Projects',
+  todo: 'To Do',
   meetings: 'Meetings',
   support: 'Support',
   profile: 'Profile',

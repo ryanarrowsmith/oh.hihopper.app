@@ -39,7 +39,7 @@ export default async function Home() {
   const [
     cards, { data: ents }, { data: locations }, { data: hearts },
     { data: people }, { data: me }, { data: reach }, { data: seen },
-    { data: myTasks }, { data: projs },
+    { data: myTasks }, { data: lists },
   ] = await Promise.all([
     // Always: the sentence in the hero counts these, and Favorites and
     // Dashboards draw their charts from the same read rather than a second one.
@@ -74,11 +74,11 @@ export default async function Home() {
     // the sentence above is about this week.
     session.personId
       ? db.schema('hopper').from('task')
-          .select('id, name, due_on, project_id, blocked_by')
+          .select('id, name, due_on, list_id, parent_id, blocked_by')
           .eq('assignee_id', session.personId).is('done_at', null)
           .not('due_on', 'is', null).order('due_on')
       : Promise.resolve({ data: [] as any[] }),
-    db.schema('hopper').from('project').select('id, name'),
+    db.schema('hopper').from('list').select('id, name'),
   ])
 
   const all = ents ?? []
@@ -88,7 +88,7 @@ export default async function Home() {
   const heart = hearts ?? []
   const places = locations ?? []
   const byReport = new Map(cards.map((c) => [c.id, c]))
-  const projectName = new Map((projs ?? []).map((p: any) => [p.id, p.name]))
+  const listName = new Map((lists ?? []).map((p: any) => [p.id, p.name]))
   // Due inside the next week, or already past. Far enough ahead to be useful,
   // near enough that everything in the list is actually this week's problem.
   const soonD = new Date(); soonD.setDate(soonD.getDate() + 7)
@@ -114,12 +114,12 @@ export default async function Home() {
       const over = Math.floor((Date.now() - new Date(`${t.due_on}T00:00:00`).getTime()) / 86_400_000)
       return {
         id: t.id, name: t.name,
-        where: projectName.get(t.project_id) ?? 'Project',
+        where: `${listName.get(t.list_id) ?? 'List'}${t.parent_id ? ' · subtask' : ''}`,
         why: t.blocked_by ? 'Blocked'
           : over > 0 ? `${over} day${over === 1 ? '' : 's'} late`
           : over === 0 ? 'Due today' : 'Due soon',
         kind: 'mine' as const,
-        href: `/projects/${t.project_id}`,
+        href: `/todo/${t.list_id}`,
       }
     })
 
