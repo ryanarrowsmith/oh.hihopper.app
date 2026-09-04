@@ -7042,3 +7042,28 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
    filter bar it makes way for: one is a thing you did, the other is a thing
    you could do. */
 .pickbar--idle{background:transparent; color:var(--ink-3); border-bottom-color:var(--rule-soft)}
+
+/* The shape and the rows behind it, as one panel that opens wide.
+
+   Both halves move together: a chart given the whole window over a table still
+   stuck in a column would be two panels again, which is what joining them
+   undid. Breaking out of the column is done with margins rather than position,
+   so the page below it moves down instead of being covered -- there is no
+   scrim here and nothing to dismiss, because nothing is hidden. */
+.joined--wide{
+  width:100vw; max-width:100vw;
+  margin-left:calc(50% - 50vw); margin-right:calc(50% - 50vw);
+  padding-left:clamp(10px,2.2vw,30px); padding-right:clamp(10px,2.2vw,30px);
+}
+/* Joined onto the shape, the pane sits INSIDE the card's border rather than
+   over it. Standalone it pulled itself a pixel out on every side, so its own
+   edges replaced the card's; joined, that ate the sides it was supposed to be
+   continuing and the table below the chart had no left or right edge at all. */
+.card--joins > .rawpane{margin:0}
+.rawpane--tall .rawwrap{max-height:min(70vh, 760px)}
+/* The expand control, at the top right of the picture it makes room for. */
+.pvwide{margin-left:12px; align-self:center}
+/* What the SHEET holds in a chosen cell, beside what the sample does. Quieter
+   than the count it qualifies: the first number is what you are looking at,
+   this one is why it is smaller than the bar. */
+.pickbar__all{color:var(--ink-3)}

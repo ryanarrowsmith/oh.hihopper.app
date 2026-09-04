@@ -306,6 +306,45 @@ function keyOf(row: Cell[], at: number[], grains: (Grain | undefined)[]): string
   }).join(' · ')
 }
 
+/** The two keys joined, for a Set. The separator is a control character, so it
+ *  cannot collide with anything a spreadsheet can hold. */
+export const cellKey = (rk: string, ck: string) => `${rk}\u0001${ck}`
+
+/** And back again. A key with no column half stands for the whole row -- every
+ *  column of it -- which is what a chart that cannot separate its series can
+ *  honestly say was clicked. */
+export function cellParts(k: string): { rk: string; ck: string } {
+  const i = k.indexOf('\u0001')
+  return i < 0 ? { rk: k, ck: ALL } : { rk: k.slice(0, i), ck: k.slice(i + 1) }
+}
+
+/**
+ * Which cell of the pivot a source row falls in, or null if it falls in none.
+ *
+ * The same two decisions pivot() makes -- does this row survive the filters,
+ * and what are its two keys -- so the rows behind a bar are found by the
+ * arithmetic that drew the bar rather than by a second, weaker implementation
+ * of "which cell is this row in". A row the spec filtered out belongs to no
+ * cell, which is exactly true and needs no separate idea.
+ *
+ * A closure because the column indices are resolved once per spec rather than
+ * once per row.
+ */
+export function cellOf(tab: Tab, spec: Spec) {
+  const at = (label: string) => tab.columns.findIndex((c) => c.key === label || c.label === label)
+  const rowAt = spec.rows.map((p) => at(p.field)).filter((i) => i >= 0)
+  const colAt = spec.columns.map((p) => at(p.field)).filter((i) => i >= 0)
+  const rowGrains = spec.rows.map((p) => p.grain)
+  const colGrains = spec.columns.map((p) => p.grain)
+  const live = spec.filters
+    .map((f) => ({ f, i: at(f.field) }))
+    .filter((x) => x.i >= 0)
+  return (row: Cell[]): { rk: string; ck: string } | null => {
+    if (!live.every((x) => passes(row, x.f, x.i))) return null
+    return { rk: keyOf(row, rowAt, rowGrains), ck: keyOf(row, colAt, colGrains) }
+  }
+}
+
 function passes(row: Cell[], f: Filter, i: number): boolean {
   const raw = row[i]
   const s = text(raw).trim()

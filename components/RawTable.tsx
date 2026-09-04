@@ -58,15 +58,29 @@ function shown(data: Rows, n: number, i: number) {
 }
 
 export default function RawTable({ reportId, name, everRead, bleed = true,
-  dateColumn, picked, expanded, onExpand }: {
+  dateColumn, cells, cellLabel, cellRows, picked, expanded }: {
   reportId: string; name: string
+  /** Which pivot cell a source row falls in, when the chart above is a pivot.
+   *  Given, this replaces the date column as what a row and a mark have in
+   *  common: a bar IS a cell, and every row carries the two fields it is
+   *  grouped by. Null from it means the row is in no cell at all -- the spec
+   *  filtered it out -- which is exactly what the pivot did with it. */
+  /** Wider and taller, because the whole panel has gone full width. The control
+   *  that does it lives on the chart -- one button for both halves, since they
+   *  are one panel now and expanding half of it would be a strange offer. */
+  cells?: ((row: (string | number | null)[]) => string | null) | null
+  /** How a chosen cell is written in the filter bar. */
+  cellLabel?: (key: string) => string
+  /** How many rows the SHEET holds in a chosen cell, as opposed to how many of
+   *  them are in the sample. Without it a cell worth three quarters of a
+   *  million looks like four rows. */
+  cellRows?: (key: string) => number | null
   /** The column the chart's days come from. Without it there is no
    *  correspondence between a point and a row, and the linking is not offered
    *  at all rather than offered and wrong. */
   dateColumn?: string | null
   picked?: { days: Set<string>; pick: (day: string, extend: boolean) => void; clear: () => void }
   expanded?: boolean
-  onExpand?: () => void
   /** Nothing read yet is a state, not a failure, and it gets its own sentence
    *  rather than an empty table that looks broken. */
   everRead: boolean
@@ -99,12 +113,26 @@ export default function RawTable({ reportId, name, everRead, bleed = true,
   // Which column carries the day the chart is drawn along. -1 means this table
   // and that chart have nothing in common to link by.
   const di = dateColumn ? cols.findIndex((c) => c.label === dateColumn) : -1
-  const linked = di >= 0 && !!picked
+  const linked = !!picked && (di >= 0 || !!cells)
   const chosen = picked?.days ?? new Set<string>()
-  const dayOf = (n: number) => {
-    const v = data?.rows[n]?.[di]
+  // What this row and a mark on the chart have in common. A pivot says which
+  // cell; everything else says which day.
+  const keyOf = (n: number) => {
+    const row = data?.rows[n]
+    if (!row) return null
+    if (cells) return cells(row)
+    const v = row[di]
     return typeof v === 'string' ? v.slice(0, 10) : null
   }
+  const wordFor = (k: string) => (cells ? (cellLabel?.(k) ?? k) : dayLabel(k))
+  // How many rows the SHEET holds in what is chosen, when the chart knows --
+  // the pivot counts them anyway. Null where nothing can say.
+  const inSheet = cellRows && chosen.size > 0
+    ? [...chosen].reduce<number | null>((sum, k) => {
+        const n = cellRows(k)
+        return sum === null || n === null ? null : sum + n
+      }, 0)
+    : null
 
   // Sort the INDEXES, not the rows, so the display strings travel with the
   // values they belong to. Sorting two parallel arrays separately is how a
@@ -134,10 +162,13 @@ export default function RawTable({ reportId, name, everRead, bleed = true,
   const order = useMemo(() => {
     if (!linked || chosen.size === 0) return all
     return all.filter((n) => {
-      const v = data?.rows[n]?.[di]
+      const row = data?.rows[n]
+      if (!row) return false
+      if (cells) { const k = cells(row); return k != null && chosen.has(k) }
+      const v = row[di]
       return typeof v === 'string' && chosen.has(v.slice(0, 10))
     })
-  }, [all, linked, chosen, data, di])
+  }, [all, linked, chosen, data, di, cells])
 
   // The right-edge hint must not lie: it goes out once you have actually
   // reached the last column. A pinned column casts a shadow only once it is
@@ -182,21 +213,7 @@ export default function RawTable({ reportId, name, everRead, bleed = true,
   }
 
   return (
-    <div className={bleed ? 'rawpane rawpane--bleed' : 'rawpane'}>
-      {/* Opened wide, the table covers the page it came from -- so it has to say
-          what it is. In place it does not, because the section heading above it
-          already did. */}
-      {expanded && (
-        <div className="rpop__h">
-          <span className="rpop__t">
-            <b>{name}</b>
-            <span>The rows behind it</span>
-          </span>
-          <button className="rpop__x" type="button" aria-label="Close" onClick={onExpand}>
-            &times;
-          </button>
-        </div>
-      )}
+    <div className={`${bleed ? 'rawpane rawpane--bleed' : 'rawpane'}${expanded ? ' rawpane--tall' : ''}`}>
       <div className="rawbar">
         <span className="rawbar__l">
           {/* What Hopper HOLDS. What a filter is showing is the bar below;
@@ -245,18 +262,6 @@ export default function RawTable({ reportId, name, everRead, bleed = true,
           )}
         </div>
         <button className="btn" type="button" onClick={toCsv}>Export CSV</button>
-        {onExpand && (
-          <button className="btn iconbtn" type="button" onClick={onExpand}
-                  title={expanded ? 'Close' : 'Open it wide'}
-                  aria-label={expanded ? 'Close' : 'Open it wide'}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                 strokeLinecap="round" strokeLinejoin="round">
-              {expanded
-                ? <><path d="M9 4v5H4M15 20v-5h5" /><path d="M20 4l-5 5M4 20l5-5" /></>
-                : <><path d="M15 4h5v5M9 20H4v-5" /><path d="M20 4l-6 6M4 20l6-6" /></>}
-            </svg>
-          </button>
-        )}
       </div>
 
       {linked && (chosen.size > 0
@@ -264,7 +269,17 @@ export default function RawTable({ reportId, name, everRead, bleed = true,
         // next to it. A filtered table that does not say it is filtered is a
         // table that lies about how much data there is.
         ? <p className="pickbar">
-            <b>{order.length}</b> of {all.length} rows &middot; {[...chosen].sort().map(dayLabel).join(', ')}
+            <b>{order.length}</b> of {all.length}{data.truncated ? ' sampled' : ''} rows
+            {' '}&middot; {[...chosen].sort().map(wordFor).join(', ')}
+            {/* What the SHEET holds in these cells. The sample is 500 of
+                84,419, so a cell worth three quarters of a million can show
+                four rows here and be perfectly correct -- but only if it says
+                so. Without this line it reads as a bug. */}
+            {inSheet != null && data.truncated && (
+              <span className="pickbar__all">
+                &mdash; {inSheet.toLocaleString()} in the sheet
+              </span>
+            )}
             <button className="lnk" type="button" onClick={picked!.clear}>Clear</button>
           </p>
         // The same slot when nothing is chosen yet, because the linking used to
@@ -274,7 +289,9 @@ export default function RawTable({ reportId, name, everRead, bleed = true,
         // invitation where the filter state will appear means the table does
         // not jump when somebody accepts it.
         : <p className="pickbar pickbar--idle">
-            Click a point on the chart, or a row here — the two follow each other.
+            {cells
+              ? 'Click a bar on the chart, or a row here — the two follow each other.'
+              : 'Click a point on the chart, or a row here — the two follow each other.'}
           </p>
       )}
 
@@ -301,7 +318,7 @@ export default function RawTable({ reportId, name, everRead, bleed = true,
             </tr></thead>
             <tbody>
               {order.map((n) => {
-                const d = linked ? dayOf(n) : null
+                const d = linked ? keyOf(n) : null
                 return (
                 <tr key={n} className={d && chosen.has(d) ? 'is-on' : undefined}
                     onClick={linked && d ? (e) => picked!.pick(d, e.shiftKey) : undefined}

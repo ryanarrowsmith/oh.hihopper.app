@@ -17,7 +17,14 @@ import { CHART_KINDS, appliesTo, measureCap, type ChartKind } from '@/lib/charts
  * slices plus an "Other (n)" wedge.
  */
 
-export type Series = { measure: string; points: { on: string; v: number }[] }
+export type Series = {
+  measure: string
+  points: { on: string; v: number }[]
+  /** The RAW key this series stands for, where `measure` is how it is written.
+   *  A pivot column is a key like '2026-06' shown as 'Jun 26', and picking a
+   *  bar has to send the key rather than the label. */
+  key?: string
+}
 
 /**
  * What runs along the bottom.
@@ -172,12 +179,17 @@ function useWidth() {
 }
 
 export type Picked = {
-  /** ISO days currently chosen. Empty means nothing is chosen, which is not the
+  /** The keys currently chosen. Empty means nothing is chosen, which is not the
    *  same as everything being chosen -- an empty selection filters nothing. */
   days: Set<string>
   /** extend=true is shift-click: take everything between the last pick and this
    *  one, which is how anyone selects a stretch of time. */
-  pick: (day: string, extend: boolean) => void
+  pick: (key: string, extend: boolean) => void
+  /** How a mark becomes a key. Days by default, which is what this kit was
+   *  built for. A pivot keys by CELL, so a bar is (row key, column key) rather
+   *  than the row key alone -- and giving the kit the function rather than the
+   *  concept keeps it from having to know what a pivot is. */
+  keyOf?: (on: string, series?: string) => string
 }
 
 export default function Chart({
@@ -351,6 +363,13 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
   const y = (v: number) => h - padB - ((v - lo) / span) * (h - padT - padB)
   const chosen = picked?.days
   const anyChosen = (chosen?.size ?? 0) > 0
+  /** A mark's key. Identity for days; a pivot supplies its own. */
+  const kf = picked?.keyOf ?? ((on: string) => on)
+  /** Whether a series can be told apart by clicking it. Grouped and side-by-side
+   *  bars each own a rectangle, so a click can mean one of them; a line through
+   *  a stack of them cannot, and a full-height column that means "this key,
+   *  every series" is the honest target there. */
+  const perMark = Boolean(picked?.keyOf) && SLOTTED.has(type) && !STACKED.has(type)
 
   const ticks = [lo, lo + span / 2, hi]
   /**
@@ -412,7 +431,7 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
 
       {/* A chosen day gets a guide the whole height of the plot, drawn UNDER the
           marks so it never covers a value. */}
-      {chosen && days.map((d, i) => chosen.has(d) ? (
+      {chosen && !picked?.keyOf && days.map((d, i) => chosen.has(d) ? (
         <line key={`g${d}`} className="chart__pick" x1={x(i)} x2={x(i)} y1={padT} y2={h - padB} />
       ) : null)}
 
@@ -490,9 +509,16 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
               const i = at.get(p.on); if (i == null) return null
               const cx = grouped ? x(i) - (bw * series.length) / 2 + si * bw : x(i) - bw / 2
               const top = y(p.v), base = y(Math.max(lo, 0))
+              // A bar keys by (this mark, this series) where the chart can tell
+              // its series apart, and by the mark alone where it cannot.
+              const k = kf(p.on, perMark ? s.key : undefined)
               return <rect key={p.on} x={cx} width={bw}
-                           className={anyChosen && !chosen!.has(p.on) ? 'is-dim' : undefined}
-                           y={Math.min(top, base)} height={Math.max(1, Math.abs(base - top))} />
+                           className={anyChosen && !chosen!.has(k) ? 'is-dim' : undefined}
+                           style={perMark ? { cursor: 'pointer' } : undefined}
+                           onClick={perMark ? (e) => picked!.pick(k, e.shiftKey) : undefined}
+                           y={Math.min(top, base)} height={Math.max(1, Math.abs(base - top))}>
+                {perMark && <title>{`${fmt(p.on)} · ${s.measure}`}</title>}
+              </rect>
             })}
           </g>
         )
@@ -521,9 +547,9 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
             <path className="chart__ln" d={d} />
             {picked && pts.slice(0, -1).map((p) => (
               <circle key={p.on} className="chart__pt" cx={x(p.i)} cy={y(p.v)}
-                      r={chosen!.has(p.on) ? 4.5 : 2.6}
+                      r={chosen!.has(kf(p.on)) ? 4.5 : 2.6}
                       style={{ fill: `var(${SERIES_VAR[(si + colourFrom) % 3]})`, stroke: 'none' }}
-                      opacity={anyChosen && !chosen!.has(p.on) ? 0.26 : 0.85} />
+                      opacity={anyChosen && !chosen!.has(kf(p.on)) ? 0.26 : 0.85} />
             ))}
             {/* The end of the line is where you are now. A filled ring on the
                 surface reads as a destination; another identical dot reads as
@@ -546,10 +572,10 @@ function Axes({ type, series, height, labels, bare, colourFrom = 0, days, picked
       {/* One invisible column per day, the full height of the plot, so a day is
           chosen by clicking anywhere above or below its point rather than by
           hitting a three-pixel dot. */}
-      {picked && days.map((d, i) => (
+      {picked && !perMark && days.map((d, i) => (
         <rect key={`h${d}`} className="chart__hit" x={x(i) - slot / 2} width={slot}
               y={padT} height={h - padT - padB}
-              onClick={(e) => picked.pick(d, e.shiftKey)}>
+              onClick={(e) => picked.pick(kf(d), e.shiftKey)}>
           <title>{fmt(d)}</title>
         </rect>
       ))}

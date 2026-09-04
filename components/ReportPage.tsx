@@ -3,9 +3,10 @@ import Link from 'next/link'
 import { useCallback, useMemo, useState, useTransition } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import Chart, { Legend, isSplit, splitWhy, type Series } from '@/components/Chart'
-import PivotView from '@/components/PivotView'
+import PivotView, { Wide } from '@/components/PivotView'
 import PivotAsk from '@/components/PivotAsk'
-import { dateShaped, type Cell, type LongRow, type Spec } from '@/lib/pivot'
+import { ALL_KEY, OTHERS_KEY, cellKey, cellOf, cellParts, dateShaped, keyWord,
+         type Cell, type LongRow, type Spec } from '@/lib/pivot'
 import ChartPick from '@/components/ChartPick'
 import { setChartTogether } from '@/app/actions/reports'
 import { EditableSection } from '@/components/RowEdit'
@@ -163,6 +164,10 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
     [series])
 
   const pick = useCallback((day: string, extend: boolean) => {
+    // "Others" is not a key any row carries -- it is the rollup of everything
+    // past the cap. Filtering to it would empty the table and look broken, so
+    // the bar simply does not answer. The table has all of them.
+    if (cellParts(day).rk === OTHERS_KEY) return
     setDays((prev) => {
       const next = new Set(prev)
       // Shift takes everything between the last pick and this one, which is how
@@ -181,7 +186,52 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
   }, [allDays, last])
 
   const clear = useCallback(() => { setDays(new Set()); setLast(null) }, [])
-  const picked = report.dateColumn ? { days, pick, clear } : undefined
+
+  // ---------------------------------------------------------------- linking
+  //
+  // The chart and the rows follow each other because a mark and a row have
+  // something in common. For a chart drawn along a date that is the DAY. For a
+  // pivot it is the CELL -- a bar is (row key, column key), and every source
+  // row carries the two fields it is grouped by -- so the same selection, the
+  // same filter and the same bar work for both; only what counts as a key
+  // changes.
+  const cells = useMemo(
+    () => (asPivot ? cellOf({ columns, rows }, drawSpec) : null),
+    [asPivot, columns, rows, drawSpec])
+  // The rows behind a bar are found by the arithmetic that drew it, so the
+  // sample and the whole sheet cannot disagree about which cell a row is in.
+  const cellFor = useMemo(
+    () => (cells
+      ? (row: Cell[]) => { const c = cells(row); return c ? cellKey(c.rk, c.ck) : null }
+      : null),
+    [cells])
+  const rowGrain = drawSpec.rows[0]?.grain
+  const colGrain = drawSpec.columns[0]?.grain
+  const cellLabel = useCallback((k: string) => {
+    const { rk, ck } = cellParts(k)
+    // A cell with no column half stands for every column of that row, which is
+    // what a chart that cannot separate its series can honestly report.
+    return ck === ALL_KEY
+      ? keyWord(rk, rowGrain)
+      : `${keyWord(rk, rowGrain)} · ${keyWord(ck, colGrain)}`
+  }, [rowGrain, colGrain])
+
+  // How many rows the SHEET holds in a cell, as opposed to how many of them
+  // reached the 500-row sample. The pivot counts them anyway -- rows_in is on
+  // every cell it returns -- so the answer is already down here whenever the
+  // drawn spec is the saved one. Drag a chip and it goes quiet rather than
+  // guessing, which is the right kind of silence: a wrong count under a bar is
+  // worse than none.
+  const sheetRows = useMemo(() => {
+    if (!seed || JSON.stringify(drawSpec) !== JSON.stringify(spec)) return null
+    const m = new Map<string, number>()
+    for (const r of seed) if (r.v_idx === 0) m.set(cellKey(r.row_key, r.col_key), Number(r.rows_in))
+    return m
+  }, [seed, drawSpec, spec])
+  const cellRows = useCallback(
+    (k: string) => sheetRows?.get(k) ?? null, [sheetRows])
+
+  const picked = report.dateColumn || asPivot ? { days, pick, clear } : undefined
 
   // Expanding does not move the table in the tree -- only the classes around it
   // change -- so its sort, its hidden columns and its density all survive.
@@ -245,7 +295,11 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
           )}
         </div>
 
-        <div className={wide ? 'card' : 'card card--joined'} style={{ padding: 18 }}><div className="shape">
+        {/* Both halves in one wrapper, so opening it wide moves both. A chart
+            given the whole window over a table still stuck in a column would
+            be two panels again, which is what joining them undid. */}
+        <div className={wide ? 'joined joined--wide' : 'joined'}>
+        <div className="card card--joined" style={{ padding: 18 }}><div className="shape">
           <div className="shape__c">
           {asPivot
             ? <>
@@ -255,9 +309,11 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
                     is the same report for everybody, and this is one person
                     looking at it. */}
                 <PivotAsk tab={{ columns, rows }} spec={drawSpec} onSpec={setDrawSpec} />
-                <PivotView tab={{ columns, rows }} spec={drawSpec} height={400}
+                <PivotView tab={{ columns, rows }} spec={drawSpec} height={wide ? 460 : 400}
                            report={report.id} total={rowCount} stored={rowsStored}
-                           seed={seed} seedKey={JSON.stringify(spec)} />
+                           seed={seed} seedKey={JSON.stringify(spec)}
+                           picked={picked}
+                           expanded={wide} onExpand={() => setWide((o) => !o)} />
               </>
             : head.length < 2
             ? <p className="empty" style={{ margin: 0 }}>
@@ -331,14 +387,13 @@ export default function ReportPage({ report, state, series: all, notes, roster, 
             The wrapper stays exactly where it was in the tree so expanding the
             table does not remount it — a remount would re-read the rows and
             throw away whatever somebody had sorted or hidden. */}
-        <div className={wide ? 'rscrim' : undefined}
-             onMouseDown={wide ? (e) => { if (e.target === e.currentTarget) setWide(false) } : undefined}>
-          <div className={wide ? 'rpop rpop--rows' : 'card card--joins'}>
-            <RawTable reportId={report.id} name={report.name}
-                      everRead={state.lastLook != null}
-                      dateColumn={report.dateColumn} picked={picked}
-                      expanded={wide} onExpand={() => setWide((o) => !o)} />
-          </div>
+        <div className="card card--joins">
+          <RawTable reportId={report.id} name={report.name}
+                    everRead={state.lastLook != null}
+                    dateColumn={report.dateColumn} picked={picked}
+                    cells={cellFor} cellLabel={cellLabel} cellRows={cellRows}
+                    expanded={wide} />
+        </div>
         </div>
       </section>
 
