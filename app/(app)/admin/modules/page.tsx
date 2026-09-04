@@ -13,6 +13,7 @@ const WORD: Record<string, string> = {
 }
 const BLURB: Record<string, string> = {
   reporting: 'Sheets, charts and the dashboards built on them',
+  todo: 'Lists, tasks and subtasks',
   staffing: 'Rotas and who is on',
   meetings: 'Agendas and what was decided',
 }
@@ -77,8 +78,15 @@ export default async function Modules() {
             holding four unsaved switches is a page lying about what is on.</p>
         </div></div>
 
+        {/* Twenty organizations is 2080px of switches. The name column was the
+            only thing in the grid that could give, so it gave -- down to one
+            word per line. It gets a floor now and the matrix scrolls sideways
+            instead, which is what every other wide table here does. The
+            abbreviations keep their title attribute as well as their tip,
+            because a scroller clips a tip and the browser's own tooltip escapes
+            anything. */}
         {orgs.length === 0 ? <p className="empty">No organizations yet.</p> : (
-          <div className="rst">
+          <div className="rst modscroll">
             <div className="modr modr--h" style={{ '--cols': orgs.length } as any}>
               <span>Module</span>
               {orgs.map((e: any) => (

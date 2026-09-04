@@ -6496,7 +6496,7 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
 .selbar__go .btn{padding:5px 11px; font-size:12px; height:auto; min-height:0; width:auto}
 
 /* ---- modules, one model ---- */
-.modr{display:grid; grid-template-columns:minmax(0,1fr) repeat(var(--cols,4), 104px);
+.modr{display:grid; grid-template-columns:minmax(200px,1fr) repeat(var(--cols,4), 104px);
   gap:0 12px; align-items:center; padding:11px 14px;
   border-top:1px solid var(--rule-soft)}
 .modr:first-child{border-top:0}
@@ -6517,6 +6517,10 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
   text-decoration-color:var(--canvas-3); text-underline-offset:4px}
 /* Not paid for is not the same as switched off, and a greyed toggle that looks
    switched off is a support call. */
+/* The one box on this page that has to clip, because the alternative is a name
+   column one word wide. The organization marks carry a title attribute as well
+   as a tip, so what the clipping costs is bought back by the browser. */
+.modscroll{overflow-x:auto; overflow-y:visible}
 .modr__no{font-size:11px; color:var(--canvas-3); font-weight:700; text-align:center;
   line-height:1.3}
 

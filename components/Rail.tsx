@@ -28,13 +28,6 @@ export const FRAME: Item[] = [
       { href: '/admin/organizations/departments', label: 'Departments' },
       { href: '/admin/organizations/locations', label: 'Locations' },
     ] },
-  /* To Do is part of the frame now, not a module you switch on per
-     organization: a person's own list of things to do is not a feature one
-     office has and the next does not. A check mark, because that is what the
-     screen is full of. */
-  { href: '/todo', label: 'To Do',
-    icon: I('<path d="M4 12.5l5 5L20 6.5"/>'),
-    kids: undefined },
   { href: '/people', label: 'People',
     icon: I('<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M17 11a3 3 0 1 0 0-6"/><path d="M17.5 20a6 6 0 0 0-2-4.5"/>') },
   { href: '/calendar', label: 'Calendar',
@@ -49,6 +42,9 @@ export const FRAME: Item[] = [
 ]
 
 export const MODULE_NAV: Record<string, Item> = {
+  /* A check mark, because that is what the screen is full of. */
+  todo: { href: '/todo', label: 'To Do',
+    icon: I('<path d="M4 12.5l5 5L20 6.5"/>') },
   reporting: { href: '/reporting', label: 'Reporting',
     icon: I('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
     kids: [
