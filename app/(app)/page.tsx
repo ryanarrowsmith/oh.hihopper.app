@@ -1,4 +1,6 @@
 import { currentSession } from '@/lib/tenant'
+import { loadBanner } from '@/lib/news'
+import NewsBanner from '@/components/NewsBanner'
 import { supabaseServer } from '@/lib/supabase/server'
 import { loadCards } from '@/lib/cards'
 import { loadWidgets } from '@/lib/home'
@@ -39,7 +41,7 @@ export default async function Home() {
   const [
     cards, { data: ents }, { data: locations }, { data: hearts },
     { data: people }, { data: me }, { data: reach }, { data: seen },
-    { data: myTasks }, { data: lists },
+    { data: myTasks }, { data: lists }, banner,
   ] = await Promise.all([
     // Always: the sentence in the hero counts these, and Favorites and
     // Dashboards draw their charts from the same read rather than a second one.
@@ -79,6 +81,9 @@ export default async function Home() {
           .not('due_on', 'is', null).order('due_on')
       : Promise.resolve({ data: [] as any[] }),
     db.schema('hopper').from('list').select('id, name'),
+    // What is running across the top. The view does the arithmetic and the
+    // hiding, so home and News cannot disagree about what is on the banner.
+    loadBanner(),
   ])
 
   const all = ents ?? []
@@ -301,9 +306,15 @@ export default async function Home() {
   }
 
   return (
-    <div className="hx">
-      <HomeBoard placed={placed} bodies={bodies} counts={counts}
-                 dolly={<Dolly />} hero={hero} />
-    </div>
+    <>
+      {/* Above the container and full width, because a notice that sits in the
+          same box as everything else is a notice people read as everything
+          else. Ryan asked for it there by name. */}
+      <NewsBanner items={banner} />
+      <div className="hx">
+        <HomeBoard placed={placed} bodies={bodies} counts={counts}
+                   dolly={<Dolly />} hero={hero} />
+      </div>
+    </>
   )
 }

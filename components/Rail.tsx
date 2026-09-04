@@ -36,7 +36,8 @@ export const FRAME: Item[] = [
     icon: I('<path d="M4 4h7a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4z"/><path d="M20 4h-7a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h7z"/>'),
     kids: [{ href: '/wiki/links', label: 'Links' }] },
   { href: '/news', label: 'News',
-    icon: I('<path d="M4 5h13v14H4z"/><path d="M17 9h3v8a2 2 0 0 1-3 2"/><path d="M7 9h7M7 13h7"/>') },
+    icon: I('<path d="M4 5h13v14H4z"/><path d="M17 9h3v8a2 2 0 0 1-3 2"/><path d="M7 9h7M7 13h7"/>'),
+    kids: [{ href: '/news/categories', label: 'Categories' }] },
   { href: '/activity', label: 'Activity',
     icon: I('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>') },
 ]

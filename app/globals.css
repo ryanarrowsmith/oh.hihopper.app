@@ -451,7 +451,12 @@ a.bub{text-decoration:none}
   /* Flat paper. The dotted grid is the ground the container sits ON -- putting
      it inside as well made the canvas compete with its own frame. */
   background:var(--paper);
-  padding:clamp(18px,2.6vw,30px) clamp(16px,2.6vw,30px) 34px; min-width:0;
+  /* Named, because the news banner has to cancel exactly this to run full
+     width, and two copies of a clamp are two answers that can drift apart by a
+     pixel or two -- which they did. */
+  --pad-x:clamp(16px,2.6vw,30px);
+  --pad-y:clamp(18px,2.6vw,30px);
+  padding:var(--pad-y) var(--pad-x) 34px; min-width:0;
 }
 
 /* ============ GREETING ============ */
@@ -926,7 +931,10 @@ a.bub{text-decoration:none}
 @media (max-width:640px){
   body{padding:10px 0}
   .app{width:95%; box-shadow:var(--shadow)}
-  .main{padding:16px 14px 26px}
+  /* The variables move with the padding, so the news banner keeps cancelling
+     exactly what main applies rather than the desktop figure. Two copies of
+     this number is how the band ended up 4px wider than the window. */
+  .main{--pad-x:14px; --pad-y:16px; padding:var(--pad-y) var(--pad-x) 26px}
   .tbar{padding:0 12px; gap:9px; height:54px}
   .scopew{margin-left:0; min-width:0}
   .scope{max-width:40vw; min-width:0}
@@ -6677,4 +6685,128 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
   .adc__b{min-height:0}
   .selbar__go{margin-left:0; width:100%}
   .selbar__go .btn{flex:1}
+}
+
+/* ============================================ NEWS =======================
+   Announcements, their archive, and the banner across the top of home.
+
+   Ryan: "Don't do text labels in boxes; use icons where you can with popover
+   labels." So a category is a shape with its name on the tip, a countdown is a
+   clock rather than a bordered pill reading "3 DAYS LEFT", and Print, Write and
+   Edit are marks. The word never disappears -- it is the accessible name and
+   the tip -- it just stops taking a box. */
+
+/* ---- the banner ---- */
+
+/* Full width and above the container: it cancels main's padding with the same
+   clamp main uses, so the band runs edge to edge of the content column however
+   wide the window is. A notice inside the container is a notice people read as
+   part of the page. */
+/* Cancels main's padding with the same clamp and does NOT put it back: the band
+   is meant to run edge to edge, which is what "full width" means. Its own
+   padding is that clamp again, so the words still line up with the container
+   underneath rather than sitting proud of it.
+   The first version cancelled the padding AND re-added it, which made the box
+   wider than the column it sits in and put a horizontal scrollbar on the home
+   page at every width. Measured, not assumed: the document was 1209px inside a
+   1180px window. */
+.nbandwrap{
+  margin:calc(-1 * var(--pad-y)) calc(-1 * var(--pad-x)) 22px;
+}
+/* The colour down the left edge is an inset shadow, not a border: a border on a
+   full-bleed band is 4px of layout the band does not have, and it pushed the
+   whole thing past the window. A shadow costs nothing. */
+.nband{display:flex; align-items:flex-start; gap:14px;
+  padding:14px var(--pad-x);
+  background:var(--surface); border-bottom:1px solid var(--rule);
+  box-shadow:inset 4px 0 0 var(--steel)}
+.nband--soon{box-shadow:inset 4px 0 0 var(--bad)}
+.nband__b{min-width:0; flex:1 1 auto}
+.nband__t{margin:0; font-size:15px; font-weight:800; letter-spacing:-.02em; color:var(--ink)}
+.nband__t a{color:inherit; text-decoration:none}
+.nband__t a:hover{text-decoration:underline}
+.nband__s{margin:3px 0 0; font-size:12.5px; color:var(--ink-3); max-width:80ch;
+  overflow:hidden; text-overflow:ellipsis; display:-webkit-box;
+  -webkit-line-clamp:2; -webkit-box-orient:vertical}
+.nband__a{display:flex; align-items:center; gap:13px; flex:none; padding-top:2px}
+.nband__x{border:0; background:none; padding:2px; cursor:pointer; color:var(--ink-3);
+  line-height:0}
+.nband__x:hover{color:var(--ink)}
+.nband__x svg{width:15px; height:15px; display:block}
+.nmore{margin:9px 0 0; padding:0 var(--pad-x); font-size:12.5px;
+  color:var(--ink-3)}
+
+/* ---- the marks ---- */
+.nkat{display:inline-flex; flex:none; color:var(--steel); cursor:help}
+.nkat svg{width:17px; height:17px; display:block}
+.nret{display:inline-flex; flex:none; color:var(--canvas-3); cursor:help}
+.nret svg{width:15px; height:15px; display:block}
+/* How long it has left, as a clock with the number in it. */
+.nleft{display:inline-flex; align-items:center; gap:4px; flex:none; cursor:help;
+  font-family:var(--mono); font-size:11px; color:var(--ink-3)}
+.nleft svg{width:14px; height:14px; display:block}
+.nleft.is-soon{color:var(--bad)}
+.nleft b{font-weight:700}
+
+/* A button that is only a mark. Square, so a row of them is a row. */
+.btn--mark{width:38px; padding:0; gap:0; display:inline-grid; place-items:center}
+.btn--mark svg{width:16px; height:16px}
+
+/* ---- the list ---- */
+.nrowi{display:flex; align-items:baseline; gap:14px; padding:12px 14px; margin:0 -14px;
+  border-top:1px solid var(--rule-soft)}
+.nrowi:first-child{border-top:0}
+.nrowi:hover{background:var(--sunken)}
+.nrowi.is-off{opacity:.6}
+.nrowi__d{font-family:var(--mono); font-size:11px; color:var(--ink-3); flex:none;
+  width:56px; display:flex; align-items:center}
+.nrowi__d.nold{color:var(--canvas-3)}
+.nrowi__b{min-width:0; flex:1 1 auto}
+.nrowi__t{margin:0; font-size:14px; font-weight:700; color:var(--ink)}
+.nrowi__t a{color:inherit; text-decoration:none}
+.nrowi__t a:hover{text-decoration:underline}
+.nrowi__s{margin:2px 0 0; font-size:12.5px; color:var(--ink-3)}
+.nrowi__m{display:flex; align-items:center; gap:11px; flex:none; margin-left:auto}
+
+/* ---- one announcement ---- */
+.npost{max-width:70ch; margin-top:22px}
+
+/* ---- writing one ---- */
+.postgo{display:inline-flex; align-items:center; gap:7px; cursor:pointer}
+.postgo input{width:15px; height:15px; margin:0; accent-color:var(--ink)}
+.bandays{margin-left:auto; display:flex; align-items:center; gap:8px; flex:none;
+  font-size:12.5px; color:var(--ink-3)}
+.bandays .field{width:74px; text-align:center}
+.bandays label{margin:0}
+.nstatus{display:flex; gap:14px; align-items:center}
+/* The sentence under the switch is a block; the house .togline puts its own
+   words in .togsay, and a bare <small> beside a <b> runs into it. */
+.togline__say{min-width:0}
+.togline__say b{display:block; font-size:13.5px; font-weight:700; color:var(--ink)}
+.togline__say small{display:block; margin-top:2px; font-size:12.5px; color:var(--ink-3)}
+
+/* The shapes a category can wear, as a row of marks. */
+.markpick{display:flex; gap:6px; flex-wrap:wrap; align-items:center; min-height:34px}
+.markpick__b{width:32px; height:32px; display:grid; place-items:center; padding:0;
+  cursor:pointer; background:var(--surface); border:1px solid var(--rule);
+  border-radius:var(--r); color:var(--ink-3)}
+.markpick__b:hover{border-color:var(--ink-3); color:var(--ink)}
+.markpick__b.is-on{background:var(--steel); border-color:var(--steel); color:#FBF9F5}
+.markpick__b svg{width:16px; height:16px; display:block}
+
+@media (max-width:640px){
+  .nband{flex-wrap:wrap; row-gap:9px}
+  .nband__a{width:100%; padding-top:0}
+  .nband__x{margin-left:auto}
+  .nrowi{flex-wrap:wrap; row-gap:5px}
+  .nrowi__d{width:auto}
+  .nrowi__b{flex:1 1 100%; order:2}
+  .nrowi__m{order:1; margin-left:auto}
+  /* The toggle, its sentence and the day count cannot share 390px. */
+  .togline{flex-wrap:wrap; row-gap:10px}
+  .bandays{margin-left:0; width:100%; justify-content:flex-start}
+}
+
+@media print{
+  .nbandwrap, .nband__x, .nstatus, .markpick{display:none}
 }

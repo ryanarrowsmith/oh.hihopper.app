@@ -23,6 +23,7 @@ const NAMES: Record<string, string> = {
   wiki: 'Wiki',
   links: 'Links',
   news: 'News',
+  categories: 'Categories',
   reporting: 'Reporting',
   todo: 'To Do',
   meetings: 'Meetings',
