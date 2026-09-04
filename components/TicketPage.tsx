@@ -186,6 +186,10 @@ function Said({ m, nameOf }: { m: Msg; nameOf: Map<string, string> }) {
         <span className="tmsg__k">
           {m.kind === 'in' ? 'wrote in' : m.kind === 'out' ? 'replied' : 'left a note'}
         </span>
+        {/* Said out loud rather than left to the color of the paper. "Internal"
+            and not "private": the rest of the desk can read this, and private
+            would promise otherwise. */}
+        {m.kind === 'note' && <span className="tmsg__int">Internal</span>}
         {m.task_id && <span className="tmsg__from">from the to-do</span>}
         <time dateTime={m.at}>{WHEN.format(new Date(m.at))}</time>
       </header>
@@ -246,7 +250,7 @@ function Composer({ ticketId, snippets, status }: {
   useEffect(() => { if (state?.ok) setBody('') }, [state])
 
   return (
-    <form className="tcomp" action={action}>
+    <form className={`tcomp${kind === 'note' ? ' tcomp--note' : ''}`} action={action}>
       <input type="hidden" name="ticket_id" value={ticketId} />
       <input type="hidden" name="kind" value={kind} />
 
@@ -259,6 +263,7 @@ function Composer({ ticketId, snippets, status }: {
                 className={kind === 'note' ? 'on' : ''} onClick={() => setKind('note')}>
           Note for us
         </button>
+        {kind === 'note' && <span className="tcomp__int">Internal</span>}
         <span className="tcomp__tools">
           {snippets.length > 0 && (
             <Snip snippets={snippets} onPick={(t) => {
