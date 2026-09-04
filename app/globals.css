@@ -7100,3 +7100,315 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
 /* Something went wrong, said where it went wrong. Same shape as the filter bar
    so the table does not change height when one replaces the other. */
 .pickbar--bad{background:var(--badwash,#FBEEEC); color:var(--ink-2)}
+
+/* ==========================================================================
+   DESK
+   A ticket queue. Everything below borrows the tokens above and adds no
+   colours of its own except the four the system already names: good, warn,
+   bad and steel. Nothing here is round; nothing here deletes.
+   ========================================================================== */
+
+.pjnote{ margin:6px 0 0; color:var(--ink-3); font-size:13px; }
+.pjline__bad{ color:var(--bad); font-weight:700; }
+
+/* ------------------------------------------------------------- the filters */
+.dkfil{
+  display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  margin:14px 0 0; padding:0 0 14px; border-bottom:1px solid var(--rule);
+}
+.dkchip{
+  display:inline-flex; align-items:center; gap:7px;
+  padding:6px 11px; border:1px solid var(--rule); background:var(--surface);
+  color:var(--ink-2); font:600 13px/1 var(--sans); cursor:pointer;
+}
+.dkchip:hover{ border-color:var(--canvas-3); color:var(--ink); }
+.dkchip.on{ background:var(--ink); border-color:var(--ink); color:var(--paper); }
+.dkchip .c{
+  min-width:20px; padding:2px 5px; text-align:center;
+  background:var(--sunken); color:var(--ink-2); font-weight:700; font-size:11px;
+}
+.dkchip.on .c{ background:rgba(251,249,245,.18); color:var(--paper); }
+.dkchip--bad:not(.on){ border-color:var(--bad); color:var(--bad); }
+.dkchip--bad:not(.on) .c{ background:rgba(217,58,43,.12); color:var(--bad); }
+.dkfil__pick{ min-width:200px; }
+
+/* --------------------------------------------------------------- the band */
+.dkband{
+  display:flex; align-items:center; gap:11px; margin-top:14px;
+  padding:11px 14px; background:var(--warmbg); border:1px solid var(--warmrule);
+  color:var(--ink); font-size:13.5px;
+}
+.dkband svg{ width:19px; height:19px; flex:none; color:var(--warn); }
+.dkband .lnk, .dkband button.lnk{ margin-left:auto; white-space:nowrap; }
+
+/* -------------------------------------------------------------- the rows */
+.dktix{ margin-top:16px; border:1px solid var(--rule); background:var(--surface); }
+.dktix__r{
+  display:grid; align-items:center; gap:10px;
+  grid-template-columns:82px minmax(0,1fr) 138px 122px 120px 26px;
+  padding:12px 15px; border-bottom:1px solid var(--rule-soft);
+  color:inherit; text-decoration:none;
+}
+.dktix__r:last-child{ border-bottom:0; }
+a.dktix__r:hover{ background:var(--sunken); }
+a.dktix__r:focus-visible{ outline:none; box-shadow:inset var(--focus); }
+.dktix__hd{
+  background:var(--sunken); border-bottom:1px solid var(--rule);
+  font:700 11px/1 var(--sans); letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink-3);
+}
+.dktix__ref{ font:600 12.5px/1.2 var(--mono); color:var(--ink-3); }
+.dktix__s{ display:flex; flex-direction:column; gap:3px; min-width:0; }
+/* The subject is the whole reason the row exists, so it takes the second line
+   the row already has rather than being cut off with a tooltip nobody hovers.
+   Two lines, then the ellipsis -- and the meta under it stays one line, because
+   a queue name wrapping is noise. */
+.dktix__s b{
+  font-size:14px; font-weight:700; line-height:1.34;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.dktix__s > span{
+  color:var(--ink-3); font-size:12px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.dktix__w{ display:flex; align-items:center; gap:8px; min-width:0; }
+.dktix__w > span:last-child{
+  font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+
+.dkav{
+  width:24px; height:24px; flex:none; border-radius:50%;
+  display:grid; place-items:center; background:var(--steel); color:#fff;
+  font:700 10px/1 var(--sans); letter-spacing:.02em;
+}
+.dkav[data-none]{ background:var(--canvas-2); color:var(--canvas-ink); }
+
+.dkpill{
+  display:inline-block; padding:4px 9px; font:700 11.5px/1 var(--sans);
+  border:1px solid var(--rule); background:var(--sunken); color:var(--ink-2);
+  white-space:nowrap;
+}
+.dkpill--open{ background:var(--steelwash); border-color:var(--steel); color:var(--steel-ink); }
+.dkpill--waiting{ background:var(--warmbg); border-color:var(--warmrule); color:#8A6410; }
+.dkpill--resolved,
+.dkpill--closed{ background:rgba(46,139,87,.12); border-color:var(--good); color:var(--good); }
+
+.dksla{
+  display:inline-flex; align-items:center; gap:6px;
+  font:600 12.5px/1 var(--sans); color:var(--ink-2); white-space:nowrap;
+}
+.dksla i{ width:7px; height:7px; border-radius:50%; background:var(--ink-3); flex:none; }
+.dksla--ok i{ background:var(--good); }
+.dksla--met{ color:var(--good); } .dksla--met i{ background:var(--good); }
+.dksla--soon{ color:#8A6410; } .dksla--soon i{ background:var(--warn); }
+.dksla--late{ color:var(--bad); font-weight:700; } .dksla--late i{ background:var(--bad); }
+.dksla--paused i{ background:var(--canvas-3); }
+
+.dkgrp{
+  display:inline-grid; place-items:center; min-width:24px; height:22px; padding:0 5px;
+  background:var(--warmbg); border:1px solid var(--warmrule); color:#8A6410;
+  font:700 11px/1 var(--sans);
+}
+
+/* ========================================================== ONE TICKET === */
+.tkt__up{ display:flex; gap:10px; align-items:center; margin:0 0 4px;
+  color:var(--ink-3); font-size:12.5px; }
+.tkt__up a{ color:var(--steel-ink); }
+.tkt__up span::before{ content:"·"; margin-right:10px; color:var(--canvas-3); }
+.tkt__ref{ font:700 15px/1 var(--mono); color:var(--ink-3); margin-right:6px; }
+.tkt__acts{ display:flex; gap:8px; align-items:center; }
+.tkt__acts .btn{ white-space:nowrap; }
+
+.tkt__cols{
+  display:grid; grid-template-columns:minmax(0,1fr) 316px; gap:20px; align-items:start;
+  margin-top:16px;
+}
+.tkt__talk{ display:flex; flex-direction:column; gap:12px; min-width:0; }
+
+.tmsg{ border:1px solid var(--rule); background:var(--surface); }
+.tmsg header{
+  display:flex; align-items:center; gap:9px; padding:10px 14px;
+  border-bottom:1px solid var(--rule-soft); background:var(--sunken); font-size:13px;
+}
+.tmsg header{ flex-wrap:wrap; }
+.tmsg header b{ white-space:nowrap; }
+.tmsg header time{ margin-left:auto; color:var(--ink-3); font-size:12px; white-space:nowrap; }
+.tmsg__k{ color:var(--ink-3); }
+.tmsg__b{ padding:13px 15px; font-size:14.5px; line-height:1.62; }
+.tmsg__b p{ margin:0 0 9px; } .tmsg__b p:last-child{ margin:0; }
+/* A note never leaves the building, and has to look like it. */
+.tmsg--note{ background:var(--warmbg); border-color:var(--warmrule); }
+.tmsg--note header{ background:transparent; border-bottom-color:var(--warmrule); }
+.tmsg--out header{ box-shadow:inset 3px 0 0 var(--steel); }
+.tmsg--in header{ box-shadow:inset 3px 0 0 var(--canvas-3); }
+
+.tdid{
+  display:flex; align-items:center; gap:9px; margin:0; padding:2px 4px;
+  color:var(--ink-3); font-size:12.5px;
+}
+.tdid i{ width:7px; height:7px; background:var(--canvas-3); flex:none; }
+.tdid b{ color:var(--ink-2); }
+.tdid time{ margin-left:auto; }
+
+/* ------------------------------------------------------------- composing */
+.tcomp{ border:1px solid var(--rule); background:var(--surface); margin-top:4px; }
+.tcomp__tabs{
+  display:flex; align-items:center; gap:2px; padding:0 10px;
+  border-bottom:1px solid var(--rule); background:var(--sunken);
+}
+.tcomp__tabs > button{
+  padding:11px 13px; border:0; background:none; cursor:pointer;
+  font:700 13px/1 var(--sans); color:var(--ink-3); border-bottom:2px solid transparent;
+}
+.tcomp__tabs > button.on{ color:var(--ink); border-bottom-color:var(--amber); }
+.tcomp__tools{ margin-left:auto; display:flex; gap:14px; align-items:center; }
+.tcomp__box{ border:0 !important; resize:vertical; min-height:110px; }
+.tcomp__box:focus{ box-shadow:none !important; }
+.tcomp__go{
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  padding:11px 14px; border-top:1px solid var(--rule-soft);
+}
+
+/* A popover on the composer. The bar it hangs off must not clip. */
+.tpop{ position:relative; }
+.tpop__p{
+  position:absolute; right:0; top:calc(100% + 8px); z-index:40;
+  width:min(360px,80vw); max-height:320px; overflow:auto;
+  background:var(--surface); border:1px solid var(--rule); box-shadow:var(--lift);
+  padding:8px;
+}
+.tpop__i{
+  display:flex; flex-direction:column; gap:3px; width:100%; text-align:left;
+  padding:9px 10px; border:0; background:none; cursor:pointer; color:inherit;
+  text-decoration:none;
+}
+.tpop__i:hover{ background:var(--sunken); }
+.tpop__i b{ font-size:13.5px; }
+.tpop__i span{ color:var(--ink-3); font-size:12px; }
+
+/* ----------------------------------------------------------- the facts */
+.tkt__side{ position:sticky; top:calc(var(--tbar-h) + 14px); }
+.tfacts{ border:1px solid var(--rule); background:var(--surface); padding:15px 16px; }
+.tfacts h2{
+  margin:18px 0 10px; font:700 11px/1 var(--sans); letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+.tfacts h2:first-child{ margin-top:0; }
+.tfacts label{
+  display:block; margin:12px 0 5px; font:600 12.5px/1 var(--sans); color:var(--ink-2);
+}
+.tfacts label em{ color:var(--ink-3); font-style:normal; font-weight:500; }
+.tfacts__who{ display:flex; flex-direction:column; gap:3px; margin:0; font-size:13.5px; }
+.tfacts__who span{ color:var(--ink-3); font-size:12.5px; }
+
+/* ============================================================== SETTINGS = */
+.dktabs{
+  display:flex; gap:2px; margin:16px 0 0; border-bottom:1px solid var(--rule);
+}
+.dktabs > button{
+  padding:11px 15px; border:0; background:none; cursor:pointer;
+  font:700 13.5px/1 var(--sans); color:var(--ink-3); border-bottom:2px solid transparent;
+}
+.dktabs > button.on{ color:var(--ink); border-bottom-color:var(--amber); }
+
+.dkrows{ margin-top:16px; border:1px solid var(--rule); background:var(--surface); }
+.dkrow{ border-bottom:1px solid var(--rule-soft); }
+.dkrow:last-child{ border-bottom:0; }
+.dkrow.off .dkrow__n b{ color:var(--ink-3); }
+.dkrow__h{
+  display:flex; align-items:center; gap:14px; width:100%; text-align:left;
+  padding:13px 15px; border:0; background:none; cursor:pointer; color:inherit;
+}
+.dkrow__h:hover{ background:var(--sunken); }
+.dkrow__n{ display:flex; flex-direction:column; gap:3px; min-width:0; flex:1; }
+.dkrow__n b{ font-size:14.5px; }
+.dkrow__n span{ color:var(--ink-3); font-size:12.5px; }
+.dkrow__c{ color:var(--ink-3); font-size:12.5px; white-space:nowrap; }
+.dkcar{ width:18px; height:18px; color:var(--ink-3); transition:transform .16s ease; }
+.dkcar.on{ transform:rotate(180deg); }
+.dkrow__b{ padding:4px 15px 18px; border-top:1px solid var(--rule-soft); background:var(--sunken); }
+
+.dkform{ margin-top:14px; }
+.dkform--pad{ border:1px solid var(--rule); background:var(--surface); padding:18px; margin-top:16px; }
+/* label.dktog, not .dktog: `.tfacts label{display:block}` is a class AND an
+   element, so a bare class loses to it and the switch went back to being a
+   52px block with the words underneath. Same weight, written later, wins. */
+label.dktog{
+  display:inline-flex; align-items:center; gap:10px; margin:0; cursor:pointer;
+}
+label.dktog .togsay{ font-size:13px; color:var(--ink-2); white-space:nowrap; }
+.dktogs{ display:flex; flex-wrap:wrap; gap:14px 22px; margin-top:16px; }
+.tfacts__tog{ margin-top:14px; }
+.tfacts__tog .togsay{ white-space:normal; }
+.dkdays{ border:0; padding:0; margin:16px 0 0; }
+.dkdays legend{ font:600 12.5px/1 var(--sans); color:var(--ink-2); padding:0 0 8px; }
+.dkdays{ display:flex; flex-wrap:wrap; gap:14px; }
+
+.dkagents{ margin-top:20px; padding-top:16px; border-top:1px solid var(--rule); }
+.dkagents h3{ margin:0 0 4px; font-size:14px; font-weight:700; }
+.dkagents ul{ list-style:none; margin:12px 0 0; padding:0; }
+.dkagents li{
+  display:flex; align-items:center; gap:10px; padding:8px 0;
+  border-bottom:1px solid var(--rule-soft);
+}
+.dkagents li:last-child{ border-bottom:0; }
+.dkagents li b{ flex:1; font-size:13.5px; font-weight:600; }
+.dkagents li form{ display:contents; }
+.btn--tiny{ padding:4px 9px; font-size:12px; }
+
+.dkadd{ position:relative; margin-top:14px; }
+.dkadd__p{
+  margin-top:12px; border:1px solid var(--rule); background:var(--surface);
+  box-shadow:var(--shadow); padding:0 16px 16px;
+}
+.addpop--wide{ width:min(560px,92vw); }
+
+/* ============================================================== MOBILE === */
+@media (max-width:900px){
+  .tkt__cols{ grid-template-columns:minmax(0,1fr); }
+  /* The facts come first on a phone: what it is and who has it are what you
+     look at before you read the thread again. */
+  .tkt__side{ position:static; order:-1; }
+}
+
+@media (max-width:760px){
+  /* A row becomes a card. Six columns at 390px is six stripes of nothing. */
+  .dktix{ border:0; background:none; display:flex; flex-direction:column; gap:10px; }
+  .dktix__hd{ display:none; }
+  .dktix__r{
+    grid-template-columns:auto 1fr auto;
+    grid-template-areas:
+      "ref  ref  grp"
+      "subj subj subj"
+      "who  sla  sla";
+    gap:8px 12px; padding:13px 14px;
+    border:1px solid var(--rule); background:var(--surface);
+  }
+  .dktix__r > :nth-child(1){ grid-area:ref; }
+  .dktix__r > :nth-child(2){ grid-area:subj; }
+  .dktix__r > :nth-child(3){ grid-area:who; }
+  .dktix__r > :nth-child(4){ grid-area:ref; justify-self:end; margin-right:34px; }
+  .dktix__r > :nth-child(5){ grid-area:sla; justify-self:end; }
+  .dktix__r > :nth-child(6){ grid-area:grp; }
+  /* A subject is the whole reason the card is there: it wraps rather than
+     being cut off at the width of a phone. */
+  .dktix__s b{ -webkit-line-clamp:none; display:block; overflow:visible; line-height:1.4; }
+  .dktix__s > span{ white-space:normal; overflow:visible; line-height:1.45; }
+
+  .dkfil{ gap:6px; }
+  .dkfil__pick{ margin-left:0; width:100%; }
+  .dkband{ flex-wrap:wrap; }
+  .dkband .lnk{ margin-left:0; }
+
+  .tcomp__tabs{ flex-wrap:wrap; padding:0 8px; }
+  .tcomp__tools{ margin-left:0; width:100%; padding:0 0 8px; }
+  .tpop__p{ right:auto; left:0; width:min(320px,88vw); }
+
+  .dkrow__h{ flex-wrap:wrap; }
+  .dkrow__c{ order:3; width:100%; }
+  .dktabs{ overflow-x:auto; }
+  .dktabs > button{ white-space:nowrap; }
+  .dkagents li{ flex-wrap:wrap; }
+  .dkagents li b{ flex:1 1 100%; }
+}

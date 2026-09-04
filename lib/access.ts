@@ -53,6 +53,7 @@ export const PLACE_VERBS: Verb[] = ['view']
 export const MODULES = [
   { key: 'reporting',         label: 'Reporting' },
   { key: 'todo',              label: 'To Do' },
+  { key: 'desk',              label: 'Desk' },
   { key: 'staffing',          label: 'Staffing' },
   { key: 'meetings',          label: 'Meetings' },
 ] as const
@@ -148,6 +149,8 @@ export const LEVELLED_MODULES = [
   { key: 'reporting', label: 'Reporting', blurb: 'Sheets, charts and the dashboards built on them' },
   { key: 'todo',      label: 'To Do',     blurb: 'Lists, tasks and subtasks' },
   { key: 'wiki',      label: 'Wiki',      blurb: 'The handbook. Everybody reads it; Edit writes it' },
+  { key: 'desk',      label: 'Desk',
+    blurb: 'Ticket queues. Read watches, Edit works them, Admin configures them' },
   { key: 'staffing',  label: 'Staffing',  blurb: 'Rotas and who is on' },
   { key: 'meetings',  label: 'Meetings',  blurb: 'Agendas and what was decided' },
 ] as const

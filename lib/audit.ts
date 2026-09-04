@@ -31,7 +31,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
  */
 export type AuditKind =
   | 'entity' | 'department' | 'location' | 'person' | 'module' | 'access' | 'report'
-  | 'calendar' | 'list' | 'news' | 'wiki' | 'system'
+  | 'calendar' | 'list' | 'news' | 'wiki' | 'desk' | 'system'
 
 /** What the platform calls the thing, where its word differs from Hopper's. */
 const SUBJECT: Record<AuditKind, string | null> = {
@@ -49,6 +49,10 @@ const SUBJECT: Record<AuditKind, string | null> = {
   list: 'list',
   news: 'announcement',
   wiki: 'document',
+  // Configuring the desk -- a queue, an SLA, who works what -- is a decision
+  // about how the business answers people. The tickets themselves are the
+  // triggers' business, not this one's.
+  desk: 'queue',
   system: null,
 }
 

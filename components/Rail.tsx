@@ -52,6 +52,15 @@ export const MODULE_NAV: Record<string, Item> = {
       { href: '/dashboards', label: 'Dashboards' },
       { href: '/reporting/categories', label: 'Categories' },
     ] },
+  /* A speech bubble with a tail: the thing on the screen is a conversation
+     somebody is waiting on the end of. */
+  desk: { href: '/desk', label: 'Desk',
+    icon: I('<path d="M21 14a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/>'),
+    kids: [
+      { href: '/desk/mine', label: 'Assigned to me' },
+      { href: '/desk/unassigned', label: 'Unassigned' },
+      { href: '/desk/settings', label: 'Queues & SLAs' },
+    ] },
   staffing: { href: '/staffing', label: 'Staffing',
     icon: I('<circle cx="9" cy="8" r="3.4"/><path d="M3 20c0-3.3 2.7-5.4 6-5.4s6 2.1 6 5.4"/><path d="M17 11h5M19.5 8.5v5"/>') },
   meetings: { href: '/meetings', label: 'Meetings',
