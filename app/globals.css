@@ -7636,6 +7636,215 @@ a.td__tk:hover{ background:var(--todo); border-color:var(--todo); color:#fff; }
 
 .printonly{ display:none; }
 
+
+/* ==========================================================================
+   DESK — HOW IT'S GOING
+   One screen for three readers. The scope chips reuse .dkchip so the queue
+   screen and this one narrow with the same control; only the panels below
+   are new.
+   ========================================================================== */
+.dkfil--dash{ align-items:center; }
+/* Scope and range are two different questions, and side by side in one row of
+   identical buttons they read as one seven-button control. The range hangs off
+   the right instead. */
+.dkfil--dash .dkfil__pick{ margin-left:auto; }
+.dksay{ margin:2px 0 0; color:var(--ink-2); font-size:15px; max-width:70ch; }
+.dksay b{ color:var(--ink); font-weight:800; }
+.dksay a{ color:var(--steel); font-weight:700; text-decoration:none;
+  border-bottom:1px solid currentColor; }
+.dksay a:hover{ color:var(--steel-ink); }
+
+/* ---- the promise ----
+   The one number a desk is actually judged on, so it is the one thing on the
+   screen allowed to be big. Two, side by side, because answering fast and
+   finishing on time are different promises and a desk is usually good at one
+   of them. */
+.dkprom{
+  display:grid; grid-template-columns:1fr 1fr; margin:16px 0;
+  border:1px solid var(--rule); background:var(--surface);
+}
+.dkprom__c{ padding:18px 20px; min-width:0; }
+.dkprom__c + .dkprom__c{ border-left:1px solid var(--rule); }
+.dkprom__n{ display:flex; align-items:baseline; gap:10px; margin-top:6px; }
+.dkprom__v{
+  display:block; font-size:38px; font-weight:800; letter-spacing:-.035em;
+  line-height:1; font-variant-numeric:tabular-nums; margin-top:6px;
+}
+.dkprom__n .dkprom__v{ margin-top:0; }
+.dkprom__d{ font-size:12.5px; font-weight:800; }
+.dkprom__d.up{ color:var(--good); } .dkprom__d.down{ color:var(--bad); }
+.dkprom__d.up::before{ content:"\2191 "; }
+.dkprom__d.down::before{ content:"\2193 "; }
+.dkprom__s{ margin:9px 0 0; font-size:13px; color:var(--ink-2); }
+.dkprom__s b{ color:var(--bad); font-weight:800; }
+.dkprom__note{ margin:4px 0 0; font-size:11.5px; color:var(--ink-3); }
+
+/* ---- a panel ---- */
+.dkpan{ border:1px solid var(--rule); background:var(--surface); margin-bottom:16px; }
+.dkpan__h{
+  display:flex; align-items:center; gap:10px; padding:11px 15px;
+  background:var(--sunken); border-bottom:1px solid var(--rule);
+}
+.dkpan__h b{ font-size:13px; font-weight:800; }
+.dkpan__n{ font-family:var(--mono); font-size:10.5px; color:var(--ink-3);
+  letter-spacing:.06em; }
+.dkpan__more{ margin-left:auto; font-size:12.5px; font-weight:700;
+  color:var(--steel); text-decoration:none; }
+.dkpan__b{ padding:15px; }
+
+/* ---- what needs you now ----
+   ONE list and not three panels. Late, about to be late, nobody on it and
+   going quiet are four reasons to pick a ticket up, and they compete for
+   attention in the right order only when they are in the same column. The
+   reason is a chip on the row rather than the heading above it. */
+.dkneed{
+  display:flex; align-items:center; gap:11px; padding:11px 15px;
+  border-bottom:1px solid var(--rule-soft); font-size:13.5px;
+  color:inherit; text-decoration:none;
+}
+.dkneed:last-child{ border-bottom:0; }
+.dkneed:hover{ background:var(--rule-soft); }
+.dkneed__ref{ font-family:var(--mono); font-size:11.5px; font-weight:700;
+  color:var(--ink-3); flex:none; width:70px; }
+.dkneed__s{ font-weight:700; min-width:0; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.dkneed__q{ color:var(--ink-3); font-size:12.5px; white-space:nowrap; }
+.dkneed__w{ margin-left:auto; color:var(--ink-3); font-size:12.5px; white-space:nowrap; }
+.dkwhy{
+  font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+  padding:2px 6px; flex:none; white-space:nowrap;
+}
+.dkwhy--late{ background:var(--bad); color:#FBF9F5; }
+.dkwhy--soon{ background:var(--warmedge); color:var(--warmink); }
+.dkwhy--none{ background:var(--steelwash); color:var(--steel-ink);
+  box-shadow:inset 0 0 0 1px var(--steel); }
+.dkwhy--stale{ background:var(--canvas-2); color:var(--ink-2); }
+
+/* ---- two up ---- */
+.dkduo{ display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+.dkduo > .dkpan{ margin-bottom:16px; }
+
+/* ---- the tables ---- */
+.dktb{ width:100%; border-collapse:collapse; font-size:13.5px; }
+.dktb th{
+  font-family:var(--mono); font-size:9px; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--ink-3); text-align:left; font-weight:700; padding:9px 15px;
+  border-bottom:1px solid var(--rule); background:var(--sunken);
+}
+.dktb th.num, .dktb td.num{ text-align:right; font-variant-numeric:tabular-nums; }
+.dktb td{ padding:11px 15px; border-bottom:1px solid var(--rule-soft); }
+.dktb tr:last-child td{ border-bottom:0; }
+.dkbar{ display:block; height:6px; background:var(--canvas-2); }
+.dkbar em{ display:block; height:100%; background:var(--steel); }
+.dkdot{ color:var(--bad); font-weight:800; }
+
+/* A percentage reads as a percentage AND as a length, so a column of them can
+   be compared without reading any of the digits. */
+.dkpct{ display:inline-flex; align-items:center; gap:8px; justify-content:flex-end; }
+.dkpct__t{ display:block; width:42px; height:5px; background:var(--canvas-2); flex:none; }
+.dkpct__t em{ display:block; height:100%; background:var(--good); }
+.dkpct u{ text-decoration:none; font-weight:800; font-variant-numeric:tabular-nums; }
+.dkpct.bad u{ color:var(--bad); }
+.dkpct.bad .dkpct__t em{ background:var(--bad); }
+
+.dkfoot{ margin:4px 0 0; font-size:12.5px; color:var(--ink-3); max-width:78ch; }
+.dkfoot b{ color:var(--ink-2); font-weight:800; }
+
+/* ---- a phone ----
+   Same three rules as the rest of Desk: rows become cards with the data
+   stacked one fact to a line, anything you press goes full width, and there
+   is one column of everything. */
+@media (max-width:760px){
+  .dkprom{ grid-template-columns:1fr; }
+  .dkprom__c + .dkprom__c{ border-left:0; border-top:1px solid var(--rule); }
+  .dkduo{ grid-template-columns:1fr; gap:0; }
+
+  .dkfil--dash .dkchip{ flex:1; text-align:center; }
+  .dkfil--dash .dkfil__pick{ width:100%; margin-left:0; }
+
+  .dkneed{ display:block; padding:12px 14px; }
+  .dkneed__ref{ width:auto; display:inline; }
+  .dkwhy{ margin-left:8px; }
+  .dkneed__s{ display:block; white-space:normal; overflow:visible;
+    font-size:14px; line-height:1.4; margin:7px 0 8px; }
+  .dkneed__q, .dkneed__w{
+    display:flex; padding:5px 0; border-bottom:1px solid var(--rule-soft);
+    margin-left:0; white-space:normal;
+  }
+  .dkneed__w{ border-bottom:0; }
+  .dkneed__q::before, .dkneed__w::before{
+    font-family:var(--mono); font-size:9px; letter-spacing:.11em; text-transform:uppercase;
+    color:var(--ink-3); width:74px; flex:none; padding-top:2px;
+  }
+  .dkneed__q::before{ content:"Queue"; }
+  .dkneed__w::before{ content:"On"; }
+
+  /* A table of six numbers is not a table on a phone. Every row becomes a
+     card and every cell takes back the label its column head was carrying. */
+  .dktb--slice thead{ display:none; }
+  .dktb--slice, .dktb--slice tbody, .dktb--slice tr, .dktb--slice td{ display:block; }
+  .dktb--slice tr{ padding:12px 14px; border-bottom:1px solid var(--rule); }
+  .dktb--slice tr:last-child{ border-bottom:0; }
+  .dktb--slice td{
+    display:flex; align-items:baseline; gap:10px; padding:5px 0; border-bottom:0;
+    text-align:left;
+  }
+  .dktb--slice td.num{ text-align:left; justify-content:flex-start; }
+  .dktb--slice td[data-l]::before{
+    content:attr(data-l); font-family:var(--mono); font-size:9px; letter-spacing:.11em;
+    text-transform:uppercase; color:var(--ink-3); width:104px; flex:none;
+  }
+  .dktb--slice td:first-child{ padding-bottom:9px; }
+  .dktb--slice td:first-child::before{ display:none; }
+  .dktb--slice td:first-child b{ font-size:15px; }
+  .dkpct{ justify-content:flex-start; }
+}
+
+@media print{
+  /* Paper is not a phone. A Letter sheet is 816 CSS px and the margins take it
+     to about 720 -- under the phone breakpoint above -- so without these the
+     compact sheet prints as stacked cards and runs to four pages. Everything
+     the phone rules stack, paper puts back in a row. */
+  .dkprom{ grid-template-columns:1fr 1fr; }
+  .dkprom__c + .dkprom__c{ border-left:1px solid #ccc; border-top:0; }
+  .dkduo{ grid-template-columns:1fr 1fr; gap:10px; }
+  .dkneed{ display:flex; align-items:center; gap:9px; }
+  .dkneed__ref{ display:block; width:60px; }
+  .dkwhy{ margin-left:0; }
+  .dkneed__s{ display:inline; margin:0; white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; font-size:11px; line-height:1.4; }
+  .dkneed__q, .dkneed__w{ display:inline; padding:0; border-bottom:0; }
+  .dkneed__q::before, .dkneed__w::before{ content:none; }
+  .dkneed__w{ margin-left:auto; }
+  .dktb--slice{ display:table; }
+  .dktb--slice thead{ display:table-header-group; }
+  .dktb--slice tbody{ display:table-row-group; }
+  .dktb--slice tr{ display:table-row; padding:0; border-bottom:0; }
+  .dktb--slice td{ display:table-cell; border-bottom:1px solid #e4e4e4; }
+  .dktb--slice td.num{ text-align:right; }
+  .dktb--slice td[data-l]::before{ display:none; }
+  .dktb--slice td:first-child b{ font-size:inherit; }
+  .dkpct{ justify-content:flex-end; }
+
+  .dkprom, .dkpan, .dkneed, .dktb tr{ break-inside:avoid; page-break-inside:avoid; }
+  .dkprom{ border-color:#999; margin:10px 0; }
+  .dkprom__c{ padding:10px 12px; }
+  .dkprom__v{ font-size:26px; }
+  .dkprom__note{ display:none; }
+  .dkpan{ border-color:#999; margin-bottom:10px; }
+  .dkpan__h{ background:none; border-bottom:1px solid #ccc; padding:5px 10px; }
+  .dkduo{ gap:10px; }
+  .dkneed{ padding:5px 10px; font-size:11px; }
+  .dktb td, .dktb th{ padding:4px 10px; font-size:11px; }
+  .dktb th{ background:none; }
+  /* Ink, not color: a filled chip is a solid block on every row. */
+  .dkwhy{ background:none !important; color:#111 !important;
+    box-shadow:inset 0 0 0 1px #777 !important; font-size:8.5px; }
+  .dkbar, .dkpct__t{ background:#e4e4e4; }
+  .dkbar em, .dkpct__t em{ background:#777; }
+  .dkdot{ color:#111; }
+}
+
 @media print{
   .printonly{ display:block; }
 

@@ -31,7 +31,7 @@ const NAMES: Record<string, string> = {
   profile: 'Profile',
   favorites: 'Favorites',
   dashboards: 'Dashboards',
-  desk: 'Desk',
+  desk: 'Desk', dashboard: "How It's Going",
   mine: 'Assigned to me',
   unassigned: 'Unassigned',
   settings: 'Queues & SLAs',

@@ -57,6 +57,7 @@ export const MODULE_NAV: Record<string, Item> = {
   desk: { href: '/desk', label: 'Desk',
     icon: I('<path d="M21 14a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/>'),
     kids: [
+      { href: '/desk/dashboard', label: "How it's going" },
       { href: '/desk/mine', label: 'Assigned to me' },
       { href: '/desk/unassigned', label: 'Unassigned' },
       { href: '/desk/contacts', label: 'Contacts' },

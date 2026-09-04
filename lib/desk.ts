@@ -103,6 +103,56 @@ export type Row = {
   contact_id: string | null; requester_name: string | null; requester_email: string | null
 }
 
+/* ---------------------------------------------------------- what it scored */
+
+/**
+ * A ticket with both promises already worked out, as hopper.ticket_scored
+ * hands it over. The type lives HERE and not beside the loader because the
+ * dashboard is a client component: a type imported out of a module that
+ * imports supabaseServer drags next/headers into the browser bundle, which is
+ * the same split that put loadTickets in deskdata.ts and the vocabulary here.
+ *
+ * Five states and not a boolean. "We have not answered yet and are still
+ * inside the promise" and "we never answered and blew it" are different facts,
+ * and a boolean has to pick one of them to lie about.
+ */
+export type State = 'none' | 'met' | 'missed' | 'late' | 'due'
+
+export type Scored = {
+  id: string; ref: string; subject: string
+  status: Status; priority: string; source: string
+  entity_id: string; queue_id: string; kind_id: string | null
+  assignee_id: string | null; contact_id: string | null
+  opened_at: string; resolved_at: string | null
+  first_reply_at: string | null; last_message_at: string | null
+  first_reply_due: string | null
+  /** The target AS IT STANDS: while a ticket waits on them the view pushes it
+   *  forward, so a weekend in Waiting is not a breach on Monday. */
+  resolve_due: string | null
+  reply_state: State; resolve_state: State
+  reply_mins: number | null; resolve_mins: number | null
+  age_mins: number | null; quiet_mins: number | null
+}
+
+/** Late means EITHER clock, per the ruling. Only the unanswered kind counts as
+ *  something to act on: a reply that WAS late and has since been sent is
+ *  history, and history does not belong on a list of what needs you now. */
+export const isLate = (t: { reply_state: State; resolve_state: State }) =>
+  t.reply_state === 'late' || t.resolve_state === 'late'
+
+/** Whether a promise was kept, once it can be judged at all. */
+export const judged = (s: State) => s === 'met' || s === 'missed'
+
+/** The middle one, not the average. A single ticket left over a long weekend
+ *  drags a mean somewhere nobody recognizes, and the number people act on has
+ *  to describe the usual case. */
+export function median(ns: number[]): number | null {
+  if (ns.length === 0) return null
+  const a = [...ns].sort((x, y) => x - y)
+  const m = Math.floor(a.length / 2)
+  return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2)
+}
+
 /* ------------------------------------------------------ out with somebody */
 
 /**
