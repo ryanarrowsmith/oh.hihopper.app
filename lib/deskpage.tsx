@@ -24,7 +24,7 @@ export async function deskScreen(opts: {
   // rep can see their own morning. Not the archive -- that has its own search.
   const dawn = new Date(); dawn.setHours(0, 0, 0, 0)
 
-  const [live, done, refs, contacts] = await Promise.all([
+  const [live, done, refs, contacts, { data: rights }] = await Promise.all([
     loadTickets({
       status: ['open', 'waiting'],
       assignee: opts.mine ? session.personId : null,
@@ -38,6 +38,9 @@ export async function deskScreen(opts: {
       .order('resolved_at', { ascending: false }).limit(120),
     loadDeskRefs(),
     db.schema('hopper').from('contact').select('id, name, email').order('name').limit(500),
+    // Whether the empty desk gets a way out of being empty, asked of the same
+    // helper the write policy uses so the screen and the save agree.
+    db.schema('hopper').from('desk_rights').select('may_admin'),
   ])
 
   const rows = [...live, ...((done.data ?? []) as Row[])]
@@ -58,7 +61,8 @@ export async function deskScreen(opts: {
       contacts={(contacts.data ?? []) as any}
       outstanding={outstanding}
       mePersonId={session.personId}
-      canRaise={refs.queues.some((q) => q.active)}
+      canConfigure={(rights ?? []).some((r: any) => r.may_admin)}
+      printedBy={session.displayName}
     />
   )
 }

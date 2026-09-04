@@ -31,6 +31,10 @@ const NAMES: Record<string, string> = {
   profile: 'Profile',
   favorites: 'Favorites',
   dashboards: 'Dashboards',
+  desk: 'Desk',
+  mine: 'Assigned to me',
+  unassigned: 'Unassigned',
+  settings: 'Queues & SLAs',
   me: 'You',
   access: 'What you may do',
 }
@@ -51,6 +55,20 @@ const INDEXED_UNDER_RECORD = new Set(['locations'])
 /** Words in a path that no page sits at. /people/me is one -- it exists only
  *  so /people/me/access has somewhere to hang. */
 const NO_PAGE = new Set(['me'])
+
+/**
+ * A segment nobody has named yet, made presentable.
+ *
+ * NAMES is the good answer and always will be -- "todo" is "To Do" and no rule
+ * derives that. But NAMES is a list somebody has to remember to add to, and
+ * the fallback it falls through to was printing the raw path segment: the Desk
+ * pages shipped reading "desk / mine" in lower case because two words were
+ * missing from a lookup table. A fallback that is merely tidy costs nothing
+ * and means the next route to be added is wrong in a way nobody notices
+ * rather than in a way that looks broken.
+ */
+const titled = (part: string) =>
+  part.replace(/-/g, ' ').replace(/\b[a-z]/g, (c) => c.toUpperCase())
 
 export default function Crumbs(
   { entities, places = [] }: { entities: Entity[]; places?: Named[] },
@@ -99,7 +117,7 @@ export default function Crumbs(
     }
 
     const container = NO_PAGE.has(part) || (afterId && !INDEXED_UNDER_RECORD.has(part))
-    crumbs.push({ href: container ? null : href, label: NAMES[part] ?? part.replace(/-/g, ' ') })
+    crumbs.push({ href: container ? null : href, label: NAMES[part] ?? titled(part) })
     afterId = false
   }
 

@@ -92,7 +92,7 @@ export default function TicketPage({
 
   return (
     <div className="tkt">
-      <div className="pj__h">
+      <div className="pj__h noprint">
         <div className="pj__id">
           <p className="tkt__up">
             <Link href="/desk">Desk</Link>
@@ -111,6 +111,29 @@ export default function TicketPage({
           <Quick id={ticket.id} status={ticket.status} mine={ticket.assignee_id === mePersonId}
                  mePersonId={mePersonId} />
         </div>
+      </div>
+
+      {/* Paper only. A ticket handed to somebody who is not at a screen -- a
+          driver, a landlord, a contractor -- is the whole reason this button
+          exists, so the sheet carries what they would otherwise have to ask
+          for: who it is about, how to reach them, and what was promised. */}
+      <div className="printonly printhead">
+        <p className="printhead__m">Hopper · Desk</p>
+        <h2><span className="tnum">{ticket.ref}</span> {ticket.subject}</h2>
+        <p className="printhead__l">
+          <span>{queueName}</span>
+          {orgName && <span>{orgName}</span>}
+          <span>{STATUS_WORD[ticket.status as Status]}</span>
+          <span>opened {WHEN.format(new Date(ticket.opened_at))}</span>
+          {s.text && <span>{s.text}</span>}
+        </p>
+        <p className="printhead__w">
+          {contact?.name || ticket.requester_name || 'Somebody inside'}
+          {(contact?.email || ticket.requester_email)
+            && ` · ${contact?.email ?? ticket.requester_email}`}
+          {contact?.phone && ` · ${contact.phone}`}
+          {who && ` · with ${who}`}
+        </p>
       </div>
 
       {siblings.length > 0 && (
@@ -342,6 +365,15 @@ function Quick({ id, status, mine, mePersonId }: {
   const [state, action] = useFormState(updateTicket, null)
   return (
     <div className="tkt__acts">
+      <button className="btn btn--icon noprint" type="button"
+              data-tip="Print this ticket" aria-label="Print this ticket"
+              onClick={() => window.print()}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+             strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M7 8V3h10v5" /><rect x="3" y="8" width="18" height="8" rx="1.5" />
+          <path d="M7 14h10v7H7z" />
+        </svg>
+      </button>
       {!mine && mePersonId && (
         <form action={action}>
           <input type="hidden" name="ticket_id" value={id} />

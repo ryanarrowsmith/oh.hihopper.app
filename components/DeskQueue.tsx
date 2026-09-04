@@ -2,10 +2,21 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { slaOf, STATUS_WORD, SOURCE_WORD, type Row, type Status } from '@/lib/desk'
-import RaiseTicket from '@/components/RaiseTicket'
+import DeskActions from '@/components/DeskActions'
 import Choice from '@/components/Choice'
 
 type Named = { id: string; name: string }
+
+/** What the slice on screen is called, said in full on paper where there are
+ *  no chips to look at. */
+const CUT_WORD: Record<string, string> = {
+  all: 'Everything', open: 'Open only', waiting: 'Waiting on them',
+  breach: 'Past their SLA', unassigned: 'Unassigned', mine: 'On me',
+  out: 'Out with someone else', done: 'Resolved',
+}
+const PRINTED = new Intl.DateTimeFormat('en-US',
+  { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    hour: 'numeric', minute: '2-digit' })
 type Who = { id: string; full_name: string }
 export type Grp = { id: string; name: string; reason: string; entity_id: string }
 
@@ -24,7 +35,7 @@ export type Grp = { id: string; name: string; reason: string; entity_id: string 
  */
 export default function DeskQueue({
   title, blurb, rows, queues, people, orgs, kinds, groups, contacts, outstanding,
-  mePersonId, canRaise,
+  mePersonId, canConfigure, printedBy,
 }: {
   title: string; blurb?: string
   rows: Row[]
@@ -35,7 +46,11 @@ export default function DeskQueue({
   /** ticket id → how many to-dos it is still waiting on. */
   outstanding: Record<string, number>
   mePersonId: string | null
-  canRaise: boolean
+  /** Whether this person may open Queues & SLAs, for the empty desk's way out. */
+  canConfigure: boolean
+  /** Printed on the sheet, because a printout with no name on it is anonymous
+   *  by the time it reaches the second person who picks it up. */
+  printedBy: string
 }) {
   const [cut, setCut] =
     useState<'all' | 'open' | 'waiting' | 'breach' | 'unassigned' | 'mine' | 'out' | 'done'>('all')
@@ -89,7 +104,8 @@ export default function DeskQueue({
 
   return (
     <div className="pjcol">
-      <div className="pj__h">
+      {/* The printed sheet writes its own header, just below. */}
+      <div className="pj__h noprint">
         <div className="pj__id">
           <h1>{title}</h1>
           <p className="pjline">
@@ -100,11 +116,25 @@ export default function DeskQueue({
           </p>
           {blurb && <p className="pjnote">{blurb}</p>}
         </div>
-        {canRaise && (
-          <div className="pj__go">
-            <RaiseTicket queues={queues} people={people} kinds={kinds} contacts={contacts} />
-          </div>
-        )}
+        <div className="pj__go">
+          <DeskActions queues={queues} people={people} kinds={kinds} contacts={contacts}
+                       canConfigure={canConfigure} />
+        </div>
+      </div>
+
+      {/* Paper only. A list printed off a screen loses everything the screen
+          was saying around it -- which slice you were looking at, how many
+          that was, and when. It says so here instead. */}
+      <div className="printonly printhead">
+        <p className="printhead__m">Hopper · Desk</p>
+        <h2>{title}</h2>
+        <p className="printhead__l">
+          <span>{CUT_WORD[cut]}</span>
+          <span>{shown.length} of {rows.length}</span>
+          {org && <span>{orgOf.get(org)}</span>}
+          {queue && <span>{queueOf.get(queue)}</span>}
+        </p>
+        <p className="printhead__w">Printed by {printedBy} · {PRINTED.format(new Date())}</p>
       </div>
 
       <div className="dkfil">
@@ -159,9 +189,13 @@ export default function DeskQueue({
 
       {shown.length === 0 ? (
         <p className="empty">
-          {rows.length === 0
+          {rows.length > 0
+            ? 'Nothing matches that. Try a wider filter.'
+            : queues.length > 0
             ? 'Nothing here yet. When somebody writes in, their ticket lands in this list.'
-            : 'Nothing matches that. Try a wider filter.'}
+            : canConfigure
+            ? 'No queues yet. A queue is the address people write to and the promise you make them — set the first one up and tickets will land here.'
+            : 'No queues here yet. Whoever manages this organization sets those up.'}
         </p>
       ) : (
         <div className="dktix">

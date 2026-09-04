@@ -49,7 +49,7 @@ export default function RaiseTicket({ queues, people, kinds, contacts }: {
       <button className="btn btn--amber" type="button" ref={btn} aria-expanded={open}
               onClick={(e) => { e.stopPropagation(); setOpen(!open) }}>
         <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
-        Raise a ticket
+        New ticket
       </button>
       {open && (
         <div className="addpop addpop--wide" ref={pop} role="dialog" aria-label="Raise a ticket">
