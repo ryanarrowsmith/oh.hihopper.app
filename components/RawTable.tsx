@@ -435,8 +435,11 @@ export default function RawTable({ reportId, name, everRead, bleed = true,
                 <tr key={n} className={d && chosen.has(d) ? 'is-on' : undefined}
                     onClick={linked && d ? (e) => picked!.pick(d, e.shiftKey) : undefined}
                     style={linked && d ? { cursor: 'pointer' } : undefined}>
-                  {shownCols.map((i) => (
-                    <td key={i} className={cols[i].type === 'number' ? 'num' : undefined}>
+                  {shownCols.map((i, at) => (
+                    <td key={i} className={cols[i].type === 'number' ? 'num' : undefined}
+                        // The key column is clipped, so it has to be able to
+                        // say the rest of itself somehow.
+                        title={at === 0 ? String(shown(view!, n, i)) : undefined}>
                       {shown(view!, n, i)}
                     </td>
                   ))}

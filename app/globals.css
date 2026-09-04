@@ -2806,6 +2806,15 @@ a.gcard:hover{border-color:var(--canvas-3); box-shadow:var(--lift)}
   position:sticky; left:0; z-index:1;
   box-shadow:1px 0 0 var(--rule);
   transition:box-shadow .18s;
+  /* And it CLIPS, because it floats over other columns.
+     .raw is width:100%, so with twelve columns the browser is entitled to
+     squeeze one below the width of its own content -- and nowrap then paints
+     the overflow straight over whatever the pinned column is floating on top
+     of. "Muscogee Creek Nation Environmental:35.537333, -96.391783" landed
+     across two other columns' values, which reads as a rendering fault rather
+     than as a long name. Clipped with an ellipsis, and the cell carries the
+     whole value as its tooltip. */
+  max-width:min(34ch, 30vw); overflow:hidden; text-overflow:ellipsis;
 }
 
 /* Only once it is actually floating over something does it cast a shadow. A
