@@ -378,20 +378,28 @@ function ReportCard({ c, onOpen, onRows, selected, onSelect }: {
                strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="4" width="18" height="16" /><path d="M3 9h18M3 14h18M9 9v11" /></svg>
         </button>
-        <button className="cbub" type="button" onClick={onOpen}
-                title="Open it" aria-label="Open it">
+        {/* The arrow leaves. Everything else on this row acts on the card in
+            place, and an arrow that opened the same popover as the card body
+            was a second way to do one thing and no way to do the other. */}
+        <a className="cbub" href={`/reporting/${c.id}`}
+           title="Open its page" aria-label={`Open the page for ${c.name}`}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
                strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 3h6v6" /><path d="M21 3l-9 9" />
             <path d="M20 14v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h6" /></svg>
-        </button>
+        </a>
       </div>
 
       <span className="rcard__c">{c.category ?? 'Uncategorized'}</span>
       <span className="rcard__n">{c.name}</span>
-      {c.value == null
-        ? <span className="rcard__none">Not read yet</span>
-        : <span className="rcard__v">{nf.format(c.value)}</span>}
+      {/* "Not read yet" is only true when nothing has been read. A pivot
+          report has been read -- eighty-four thousand rows of it -- and simply
+          has no single number to put here, and saying it was never read sends
+          somebody off looking for a refresh that already ran. */}
+      {c.value != null
+        ? <span className="rcard__v">{nf.format(c.value)}</span>
+        : <span className="rcard__none">
+            {c.lastLook ? 'No headline number' : 'Not read yet'}</span>}
       {/* The card carries its own registered chart type, but only the HEADLINE
           measure -- the one the number above it belongs to.
 
