@@ -52,7 +52,7 @@ export default function NewList({ orgs, people }: {
                     onClick={() => setOpen(false)}>&times;</button>
           </div>
           <div className="addpop__body">
-            <Form orgs={orgs} people={people} />
+            <Form orgs={orgs} people={people} onDone={() => setOpen(false)} />
           </div>
         </div>
       )}
@@ -60,11 +60,18 @@ export default function NewList({ orgs, people }: {
   )
 }
 
-function Form({ orgs, people }: {
+function Form({ orgs, people, onDone }: {
   orgs: { id: string; name: string }[]
   people: { id: string; full_name: string }[]
+  onDone: () => void
 }) {
   const [state, action] = useFormState(createList, null)
+  // Closes because the save worked, never during a render. useFormState keeps
+  // its last result for good, so setting state here would shut the popover on
+  // the very next render, for ever. onDone is a fresh closure each render, so
+  // only the result is a dependency.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (state?.ok) onDone() }, [state])
   return (
     <form action={action}>
       <div className="formrow formrow--one">

@@ -1,7 +1,6 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import { currentSession } from '@/lib/tenant'
 import { logAudit } from '@/lib/audit'
@@ -73,8 +72,12 @@ export async function createList(_p: Result | null, form: FormData): Promise<Res
 
   await logAudit(db, { account_id: account, kind: 'list', object: name,
     object_id: data.id, summary: `Started the list ${name}` })
+  // No redirect. /todo IS the to-do list, so a new list belongs on the screen
+  // you are already looking at -- being thrown onto an empty page of its own is
+  // what the old portfolio did, when the root was a table of names and the only
+  // way to see anything was to leave.
   revalidatePath('/todo')
-  redirect(`/todo/${data.id}`)
+  return { ok: true, message: `${name} added.` }
 }
 
 export async function setListStatus(id: string, status: string): Promise<Result> {
