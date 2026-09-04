@@ -573,7 +573,11 @@ export type LongRow = {
   col_key: string
   v_idx: number
   val: number | string | null
+  /** How many numbers landed here. Only 'as-is' can collide. */
   hits: number
+  /** How many source rows landed here, whatever they held. This is what makes
+   *  a key that exists but holds nothing different from a key that does not. */
+  rows_in: number
 }
 
 /**
@@ -586,9 +590,9 @@ export type LongRow = {
  * the ORDER of a text axis would be two pivots, whatever they agreed about the
  * numbers.
  *
- * v_idx = -1 carries the count of source rows in each cell, which is how a row
- * key whose every value is null still gets a line in the table. A key that
- * exists and holds nothing is a different fact from a key that does not exist.
+ * Every group the database saw comes back, including one whose every value is
+ * null -- so a key that exists and holds nothing stays a different fact from a
+ * key that does not exist, and the table can draw a dash.
  */
 export function fromLong(long: LongRow[], spec: Spec, cols: Col[]): Pivot {
   const at = new Map<string, number | null>()
@@ -606,9 +610,12 @@ export function fromLong(long: LongRow[], spec: Spec, cols: Col[]): Pivot {
     const v = r.val === null ? null : Number(r.val)
     at.set(`${r.row_key} ${r.col_key} ${r.v_idx}`, v)
     hit.set(`${r.row_key} ${r.col_key} ${r.v_idx}`, Number(r.hits) || 0)
+    // Every key the database saw, whether or not it held a number. A margin
+    // row comes back for a key whose every value is null, which is how the
+    // table knows to draw a dash rather than leave the row out.
     if (r.row_key !== ALL) rowSeen.add(r.row_key)
     if (r.col_key !== ALL) colSeen.add(r.col_key)
-    if (r.v_idx === -1 && r.row_key === ALL && r.col_key === ALL) kept = v ?? 0
+    if (r.row_key === ALL && r.col_key === ALL) kept = Number(r.rows_in) || 0
     if (r.col_key === ALL && r.row_key !== ALL) {
       if (r.v_idx === 0 && v !== null) rowSort.set(r.row_key, Math.abs(v))
       if (r.v_idx === byIdx && v !== null) rowBy.set(r.row_key, v)
