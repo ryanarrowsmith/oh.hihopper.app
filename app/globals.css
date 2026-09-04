@@ -7217,7 +7217,7 @@ a.dktix__r:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 .tkt__up a{ color:var(--steel-ink); }
 .tkt__up span::before{ content:"·"; margin-right:10px; color:var(--canvas-3); }
 .tkt__ref{ font:700 15px/1 var(--mono); color:var(--ink-3); margin-right:6px; }
-.tkt__acts{ display:flex; gap:8px; align-items:center; }
+.tkt__acts{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 .tkt__acts .btn{ white-space:nowrap; }
 
 .tkt__cols{
@@ -7411,4 +7411,105 @@ label.dktog .togsay{ font-size:13px; color:var(--ink-2); white-space:nowrap; }
   .dktabs > button{ white-space:nowrap; }
   .dkagents li{ flex-wrap:wrap; }
   .dkagents li b{ flex:1 1 100%; }
+}
+
+/* ==========================================================================
+   OUT WITH SOMEBODY
+   A ticket handing part of itself to another department. Desk is steel; a
+   to-do raised out of a ticket is green, and that difference is the only
+   thing telling you which of the two apps a thing belongs to.
+   ========================================================================== */
+:root{ --todo:#2E8B57; --todowash:#E8F3EC; --todorule:#BFDFCD; --todoink:#1F6B41; }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --todo:#5FBF8A; --todowash:rgba(95,191,138,.13); --todorule:rgba(95,191,138,.34);
+    --todoink:#8FD6AE;
+  }
+}
+:root[data-theme="dark"]{
+  --todo:#5FBF8A; --todowash:rgba(95,191,138,.13); --todorule:rgba(95,191,138,.34);
+  --todoink:#8FD6AE;
+}
+
+/* ---------------------------------------------------- the panel on a ticket */
+.jobs{ border:1px solid var(--todorule); background:var(--surface); margin-bottom:14px; }
+.jobs__h{
+  display:flex; align-items:center; gap:8px; padding:9px 12px;
+  background:var(--todowash); border-bottom:1px solid var(--todorule);
+}
+.jobs__h svg{ width:15px; height:15px; flex:none; color:var(--todo); }
+.jobs__h b{ font-size:12.5px; font-weight:800; color:var(--todoink); }
+.jobs__h .n{ margin-left:auto; font-size:11px; font-weight:700; color:var(--todoink); }
+
+.job{ padding:11px 12px; border-bottom:1px solid var(--rule-soft); }
+.job:last-of-type{ border-bottom:0; }
+.job > b{ display:block; font-size:13px; font-weight:700; line-height:1.35; }
+.job--done > b{ color:var(--ink-3); text-decoration:line-through; }
+.job__m{
+  display:flex; align-items:center; gap:7px; margin-top:7px; flex-wrap:wrap;
+  font-size:11.5px; color:var(--ink-3);
+}
+.job__m .dkav{ width:19px; height:19px; font-size:8px; }
+.job__ok{ color:var(--todo); font-weight:700; }
+.job__more{ margin-left:auto; }
+.due{ font-size:11.5px; font-weight:700; color:#8A6410; }
+
+.job__chase{ margin-top:10px; padding-top:10px; border-top:1px dashed var(--rule); }
+.job__chase textarea{ resize:vertical; }
+.job__off{ display:flex; gap:8px; align-items:center; margin-top:10px; }
+.job__off .field{ flex:1; min-width:0; }
+
+.jobs__f{
+  display:block; width:100%; text-align:left; padding:9px 12px; border:0;
+  border-top:1px solid var(--rule); background:none; cursor:pointer;
+  font:700 12px/1 var(--sans); color:var(--todo);
+}
+.jobs__f:hover{ background:var(--todowash); }
+.jobs__ask{ padding:12px 12px 14px; border-top:1px solid var(--rule); background:var(--sunken); }
+.jobs__ask label{
+  display:block; margin:12px 0 5px; font:600 12.5px/1 var(--sans); color:var(--ink-2);
+}
+.jobs__ask label:first-child{ margin-top:0; }
+.jobs__ask textarea{ resize:vertical; }
+
+/* --------------------------------------------- it came out of the to-do */
+.tmsg__from{
+  font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  padding:2px 6px; background:var(--todowash); border:1px solid var(--todorule);
+  color:var(--todoink);
+}
+.tdid--job i{ background:var(--todo); }
+
+/* The refusal to sign off, said where the button is. */
+.tkt__no{
+  flex-basis:100%; margin:8px 0 0; padding:9px 12px; font-size:12.5px;
+  background:var(--badwash, rgba(217,58,43,.09)); border:1px solid var(--bad);
+  color:var(--ink); max-width:52ch;
+}
+.dkpill--out{
+  background:var(--todowash); border-color:var(--todorule); color:var(--todoink);
+}
+
+/* --------------------------------------------------- the chip in To Do */
+.td__tk{
+  display:inline-flex; align-items:center; gap:5px; padding:2px 6px;
+  font:700 10.5px/1.4 var(--sans); letter-spacing:.03em; text-decoration:none;
+  background:var(--todowash); border:1px solid var(--todorule); color:var(--todoink);
+  white-space:nowrap;
+}
+.td__tk svg{ width:11px; height:11px; }
+.td__tk--flat{ cursor:default; }
+a.td__tk:hover{ background:var(--todo); border-color:var(--todo); color:#fff; }
+
+@media (max-width:900px){
+  .job__more{ margin-left:0; }
+  .job__off{ flex-wrap:wrap; }
+  .job__off .field{ flex:1 1 100%; }
+  /* A one-line event that has to say two names and a task title is not a one
+     line event at 390. It wraps, and the time drops under it rather than being
+     squeezed into a column three characters wide. */
+  .tdid{ flex-wrap:wrap; align-items:flex-start; line-height:1.45; }
+  .tdid i{ margin-top:6px; }
+  .tdid time{ margin-left:auto; }
+  .tdid--job time{ flex-basis:100%; margin-left:17px; }
 }

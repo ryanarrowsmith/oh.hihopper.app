@@ -21,6 +21,9 @@ export const LOCK = '<path d="M6 11V8a6 6 0 1 1 12 0v3"/><rect x="4" y="11" widt
 export const TICK = '<path pathLength="1" d="M4.2 12.9c1.6 1 3.2 2.4 4.7 4.3C12 13 15.6 9.2 20 6.2"/>'
 export const PLUS = '<path d="M12 5v14M5 12h14"/>'
 export const CYCLE = '<path d="M20 11a8 8 0 1 0-.6 4"/><path d="M20 5v6h-6"/>'
+/* A speech bubble with a tail: the ticket this was raised out of is a
+   conversation somebody outside is waiting on the end of. */
+export const BUBBLE = '<path d="M21 14a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/>'
 export const CLIP = '<path d="M21.4 11.1 12.3 20a5 5 0 0 1-7-7l9-8.9a3.3 3.3 0 0 1 4.7 4.7l-9 8.9a1.7 1.7 0 0 1-2.4-2.4l8.4-8.3"/>'
 /* The mark that says "this one belongs to the task above it". The same elbow
    the menu uses for a child item, so the shape means the same thing twice. */
@@ -145,6 +148,17 @@ export function Row({ t, every, people, list, mayEdit, mePersonId }: {
               {I(CYCLE, '2.2')}
             </span>
           )}
+          {/* Where it came from. A link only for somebody who works that queue:
+              drawing everyone else a way into a refusal is the one thing this
+              app does not do. */}
+          {t.ticket && (t.ticket.mayOpen
+            ? <a className="td__tk" href={`/desk/${t.ticket.id}`}
+                 title={t.ticket.subject} onClick={(e) => e.stopPropagation()}>
+                {I(BUBBLE, '2.2')}{t.ticket.ref}
+              </a>
+            : <span className="td__tk td__tk--flat" title="Raised from a ticket at the desk">
+                {I(BUBBLE, '2.2')}{t.ticket.ref}
+              </span>)}
           {t.tags.map((g) => <span className="td__tag" key={g}>{g}</span>)}
           {t.initials && <span className="td__who" title={t.assignee ?? ''}>{t.initials}</span>}
           {t.dueOn && <span className={`td__due${late ? ' is-late' : ''}`}>{day(t.dueOn)}</span>}

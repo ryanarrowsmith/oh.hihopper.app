@@ -128,7 +128,16 @@ export async function updateTicket(_p: Result | null, form: FormData): Promise<R
   if (!Object.keys(patch).length) return { ok: true, message: '' }
 
   const { error } = await db.schema('hopper').from('ticket').update(patch).eq('id', id)
-  if (error) return { ok: false, message: error.message }
+  if (error) {
+    // HP001 is the database refusing to sign off a ticket that is still out
+    // with somebody. It arrives as three sentences -- what, who, and what to do
+    // about it -- and all three are worth reading, so none of them is dropped.
+    if ((error as any).code === 'HP001') {
+      return { ok: false, message: [error.message, (error as any).details, (error as any).hint]
+        .filter(Boolean).join(' ') }
+    }
+    return { ok: false, message: error.message }
+  }
   touch(id)
   return { ok: true, message: 'Saved.' }
 }
@@ -416,4 +425,109 @@ export async function findWiki(q: string): Promise<Found[]> {
     .textSearch('search', term, { type: 'websearch' })
     .limit(6)
   return (data ?? []) as Found[]
+}
+
+/* ═══════════════════════════════════════════ asking somebody else for help */
+
+/**
+ * A to-do, raised out of a ticket.
+ *
+ * It is a REAL to-do -- a row in hopper.task -- rather than a ticket-shaped
+ * thing of its own, which is the whole reason it works: the person asked gets
+ * it in their To Do, in their notifications and in their email without needing
+ * Desk, or a grant, or to be told where to look. hopper.notify_task has rung
+ * that bell and posted that letter for every to-do since To Do shipped.
+ *
+ * The organization comes from the TICKET, and so does the list. Two statements
+ * rather than one, because a policy cannot see a row created earlier in its own
+ * statement -- the list would be invisible to the insert that needs it.
+ */
+export async function askForHelp(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account, person } = await ctx()
+  const ticket_id = str(form, 'ticket_id')
+  const name = str(form, 'name')
+  const assignee_id = str(form, 'assignee_id')
+  if (!ticket_id) return { ok: false, message: 'Which ticket?' }
+  if (!name) return { ok: false, message: 'Say what needs doing.' }
+  if (!assignee_id) return { ok: false, message: 'Say who you are asking.' }
+
+  const { data: t } = await db.schema('hopper').from('ticket')
+    .select('entity_id').eq('id', ticket_id).maybeSingle()
+  if (!t) return { ok: false, message: 'That ticket is no longer there.' }
+
+  // The desk made this list the first time it took a ticket, so a ticket
+  // existing is the guarantee that a list does. Nobody asking for help needs
+  // the right to create one, which most of them would not have.
+  const { data: desk } = await db.schema('hopper').from('desk')
+    .select('task_list_id').eq('entity_id', t.entity_id).maybeSingle()
+  if (!desk?.task_list_id) {
+    return { ok: false, message: 'This desk has nowhere to put it yet. Open a ticket first.' }
+  }
+
+  const { error } = await db.schema('hopper').from('task').insert({
+    account_id: account, list_id: desk.task_list_id, ticket_id,
+    name, detail: nul(form, 'detail'),
+    assignee_id, due_on: nul(form, 'due_on'),
+    created_by: person,
+  })
+  if (error) return { ok: false, message: error.message }
+
+  touch(ticket_id)
+  return { ok: true, message: 'Asked. It is on their To Do now.' }
+}
+
+/**
+ * Calling it off.
+ *
+ * Not a delete and not an unassignment: it is marked done with a line saying
+ * who called it off, and it stays where the helper can see it. Unassigning
+ * would take it off their screen without a word, and three weeks later the
+ * fact that dispatch was asked at all is usually exactly what somebody wants.
+ */
+export async function callOffTask(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account, person } = await ctx()
+  const task_id = str(form, 'task_id')
+  if (!task_id) return { ok: false, message: 'Which one?' }
+
+  const { data: t } = await db.schema('hopper').from('task')
+    .select('id, list_id, name, assignee_id, ticket_id, done_at')
+    .eq('id', task_id).maybeSingle()
+  if (!t) return { ok: false, message: 'That is no longer there.' }
+  if (t.done_at) return { ok: true, message: 'Already finished.' }
+
+  // The note first, so the reason is in the record even if the tick fails.
+  await db.schema('hopper').from('list_note').insert({
+    account_id: account, list_id: t.list_id, task_id: t.id, kind: 'note',
+    body: str(form, 'why') || 'Called off from the ticket — no longer needed.',
+    author_id: person,
+  })
+
+  const { error } = await db.schema('hopper').from('task')
+    .update({ done_at: new Date().toISOString() }).eq('id', task_id)
+  if (error) return { ok: false, message: error.message }
+
+  touch(t.ticket_id ?? undefined)
+  return { ok: true, message: 'Called off.' }
+}
+
+/** Asking the helper for an update, without leaving the ticket. */
+export async function nudgeTask(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account, person } = await ctx()
+  const task_id = str(form, 'task_id')
+  const body = str(form, 'body')
+  if (!task_id) return { ok: false, message: 'Which one?' }
+  if (!body) return { ok: false, message: 'Nothing to say.' }
+
+  const { data: t } = await db.schema('hopper').from('task')
+    .select('list_id, ticket_id').eq('id', task_id).maybeSingle()
+  if (!t) return { ok: false, message: 'That is no longer there.' }
+
+  const { error } = await db.schema('hopper').from('list_note').insert({
+    account_id: account, list_id: t.list_id, task_id, kind: 'note',
+    body, author_id: person,
+  })
+  if (error) return { ok: false, message: error.message }
+
+  touch(t.ticket_id ?? undefined)
+  return { ok: true, message: 'Sent.' }
 }

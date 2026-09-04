@@ -1,5 +1,5 @@
 import { supabaseServer } from '@/lib/supabase/server'
-import type { Row, Status } from '@/lib/desk'
+import type { Row, Status, Job } from '@/lib/desk'
 
 /**
  * Reading the desk. SERVER ONLY.
@@ -79,4 +79,15 @@ export async function loadDeskRefs() {
     departments: (deps.data ?? []) as any[],
     desks: (desks.data ?? []) as any[],
   }
+}
+
+/** Every open job hanging off this set of tickets, in one round trip. */
+export async function loadJobs(ticketIds: string[]) {
+  if (!ticketIds.length) return []
+  const db = supabaseServer()
+  const { data } = await db.schema('hopper').from('task')
+    .select('id, name, detail, assignee_id, created_by, due_on, done_at, created_at, list_id, ticket_id')
+    .in('ticket_id', ticketIds)
+    .order('created_at')
+  return (data ?? []) as (Job & { ticket_id: string })[]
 }

@@ -26,6 +26,16 @@ export type Task = {
   order: number
   /** '' when it does not repeat; otherwise '1d', '2w', '3m' and so on. */
   repeat: string
+  /**
+   * The Desk ticket this was raised out of, when it was one.
+   *
+   * `ref` is drawn on the row so the person doing it knows which job it belongs
+   * to — they will be asked for it on the phone. `mayOpen` is whether the
+   * reference is a link: somebody who does not work that queue cannot open the
+   * ticket, and drawing them a link into a refusal is the one thing this app
+   * does not do.
+   */
+  ticket: { id: string; ref: string; subject: string; mayOpen: boolean } | null
   /** Its own notes, changes and files, newest first. */
   log: LogEntry[]
   /** Only ever populated on a task with no parent of its own. */
@@ -66,7 +76,7 @@ const SELECT_NOTE =
   'id, list_id, task_id, body, kind, at, author_id, file_path, file_name, file_bytes, file_mime'
 const SELECT_TASK =
   'id, list_id, parent_id, name, detail, assignee_id, due_on, done_at, tags, sort_order,'
-  + ' blocked_by, repeat_every, repeat_unit'
+  + ' blocked_by, repeat_every, repeat_unit, ticket_id'
 
 /**
  * A task and its subtasks in one shape.
@@ -83,7 +93,37 @@ const entry = (n: any, who: Map<string, string>): LogEntry => ({
     : null,
 })
 
-function shape(rows: any[], who: Map<string, string>, notes: any[] = []): Task[] {
+export type TicketRef = { id: string; ref: string; subject: string; mayOpen: boolean }
+
+/**
+ * The tickets behind a set of to-dos, and whether this person may open them.
+ *
+ * RLS answers both questions at once: a select on hopper.ticket returns only
+ * the ones they work, so a row that comes back is a link and a row that does
+ * not is a chip. The ref itself comes from the desk_rights-free path -- the
+ * to-do carries the id, and a ticket they cannot read simply has no name to
+ * print, which is the correct amount to tell them.
+ */
+export async function ticketsFor(rows: any[]): Promise<Map<string, TicketRef>> {
+  const ids = Array.from(new Set(rows.map((t: any) => t.ticket_id).filter(Boolean)))
+  if (!ids.length) return new Map()
+  const db = supabaseServer()
+  const { data } = await db.schema('hopper').from('ticket')
+    .select('id, ref, subject').in('id', ids)
+  const seen = new Map<string, TicketRef>()
+  for (const t of data ?? []) {
+    seen.set(t.id, { id: t.id, ref: t.ref, subject: t.subject, mayOpen: true })
+  }
+  // One they were handed but may not open: they still get the reference, so
+  // they can say "the Dawson one" out loud, and it goes nowhere.
+  for (const id of ids) {
+    if (!seen.has(id)) seen.set(id, { id, ref: 'From the desk', subject: '', mayOpen: false })
+  }
+  return seen
+}
+
+function shape(rows: any[], who: Map<string, string>, notes: any[] = [],
+               tickets?: Map<string, TicketRef>): Task[] {
   const name = new Map(rows.map((t: any) => [t.id, t.name]))
   const one = (t: any): Task => {
     const a = who.get(t.assignee_id) ?? null
@@ -95,6 +135,7 @@ function shape(rows: any[], who: Map<string, string>, notes: any[] = []): Task[]
       blockedByName: t.blocked_by ? (name.get(t.blocked_by) ?? null) : null,
       order: t.sort_order ?? 0,
       repeat: t.repeat_every ? `${t.repeat_every}${String(t.repeat_unit)[0]}` : '',
+      ticket: t.ticket_id ? (tickets?.get(t.ticket_id) ?? null) : null,
       log: [],
       subs: [],
     }
@@ -166,12 +207,13 @@ export async function loadTodo(): Promise<{ list: ListHead; tasks: Task[] }[]> {
   const who = new Map((people ?? []).map((p: any) => [p.id, p.full_name]))
   const lName = new Map((lists ?? []).map((l: any) => [l.id, l.name]))
   const runsIt = new Set((runs ?? []).map((r: any) => r.id))
+  const tix = await ticketsFor(tasks ?? [])
 
   return (lists ?? []).map((l: any) => {
     const rows = (tasks ?? []).filter((t: any) => t.list_id === l.id)
     return {
       list: { ...head(l, entName, who, lName, rows), mayEdit: runsIt.has(l.id) },
-      tasks: shape(rows, who, (notes ?? []).filter((n: any) => n.list_id === l.id)),
+      tasks: shape(rows, who, (notes ?? []).filter((n: any) => n.list_id === l.id), tix),
     }
   })
 }
@@ -194,11 +236,12 @@ export async function loadList(id: string) {
 
   const who = new Map((people ?? []).map((x: any) => [x.id, x.full_name]))
   const rows = tasks ?? []
+  const tix = await ticketsFor(rows)
 
   return {
     list: head(l, new Map((ents ?? []).map((e: any) => [e.id, e.name])), who,
                new Map((lists ?? []).map((x: any) => [x.id, x.name])), rows),
-    tasks: shape(rows, who, notes ?? []),
+    tasks: shape(rows, who, notes ?? [], tix),
     /** Flat, for the pickers: what a task may wait on is any other task here. */
     every: rows.map((t: any) => ({ id: t.id, name: t.name })),
     /** Everything that happened on this list, task entries included, for the

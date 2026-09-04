@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { currentSession } from '@/lib/tenant'
 import { supabaseServer } from '@/lib/supabase/server'
-import { loadTickets, loadDeskRefs } from '@/lib/deskdata'
+import { loadTickets, loadDeskRefs, loadJobs } from '@/lib/deskdata'
 import type { Row } from '@/lib/desk'
 import DeskQueue from '@/components/DeskQueue'
 
@@ -42,6 +42,12 @@ export async function deskScreen(opts: {
 
   const rows = [...live, ...((done.data ?? []) as Row[])]
 
+  // How many jobs each ticket is still waiting on. One query for the page
+  // rather than one per row, and only for what is actually on screen.
+  const jobs = await loadJobs(rows.map((r) => r.id))
+  const outstanding: Record<string, number> = {}
+  for (const j of jobs) if (!j.done_at) outstanding[j.ticket_id] = (outstanding[j.ticket_id] ?? 0) + 1
+
   return (
     <DeskQueue
       title={opts.title} blurb={opts.blurb} rows={rows}
@@ -50,6 +56,7 @@ export async function deskScreen(opts: {
       kinds={refs.kinds.filter((k) => k.active)}
       groups={refs.groups}
       contacts={(contacts.data ?? []) as any}
+      outstanding={outstanding}
       mePersonId={session.personId}
       canRaise={refs.queues.some((q) => q.active)}
     />

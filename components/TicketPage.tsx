@@ -4,15 +4,17 @@ import Link from 'next/link'
 import { useFormState, useFormStatus } from 'react-dom'
 import Choice from '@/components/Choice'
 import Toggle from '@/components/Toggle'
+import TicketJobs from '@/components/TicketJobs'
 import { sendMessage, updateTicket, findWiki, type Found } from '@/app/actions/desk'
 import {
-  slaOf, STATUS_WORD, PRIORITY_WORD, SOURCE_WORD,
-  type Status, type Priority, type FieldKind,
+  slaOf, STATUS_WORD, PRIORITY_WORD, SOURCE_WORD, openJobs,
+  type Status, type Priority, type FieldKind, type Job,
 } from '@/lib/desk'
 
 type Msg = {
   id: string; kind: 'in' | 'out' | 'note'; body: string
-  author_person_id: string | null; author_name: string | null; author_email: string | null; at: string
+  author_person_id: string | null; author_name: string | null; author_email: string | null
+  at: string; task_id: string | null
 }
 type Trail = {
   seq: number; occurred_at: string; action: string; summary: string
@@ -39,10 +41,11 @@ const WHEN = new Intl.DateTimeFormat('en-US',
  * before it and the message after.
  */
 export default function TicketPage({
-  ticket, messages, trail, fields, snippets, contact, siblings,
+  ticket, messages, trail, jobs, fields, snippets, contact, siblings,
   queues, people, kinds, groups, orgs, mePersonId,
 }: {
-  ticket: any; messages: Msg[]; trail: Trail[]; fields: Field[]; snippets: Snippet[]
+  ticket: any; messages: Msg[]; trail: Trail[]; jobs: Job[]
+  fields: Field[]; snippets: Snippet[]
   contact: { id: string; name: string | null; email: string; company: string | null; phone: string | null } | null
   siblings: { id: string; ref: string; subject: string; status: Status }[]
   queues: (Named & { entity_id: string })[]; people: { id: string; full_name: string }[]
@@ -55,14 +58,35 @@ export default function TicketPage({
   const orgName = orgs.find((o) => o.id === ticket.entity_id)?.name
 
   const feed = useMemo(() => {
-    const said = messages.map((m) => ({ t: Date.parse(m.at), msg: m as Msg, act: null as Trail | null }))
+    const said = messages.map((m) => ({
+      t: Date.parse(m.at), msg: m as Msg, act: null as Trail | null, job: null as Line | null,
+    }))
+
+    /* Asked and finished are DERIVED, not stored: created_at with created_by is
+       the ask, done_at with assignee_id is the finish. Writing marker rows for
+       either would be a second copy of what the task row already says. */
+    const handed: { t: number; msg: null; act: null; job: Line }[] = []
+    for (const j of jobs) {
+      handed.push({ t: Date.parse(j.created_at), msg: null, act: null, job: {
+        who: j.created_by ? nameOf.get(j.created_by) ?? 'Somebody' : 'Somebody',
+        did: 'asked', other: j.assignee_id ? nameOf.get(j.assignee_id) ?? 'somebody' : 'somebody',
+        what: j.name, at: j.created_at,
+      } })
+      if (j.done_at) {
+        handed.push({ t: Date.parse(j.done_at), msg: null, act: null, job: {
+          who: j.assignee_id ? nameOf.get(j.assignee_id) ?? 'Somebody' : 'Somebody',
+          did: 'finished', other: null, what: j.name, at: j.done_at,
+        } })
+      }
+    }
     // Row-level noise is not a timeline. The ledger records every column that
     // moved; only the ones a person would say out loud are worth a line here.
     const did = trail
       .filter((a) => told(a))
-      .map((a) => ({ t: Date.parse(a.occurred_at), msg: null as Msg | null, act: a }))
-    return [...said, ...did].sort((a, b) => a.t - b.t)
-  }, [messages, trail])
+      .map((a) => ({ t: Date.parse(a.occurred_at), msg: null as Msg | null, act: a, job: null as Line | null }))
+    return [...said, ...did, ...handed].sort((a, b) => a.t - b.t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, trail, jobs])
 
   const who = ticket.assignee_id ? nameOf.get(ticket.assignee_id) : null
 
@@ -104,6 +128,8 @@ export default function TicketPage({
         <section className="tkt__talk">
           {feed.map((f, i) => f.msg
             ? <Said key={f.msg.id} m={f.msg} nameOf={nameOf} />
+            : f.job
+            ? <Handed key={`j${i}`} l={f.job} />
             : <Did key={`a${f.act!.seq}`} a={f.act!} />)}
           {feed.length === 0 && <p className="empty">Nothing said yet.</p>}
 
@@ -111,6 +137,7 @@ export default function TicketPage({
         </section>
 
         <aside className="tkt__side">
+          <TicketJobs ticketId={ticket.id} jobs={jobs} people={people} mePersonId={mePersonId} />
           <Facts ticket={ticket} queues={queues} people={people} kinds={kinds} groups={groups}
                  fields={fields} contact={contact} who={who} />
         </aside>
@@ -132,6 +159,7 @@ function Said({ m, nameOf }: { m: Msg; nameOf: Map<string, string> }) {
         <span className="tmsg__k">
           {m.kind === 'in' ? 'wrote in' : m.kind === 'out' ? 'replied' : 'left a note'}
         </span>
+        {m.task_id && <span className="tmsg__from">from the to-do</span>}
         <time dateTime={m.at}>{WHEN.format(new Date(m.at))}</time>
       </header>
       <div className="tmsg__b">{m.body.split('\n').map((line, i) => <p key={i}>{line || ' '}</p>)}</div>
@@ -159,6 +187,19 @@ function Did({ a }: { a: Trail }) {
     </p>
   )
 }
+type Line = { who: string; did: 'asked' | 'finished'; other: string | null; what: string; at: string }
+
+function Handed({ l }: { l: Line }) {
+  return (
+    <p className="tdid tdid--job">
+      <i aria-hidden="true" />
+      <b>{l.who}</b>{' '}
+      {l.did === 'asked' ? <>asked {l.other} to <b>{l.what}</b></> : <>finished <b>{l.what}</b></>}
+      <time dateTime={l.at}>{WHEN.format(new Date(l.at))}</time>
+    </p>
+  )
+}
+
 const MOVED: Record<string, string> = {
   status: 'moved it on', assignee_id: 'handed it over', queue_id: 'moved it to another queue',
   priority: 'changed how urgent it is', kind_id: 'changed what kind it is',
@@ -298,7 +339,7 @@ function Wiki() {
 function Quick({ id, status, mine, mePersonId }: {
   id: string; status: Status; mine: boolean; mePersonId: string | null
 }) {
-  const [, action] = useFormState(updateTicket, null)
+  const [state, action] = useFormState(updateTicket, null)
   return (
     <div className="tkt__acts">
       {!mine && mePersonId && (
@@ -315,6 +356,7 @@ function Quick({ id, status, mine, mePersonId }: {
           {status === 'resolved' || status === 'closed' ? 'Reopen it' : 'Resolve it'}
         </button>
       </form>
+      {state && !state.ok && <p className="tkt__no">{state.message}</p>}
     </div>
   )
 }

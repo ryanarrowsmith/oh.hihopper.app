@@ -23,7 +23,8 @@ export type Grp = { id: string; name: string; reason: string; entity_id: string 
  * anything is a control that teaches people the wrong thing about the screen.
  */
 export default function DeskQueue({
-  title, blurb, rows, queues, people, orgs, kinds, groups, contacts, mePersonId, canRaise,
+  title, blurb, rows, queues, people, orgs, kinds, groups, contacts, outstanding,
+  mePersonId, canRaise,
 }: {
   title: string; blurb?: string
   rows: Row[]
@@ -31,10 +32,13 @@ export default function DeskQueue({
   people: Who[]; orgs: Named[]; kinds: (Named & { entity_id: string })[]
   groups: Grp[]
   contacts: { id: string; name: string | null; email: string }[]
+  /** ticket id → how many to-dos it is still waiting on. */
+  outstanding: Record<string, number>
   mePersonId: string | null
   canRaise: boolean
 }) {
-  const [cut, setCut] = useState<'all' | 'open' | 'waiting' | 'breach' | 'unassigned' | 'mine' | 'done'>('all')
+  const [cut, setCut] =
+    useState<'all' | 'open' | 'waiting' | 'breach' | 'unassigned' | 'mine' | 'out' | 'done'>('all')
   const [org, setOrg] = useState('')
   const [queue, setQueue] = useState('')
 
@@ -52,6 +56,7 @@ export default function DeskQueue({
     breach: rows.filter(late).length,
     unassigned: rows.filter((r) => !r.assignee_id && r.status !== 'closed').length,
     mine: rows.filter((r) => r.assignee_id && r.assignee_id === mePersonId).length,
+    out: rows.filter((r) => (outstanding[r.id] ?? 0) > 0).length,
     done: rows.filter((r) => r.status === 'resolved' || r.status === 'closed').length,
   }
 
@@ -63,6 +68,7 @@ export default function DeskQueue({
     if (cut === 'breach') return late(r)
     if (cut === 'unassigned') return !r.assignee_id && r.status !== 'closed'
     if (cut === 'mine') return r.assignee_id === mePersonId
+    if (cut === 'out') return (outstanding[r.id] ?? 0) > 0
     if (cut === 'done') return r.status === 'resolved' || r.status === 'closed'
     return true
   })
@@ -108,6 +114,10 @@ export default function DeskQueue({
         <Chip on={cut === 'breach'} go={() => setCut('breach')} label="Breaching" n={count.breach} tone="bad" />
         <Chip on={cut === 'unassigned'} go={() => setCut('unassigned')} label="Unassigned" n={count.unassigned} />
         {mePersonId && <Chip on={cut === 'mine'} go={() => setCut('mine')} label="On me" n={count.mine} />}
+        {/* Only when there is something to see. A supervisor wants to know how
+            much of the queue is really stuck in another department. */}
+        {count.out > 0 &&
+          <Chip on={cut === 'out'} go={() => setCut('out')} label="Out with someone" n={count.out} />}
         <Chip on={cut === 'done'} go={() => setCut('done')} label="Resolved" n={count.done} />
 
         {/* Hidden when it cannot narrow anything. Ryan: "hide the org picker
@@ -179,7 +189,14 @@ export default function DeskQueue({
                   <span className="dkav" data-none={who ? undefined : ''}>{who ? mark(who) : '—'}</span>
                   <span>{who ?? 'Unassigned'}</span>
                 </span>
-                <span><span className={`dkpill dkpill--${r.status}`}>{STATUS_WORD[r.status as Status]}</span></span>
+                <span>
+                  {(outstanding[r.id] ?? 0) > 0
+                    ? <span className="dkpill dkpill--out"
+                            title={`Waiting on ${outstanding[r.id]} to-do${outstanding[r.id] > 1 ? 's' : ''}`}>
+                        Out · {outstanding[r.id]}
+                      </span>
+                    : <span className={`dkpill dkpill--${r.status}`}>{STATUS_WORD[r.status as Status]}</span>}
+                </span>
                 <span className={`dksla dksla--${s.tone}`}>{s.text && <i />}{s.text}</span>
                 <span>{grouped > 1 && <span className="dkgrp" title="Grouped with others">{grouped}</span>}</span>
               </Link>

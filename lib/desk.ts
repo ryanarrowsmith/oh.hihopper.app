@@ -100,3 +100,23 @@ export type Row = {
   group_id: string | null; kind_id: string | null
   contact_id: string | null; requester_name: string | null; requester_email: string | null
 }
+
+/* ------------------------------------------------------ out with somebody */
+
+/**
+ * A to-do raised out of a ticket.
+ *
+ * The two structural lines the thread shows -- asked, and finished -- are
+ * DERIVED from this row rather than stored anywhere: created_at with created_by
+ * is the ask, done_at with assignee_id is the finish. Writing marker rows for
+ * them would be a second copy of a fact the row already carries, and second
+ * copies are how a timeline starts disagreeing with the thing it describes.
+ */
+export type Job = {
+  id: string; name: string; detail: string | null
+  assignee_id: string | null; created_by: string | null
+  due_on: string | null; done_at: string | null; created_at: string
+  list_id: string
+}
+
+export const openJobs = (jobs: Job[]) => jobs.filter((j) => !j.done_at)

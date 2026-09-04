@@ -22,9 +22,9 @@ export default async function Page({ params }: { params: { id: string } }) {
     .select('*').eq('id', params.id).maybeSingle()
   if (!t) notFound()
 
-  const [messages, trail, refs, fields, snippets, contact, siblings] = await Promise.all([
+  const [messages, trail, refs, fields, snippets, contact, siblings, jobs] = await Promise.all([
     db.schema('hopper').from('ticket_message')
-      .select('id, kind, body, author_person_id, author_name, author_email, at')
+      .select('id, kind, body, author_person_id, author_name, author_email, at, task_id')
       .eq('ticket_id', t.id).order('at'),
     db.schema('hopper').from('ticket_trail')
       .select('seq, occurred_at, action, summary, before, after, actor_name')
@@ -46,12 +46,16 @@ export default async function Page({ params }: { params: { id: string } }) {
       ? db.schema('hopper').from('ticket').select('id, ref, subject, status')
           .eq('group_id', t.group_id).neq('id', t.id).limit(50)
       : Promise.resolve({ data: [] as any[] }),
+    db.schema('hopper').from('task')
+      .select('id, name, detail, assignee_id, created_by, due_on, done_at, created_at, list_id')
+      .eq('ticket_id', t.id).order('created_at'),
   ])
 
   return (
     <TicketPage
       ticket={t as any}
       messages={(messages.data ?? []) as any}
+      jobs={(jobs.data ?? []) as any}
       trail={(trail.data ?? []) as any}
       fields={((fields as any).data ?? []) as any}
       snippets={(snippets.data ?? []).filter((s: any) =>
