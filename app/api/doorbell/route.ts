@@ -12,7 +12,16 @@
  * Product apps point at Oh Hi Apps. Hub points at okiedokie. That is the whole
  * difference between the two sides.
  */
-export const runtime = 'edge'
+// NOT the edge runtime, and this is the reason: DOORBELL_SERVICE_KEY is stored
+// as a Vercel "Secret" (sensitive) variable, and a sensitive variable is
+// runtime-only — it is never inlined into an edge bundle at build time. The
+// edge build therefore saw `undefined`, returned 204 without calling anything,
+// and every page view on every site vanished with no error anywhere.
+//
+// The proof was already on the screen: the Beebee admin reads the personal
+// database with the same class of secret and works, because a server component
+// runs in Node. So this runs in Node too. A collector is not latency-critical
+// — it answers 204 and the page never waits on it.
 export const dynamic = 'force-dynamic'
 
 // Nothing to say back. A 204 keeps the response off the network panel and
