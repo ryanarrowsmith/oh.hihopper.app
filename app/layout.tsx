@@ -18,7 +18,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Caveat:wght@600&display=swap"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <script defer src="/doorbell.js"></script>
+      </body>
     </html>
   )
 }
