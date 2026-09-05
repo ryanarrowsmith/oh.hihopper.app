@@ -195,39 +195,39 @@ body:has(.hl){margin:0;padding:0;background:none}
    here and not a second copy drifting on its own. --slate maps onto this
    page's --ink-3; nothing else moved. */
 .hl-colo{width:min(var(--max),94%);margin:0 auto;padding:26px 0 46px}
-.foot{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;
+.hl-foot{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;
   justify-content:space-between;font-size:14px;color:var(--ink-3)}
-.colophon{margin:0;max-width:none;display:inline-flex;align-items:center;gap:6px;
+.hl-colophon{margin:0;max-width:none;display:inline-flex;align-items:center;gap:6px;
   flex-wrap:wrap;color:var(--ink-3)}
-.colophon strong{color:var(--ink);font-weight:700}
+.hl-colophon strong{color:var(--ink);font-weight:700}
 
 /* "Oh hi" gives a little shake when you point at it. */
-.wig{display:inline-block;transform-origin:50% 75%}
-.wig:hover{animation:hl-ohhi-wiggle .5s ease-in-out}
+.hl-wig{display:inline-block;transform-origin:50% 75%}
+.hl-wig:hover{animation:hl-ohhi-wiggle .5s ease-in-out}
 @keyframes hl-ohhi-wiggle{0%,100%{transform:rotate(0)}18%{transform:rotate(-4deg)}
   38%{transform:rotate(3.2deg)}58%{transform:rotate(-2.2deg)}78%{transform:rotate(1.4deg)}}
-@media (prefers-reduced-motion:reduce){.wig:hover{animation:none}}
+@media (prefers-reduced-motion:reduce){.hl-wig:hover{animation:none}}
 
 /* The Tulsa flag, canvas-toned by default and full colour on hover. */
-.tflag{display:block;flex:none;border-radius:50%}
-.tflag [class^="tf-"]{transition:fill .18s ease}
-.tf-navy{fill:#8B8884}.tf-gold{fill:#B7B3AE}.tf-red{fill:#9C9995}
-.tf-cream{fill:#EFEDEA}
-.tf-star{fill:var(--ground)}
-.tulsa{display:inline-flex;align-items:center;gap:8px}
-.tulsa:hover .tf-navy{fill:#12243F}
-.tulsa:hover .tf-gold{fill:#E0B24A}
-.tulsa:hover .tf-red{fill:#AE2F32}
-.tulsa:hover .tf-cream{fill:#F8EDD6}
-.tulsa:hover .tf-star{fill:#F8EDD6}
-@media (prefers-reduced-motion:reduce){.tflag [class^="tf-"]{transition:none}}
+.hl-tflag{display:block;flex:none;border-radius:50%}
+.hl-tflag [class^="hl-tf-"]{transition:fill .18s ease}
+.hl-tf-navy{fill:#8B8884}.hl-tf-gold{fill:#B7B3AE}.hl-tf-red{fill:#9C9995}
+.hl-tf-cream{fill:#EFEDEA}
+.hl-tf-star{fill:var(--ground)}
+.hl-tulsa{display:inline-flex;align-items:center;gap:8px}
+.hl-tulsa:hover .hl-tf-navy{fill:#12243F}
+.hl-tulsa:hover .hl-tf-gold{fill:#E0B24A}
+.hl-tulsa:hover .hl-tf-red{fill:#AE2F32}
+.hl-tulsa:hover .hl-tf-cream{fill:#F8EDD6}
+.hl-tulsa:hover .hl-tf-star{fill:#F8EDD6}
+@media (prefers-reduced-motion:reduce){.hl-tflag [class^="hl-tf-"]{transition:none}}
 
 /* The dogs: canvas-toned, one warming to rust and one to brown on hover. */
-.dog{display:block;flex:none;color:#A5A19B;transition:color .18s ease}
-.dog-item{display:inline-flex;align-items:center;gap:8px}
-.dog-item:hover .dog--a{color:#C4522F}
-.dog-item:hover .dog--b{color:#6B4630}
-@media (prefers-reduced-motion:reduce){.dog{transition:none}}
+.hl-dog{display:block;flex:none;color:#A5A19B;transition:color .18s ease}
+.hl-dog-item{display:inline-flex;align-items:center;gap:8px}
+.hl-dog-item:hover .hl-dog--a{color:#C4522F}
+.hl-dog-item:hover .hl-dog--b{color:#6B4630}
+@media (prefers-reduced-motion:reduce){.hl-dog{transition:none}}
 
 /* ── the phone ──────────────────────────────────────────────────── */
 @media (max-width:860px){ .hl-cards{grid-template-columns:1fr} }
@@ -242,7 +242,7 @@ body:has(.hl){margin:0;padding:0;background:none}
   .hl-ask input,.hl-btn{width:100%}
   .hl-btn{text-align:center}
   .hl-rail button{font-size:12px;padding:11px 4px 13px}
-  .foot{flex-direction:column;align-items:flex-start;gap:16px}
+  .hl-foot{flex-direction:column;align-items:flex-start;gap:16px}
 }
 
 .hl .hl-said{margin:12px 0 0;font:600 14.5px/1.5 "Manrope",sans-serif;color:var(--steel);max-width:46ch}
