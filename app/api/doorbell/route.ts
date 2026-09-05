@@ -22,7 +22,12 @@ const NO = new Response(null, { status: 204 })
 export async function POST(req: Request) {
   const url = process.env.DOORBELL_URL
   const key = process.env.DOORBELL_SERVICE_KEY
-  if (!url || !key) return NO
+  if (!url || !key) {
+    // Loud on the server, silent to the page. A collector that drops every hit
+    // without saying so looks exactly like a site nobody visited.
+    console.error('[doorbell] not configured: DOORBELL_URL or DOORBELL_SERVICE_KEY is missing')
+    return NO
+  }
 
   let body: { p?: string; r?: string | null; w?: number | null; e?: string | null; d?: unknown }
   try {
@@ -52,7 +57,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    await fetch(`${url}/rest/v1/rpc/record`, {
+    const res = await fetch(`${url}/rest/v1/rpc/record`, {
       method: 'POST',
       headers: {
         apikey: key,
@@ -64,8 +69,11 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify(payload),
     })
-  } catch {
-    // Losing a page view is not an incident.
+    if (!res.ok) {
+      console.error(`[doorbell] collector refused ${res.status}: ${(await res.text()).slice(0, 300)}`)
+    }
+  } catch (e) {
+    console.error('[doorbell] collector unreachable:', e instanceof Error ? e.message : e)
   }
   return NO
 }
