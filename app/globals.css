@@ -17,6 +17,9 @@
   --ground:#EFEAE1;                        /* what the container floats on */
   --ink:#231F20; --ink-2:#55524D; --ink-3:#7C756C;
   --rule:#E8E2D8; --rule-soft:#F1ECE4;
+  /* the colophon under the container -- see the footer block at the foot of this file */
+  --flag-navy:#8B8884; --flag-gold:#B7B3AE; --flag-red:#9C9995;
+  --flag-cream:#EFEDEA; --flag-star:#FBF9F5; --doodle:#8C8375;
   --amber:#F2A93B;
   --steel:#2D5D7B; --steel-ink:#1E4B66; --steelwash:rgba(45,93,123,.10);
   --canvas-2:#E4DDD1; --canvas-3:#C7BEAF;   /* deeper shades of the canvas */
@@ -50,6 +53,8 @@
     --paper:#161514; --surface:#201E1C; --sunken:#1B1A18; --ground:#0C0B0B;
     --ink:#F3EEE6; --ink-2:#ADA69C; --ink-3:#8A847C;
     --rule:#332F2B; --rule-soft:#2A2724;
+    --flag-navy:#6E6B66; --flag-gold:#8B8780; --flag-red:#77736E;
+    --flag-cream:#46433E; --flag-star:#B4B1AB; --doodle:#6E675E;
     --steel:#7FB3D1; --steel-ink:#BEDCEE; --steelwash:rgba(127,179,209,.16);
     --canvas-2:#2C2926; --canvas-3:#514A43;
     --dot:rgba(243,238,230,.09);
@@ -74,6 +79,8 @@
   --paper:#161514; --surface:#201E1C; --sunken:#1B1A18; --ground:#0C0B0B;
   --ink:#F3EEE6; --ink-2:#ADA69C; --ink-3:#8A847C;
   --rule:#332F2B; --rule-soft:#2A2724;
+  --flag-navy:#6E6B66; --flag-gold:#8B8780; --flag-red:#77736E;
+  --flag-cream:#46433E; --flag-star:#B4B1AB; --doodle:#6E675E;
   --steel:#7FB3D1; --steel-ink:#BEDCEE; --steelwash:rgba(127,179,209,.16);
   --canvas-2:#2C2926; --canvas-3:#514A43;
   --dot:rgba(243,238,230,.09);
@@ -8287,3 +8294,66 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   .chead{ border:0; padding:0 0 8px !important; }
   .cstats{ border-left:0; border-right:0; }
 }
+
+
+/* ============ THE COLOPHON ============
+
+   The Oh hi footer, floating UNDER the container -- on the dotted ground the
+   .app box is set down on, not inside it. Same measure as .app so the two line
+   up, and no border of its own: the container's edge is already the line.
+
+   components/Colophon.tsx is GENERATED from ohhi/site/lib/template.ts, the same
+   source the Oh hi site, the Beebee admin, Check and FOS all take theirs from.
+   It is called Colophon because Footer here is the jump-to nav. Never edit it;
+   regenerate it. Only the paint below is Hopper's.
+
+   EVERYTHING IS SCOPED UNDER .footwrap. The generated markup is
+   <footer class="block foot">, and Hopper already has a .foot -- the steel band
+   at the bottom of the app -- so unscoped rules put the colophon on a blue slab
+   with pale type. The three resets below undo that band rather than renaming
+   either side's class. */
+
+.footwrap{ width:95%; max-width:1240px; margin:clamp(16px,2.2vw,26px) auto 0 }
+.footwrap .foot{
+  background:none; padding:0 2px 4px;
+  display:flex; flex-wrap:wrap; gap:12px 22px; align-items:center;
+  justify-content:space-between; font-size:13px; color:var(--ink-3);
+}
+.footwrap .foot p{ font-size:13px; color:var(--ink-3) }
+.footwrap .foot a{ color:inherit }
+.footwrap .colophon{ margin:0; display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap }
+.footwrap .colophon strong{ color:var(--ink-2); font-weight:700 }
+/* A wordmark, not body copy: no underline. The wiggle says it is reachable. */
+.footwrap .colophon .ohhi-link,
+.footwrap .colophon .ohhi-link:visited{ color:var(--ink-2); text-decoration:none; border:0 }
+.footwrap .colophon .ohhi-link:hover{ color:var(--ink) }
+.footwrap .wig{ display:inline-block; transform-origin:50% 75% }
+.footwrap .wig:hover{ animation:ohhi-wiggle .5s ease-in-out }
+@keyframes ohhi-wiggle{
+  0%,100%{ transform:rotate(0) } 18%{ transform:rotate(-4deg) }
+  38%{ transform:rotate(3.2deg) } 58%{ transform:rotate(-2.2deg) } 78%{ transform:rotate(1.4deg) }
+}
+
+/* Canvas-toned at rest, full color when pointed at. Fills are swapped rather
+   than filtered -- a grayscale filter muddies the gold and leaves the roundel
+   darker than the type beside it. */
+.footwrap .tflag{ display:block; flex:none; border-radius:50% }
+.footwrap .tflag [class^="tf-"]{ transition:fill .18s ease }
+.footwrap .tf-navy{ fill:var(--flag-navy) } .footwrap .tf-gold{ fill:var(--flag-gold) }
+.footwrap .tf-red{ fill:var(--flag-red) }   .footwrap .tf-cream{ fill:var(--flag-cream) }
+.footwrap .tf-star{ fill:var(--flag-star) }
+.footwrap .tulsa{ display:inline-flex; align-items:center; gap:8px; color:var(--ink-3) }
+.footwrap .tulsa:hover .tf-navy{ fill:#12243F } .footwrap .tulsa:hover .tf-gold{ fill:#E0B24A }
+.footwrap .tulsa:hover .tf-red{ fill:#AE2F32 }  .footwrap .tulsa:hover .tf-cream{ fill:#F8EDD6 }
+.footwrap .tulsa:hover .tf-star{ fill:#F8EDD6 }
+
+/* The doodles take THIS app's palette -- Hopper's amber and steel, not Oh hi's
+   clay and brown. The Tulsa flag stays the Tulsa flag everywhere. */
+.footwrap .dog-item{ display:inline-flex; align-items:center; gap:8px }
+.footwrap .dog{ display:block; flex:none; color:var(--doodle); transition:color .18s ease }
+.footwrap .dog-item:hover .dog--a{ color:var(--amber) }
+.footwrap .dog-item:hover .dog--b{ color:var(--steel) }
+
+@media (max-width:560px){ .footwrap .foot{ flex-direction:column; align-items:flex-start; gap:14px } }
+@media (prefers-reduced-motion:reduce){ .footwrap .tflag [class^="tf-"], .footwrap .dog{ transition:none } }
+@media print{ .footwrap{ display:none } }

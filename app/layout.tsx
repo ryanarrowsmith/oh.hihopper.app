@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { Colophon } from '@/components/Colophon'
 
 export const metadata: Metadata = {
   title: 'Hopper',
@@ -31,6 +32,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         {children}
+        {/* Under the container, on the ground it floats on. Generated from
+            ohhi/site/lib/template.ts along with every other Oh hi surface. */}
+        <div className="footwrap"><Colophon /></div>
       </body>
     </html>
   )
