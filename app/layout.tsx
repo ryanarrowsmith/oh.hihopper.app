@@ -17,6 +17,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Caveat:wght@600&display=swap"
         />
+        {/* Google tag (gtag.js). Same measurement ID as every other Oh hi
+            site on purpose: one property, split by Hostname in GA. Cross-domain
+            linking has to list every domain, or a hop between our own sites
+            reads as a new user arriving on a self-referral. */}
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-QTGTWCZ6WD" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-QTGTWCZ6WD')",
+          }}
+        />
       </head>
       <body>
         {children}
