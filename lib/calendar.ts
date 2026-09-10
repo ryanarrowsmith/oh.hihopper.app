@@ -2,7 +2,8 @@ import 'server-only'
 import { supabaseServer } from '@/lib/supabase/server'
 import { allowedFor } from '@/lib/freshness'
 
-export type CalKind = 'sched' | 'late' | 'birthday' | 'anniversary' | 'feed' | 'event' | 'todo'
+export type CalKind =
+  | 'sched' | 'late' | 'birthday' | 'anniversary' | 'feed' | 'event' | 'todo' | 'oneonone'
 
 export type Ev = {
   id: string; kind: CalKind; title: string; sub: string | null
@@ -30,6 +31,13 @@ const iso = (d: Date) =>
 const COLOUR: Record<CalKind, string> = {
   sched: '--s1', late: '--amber', birthday: '--amber',
   anniversary: '--s2', feed: '--s3', event: '--ink-2', todo: '--steel',
+  /* The eighth kind does get its own colour, against the rule three lines up,
+     because it is the only one on this calendar that is nobody else's business
+     -- and a one-to-one wearing the same ink as a typed event would be a
+     private thing dressed as a public one. Plum is out of Hopper's own palette
+     rather than invented, and it never carries the meaning alone: the legend
+     names it and every entry says "one-to-one" in the line beneath. */
+  oneonone: '--s4',
 }
 
 /**
@@ -45,7 +53,7 @@ export async function loadCalendar(from: Date, to: Date, mePersonId?: string | n
   const db = supabaseServer()
 
   const [{ data: reps }, { data: people }, { data: feeds }, { data: events }, { data: mine },
-         { data: tasks }, { data: lists }] =
+         { data: tasks }, { data: lists }, { data: ones }] =
     await Promise.all([
     db.schema('hopper').from('report_state')
       .select('report_id, name, refresh, last_look, value_on, snapshot_at, last_look_ok, entity_id'),
@@ -69,6 +77,13 @@ export async function loadCalendar(from: Date, to: Date, mePersonId?: string | n
     db.schema('hopper').from('list')
       .select('id, name, due_on')
       .gte('due_on', iso(from)).lte('due_on', iso(to)),
+    /* One-to-ones. staff_meeting_read narrows this to lines the viewer may
+       open, and the filter below narrows it again to the ones they HELD --
+       because a calendar is the answer to "what is on me", and somebody
+       else's one-to-one is not on you even where you are allowed to read it. */
+    db.schema('hopper').from('staff_meeting')
+      .select('id, person_id, manager_id, day, start_min, end_min, agenda, held')
+      .gte('day', iso(from)).lte('day', iso(to)),
   ])
 
   const evs: Ev[] = []
@@ -194,6 +209,27 @@ export async function loadCalendar(from: Date, to: Date, mePersonId?: string | n
       sub: `${listName.get(t.list_id) ?? 'List'}${t.parent_id ? ' · subtask' : ''}`,
       day: t.due_on, at: null, mins: null,
       href: `/todo/${t.list_id}`, colour: COLOUR.todo,
+    })
+  }
+
+  /* ── one-to-ones, on the calendar of the manager who holds them ──
+        The DATE crosses out of Staffing and nothing else does: no notes, no
+        agenda body, no score. The title is the person, because that is what
+        makes the entry useful at a glance and it is already a name the holder
+        of this calendar can read. */
+  const personName = new Map((people ?? []).map((p: any) => [p.id, p.full_name]))
+  for (const m of ones ?? []) {
+    if (!mePersonId || m.manager_id !== mePersonId) continue
+    const hhmm = (n: number) =>
+      `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`
+    evs.push({
+      id: `1on1-${m.id}`, kind: 'oneonone',
+      title: personName.get(m.person_id) ?? 'One-to-one',
+      sub: m.held ? 'One-to-one · held' : 'One-to-one',
+      day: m.day,
+      at: m.start_min == null ? null : `${m.day}T${hhmm(m.start_min)}:00`,
+      mins: m.start_min == null || m.end_min == null ? null : m.end_min - m.start_min,
+      href: `/staffing/${m.person_id}`, colour: COLOUR.oneonone,
     })
   }
 

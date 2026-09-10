@@ -34,6 +34,15 @@ export const FLAT_OBJECTS: FlatObject[] = [
   { key: 'wiki', label: 'Wiki',
     blurb: 'Write and edit documents. Everybody can already read them.',
     verbs: ['view', 'edit'] },
+  /* NOT covered by `executive`, and deliberately. Seeing every business and
+     reading every person's write-up are different sensitivities, and one grant
+     for both means whoever watches the numbers can read the coaching. A
+     manager needs none of this: the line of report is the permission, and it
+     falls out of person.manager_id. This grant is for the line that is not
+     yours -- which in practice means HR. */
+  { key: 'staff_records', label: 'Staff records',
+    blurb: 'Scores, notes and documents for a line of report that is not your own.',
+    verbs: ['view', 'edit'] },
   { key: 'audit_log', label: 'All activity',
     blurb: 'Activity across the whole account, not only your own line of report.',
     verbs: ['view', 'export'] },
@@ -121,6 +130,7 @@ export const asLevel = (g: { may_view?: boolean; may_edit?: boolean
  *  changes nothing is worse than a step that is not offered. */
 export const FLAT_MAX: Record<string, Level> = {
   executive: 'read',
+  staff_records: 'edit',
   manage_organizations: 'edit',
   roster: 'edit',
   audit_log: 'read',

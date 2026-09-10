@@ -482,6 +482,7 @@ function CalSide({ feeds, off, toggle, address, min, fold }: {
       {row('late', 'Behind', '--amber')}
       {row('birthday', 'Birthdays', '--amber')}
       {row('anniversary', 'Anniversaries', '--s2')}
+      {row('oneonone', 'One-to-ones', '--s4')}
 
       <p className="calside__h">Subscribed</p>
       {feeds.length === 0

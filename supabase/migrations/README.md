@@ -47,3 +47,50 @@ returns `403 The sweep is not open to callers.`
 The job is `hopper-read-reports`, `*/15 * * * *`. The interval is not the
 schedule — `internal.hopper_reports_due()` decides what is actually due, and the
 cron entry only knocks.
+
+## 0104–0108 — Staffing, and two things that only showed up when it ran
+
+**0104** puts the module's four tables in and, more importantly, decides that
+the reporting line IS the permission. `internal.hopper_staff_line` walks UP
+from the subject; if it meets you on the way, they are yours. Nobody grants
+that — `person.manager_id` already said so, and a second list of who manages
+whom is a second list that can disagree with the first. The walk stops at
+depth 24, which is the cycle guard: nothing constrains `manager_id` against a
+loop, and a loop inside a policy is a query that never returns.
+
+`depth > 1` is doing quiet work. It is what makes a person not their own
+manager, which is also what stops anybody scoring themselves.
+
+`executive` does not open this and neither does `administrator`. Seeing every
+business and reading every person's write-up are different sensitivities, and
+one grant for both means whoever watches the numbers can read the coaching.
+The account owner does, because an owner can grant it to themselves in one
+click and pretending otherwise is theatre.
+
+**0105** is the bucket. Reading a file is decided by the ROW — `exists (select
+1 from hopper.staff_document …)` runs as the caller, so that table's own
+policies answer, including the sensitive flag, which a storage path cannot
+know. Writing is decided by the PATH, because the upload happens before the
+row exists and a rule that waited for the row would refuse every first save.
+
+**0106 and 0107 are the interesting ones**, and neither was predicted. The
+model was tested by signing in as a real second person and reading the tables,
+rather than by asking the helper functions whether they returned true — and a
+manager could read their report's SCORE and not their report's NAME. Every row
+on the Staffing home would have rendered blank for exactly the person the page
+is for. `person_read` wanted the `roster` grant and knew nothing about
+`manager_id`.
+
+0106 fixed that with `hopper_staff_line`, which was the manager's case and only
+the manager's case: somebody holding `staff_records` for a line that is not
+theirs — the entire reason the grant exists — would have got the same page of
+nameless rows. 0107 replaced it with `hopper_staff_reach`, which is the same
+question with the grant and the owner folded in, and is the predicate every
+other Staffing policy already uses.
+
+Both bugs are the same shape as 0031, 0052 and 0053: a gate that returns the
+right answer when you ask it, sitting next to a query that never asked.
+
+**0108** is `hopper.staff_stance(acct)` — one answer to "what am I here", so the
+pages do not each ask `access_grant` a question with its own policy. It decides
+what is OFFERED, never what is permitted.

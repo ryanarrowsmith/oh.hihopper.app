@@ -64,7 +64,15 @@ export const MODULE_NAV: Record<string, Item> = {
       { href: '/desk/settings', label: 'Queues & SLAs' },
     ] },
   staffing: { href: '/staffing', label: 'Staffing',
-    icon: I('<circle cx="9" cy="8" r="3.4"/><path d="M3 20c0-3.3 2.7-5.4 6-5.4s6 2.1 6 5.4"/><path d="M17 11h5M19.5 8.5v5"/>') },
+    icon: I('<circle cx="9" cy="8" r="3.4"/><path d="M3 20c0-3.3 2.7-5.4 6-5.4s6 2.1 6 5.4"/><path d="M17 11h5M19.5 8.5v5"/>'),
+    /* Both of these refuse everybody who is not in a line of report, so the
+       link showing is not the same as the page opening -- and a rail that
+       hid them would be a rail that changes shape depending on who you
+       manage, which is a different kind of confusing. */
+    kids: [
+      { href: '/staffing/rankings', label: 'Stack Rankings' },
+      { href: '/staffing/documents', label: 'Documents' },
+    ] },
   meetings: { href: '/meetings', label: 'Meetings',
     icon: I('<path d="M3 6h18v11H8l-5 4z"/><path d="M8 10h8M8 13h5"/>') },
 }
