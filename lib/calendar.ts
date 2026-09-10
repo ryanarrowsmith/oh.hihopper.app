@@ -53,7 +53,7 @@ export async function loadCalendar(from: Date, to: Date, mePersonId?: string | n
   const db = supabaseServer()
 
   const [{ data: reps }, { data: people }, { data: feeds }, { data: events }, { data: mine },
-         { data: tasks }, { data: lists }, { data: ones }] =
+         { data: tasks }, { data: lists }, { data: ones }, { data: named }] =
     await Promise.all([
     db.schema('hopper').from('report_state')
       .select('report_id, name, refresh, last_look, value_on, snapshot_at, last_look_ok, entity_id'),
@@ -84,6 +84,13 @@ export async function loadCalendar(from: Date, to: Date, mePersonId?: string | n
     db.schema('hopper').from('staff_meeting')
       .select('id, person_id, manager_id, day, start_min, end_min, agenda, held')
       .gte('day', iso(from)).lte('day', iso(to)),
+    /* Names for the above, from person rather than from `directory`. The view
+       is built for the People page and a person with no organization on their
+       record does not survive its joins -- which showed up as a one-to-one
+       entry titled "One-to-one" instead of the name of the person it was
+       with. person_read already admits your own line of report, so this
+       returns exactly the names a one-to-one could be about. */
+    db.schema('hopper').from('person').select('id, full_name'),
   ])
 
   const evs: Ev[] = []
@@ -217,7 +224,7 @@ export async function loadCalendar(from: Date, to: Date, mePersonId?: string | n
         agenda body, no score. The title is the person, because that is what
         makes the entry useful at a glance and it is already a name the holder
         of this calendar can read. */
-  const personName = new Map((people ?? []).map((p: any) => [p.id, p.full_name]))
+  const personName = new Map((named ?? []).map((p: any) => [p.id, p.full_name]))
   for (const m of ones ?? []) {
     if (!mePersonId || m.manager_id !== mePersonId) continue
     const hhmm = (n: number) =>

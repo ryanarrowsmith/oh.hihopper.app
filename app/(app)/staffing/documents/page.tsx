@@ -33,11 +33,6 @@ export default async function Page() {
 
   return (
     <>
-      <nav className="crumbs">
-        <Link className="crumbs__step" href="/staffing">Staffing</Link>
-        <span className="crumbs__sep">/</span>
-        <span className="crumbs__plain">Documents</span>
-      </nav>
 
       <div className="hi"><div className="hi__t">
         <h1>Documents</h1>

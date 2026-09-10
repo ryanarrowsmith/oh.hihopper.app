@@ -8433,7 +8433,7 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 .stchart__val{ fill:var(--ink-2); font:700 12px/1 var(--sans) }
 .stchart__bar{ fill:var(--steel) }
 .stchart__bar.is-low{ fill:var(--warn) }
-.stchart__none{ fill:var(--rule-soft, var(--rule)); opacity:.5 }
+.stchart__none{ fill:var(--rule); opacity:.3 }
 .stchart__key{ margin:6px 0 0; font:500 12.5px/1.5 var(--sans); color:var(--ink-3);
   max-width:60ch }
 

@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { currentSession } from '@/lib/tenant'
 import { supabaseServer } from '@/lib/supabase/server'
@@ -76,11 +75,6 @@ export default async function Page({ params }: { params: { person: string } }) {
 
   return (
     <>
-      <nav className="crumbs">
-        <Link className="crumbs__step" href="/staffing">Staffing</Link>
-        <span className="crumbs__sep">/</span>
-        <span className="crumbs__plain">{who.full_name}</span>
-      </nav>
 
       <header className="sthead">
         <Avatar name={who.full_name} src={who.photo_url} size={72} />

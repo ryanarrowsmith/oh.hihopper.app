@@ -43,8 +43,8 @@ export default function StaffQuarters({ quarters }: { quarters: Q[] }) {
           return (
             <g key={q.period}>
               {q.score === null ? (
-                <rect className="stchart__none" x={cx - barW / 2} y={y(CEILING)}
-                      width={barW} height={plotH} rx="0" />
+                <rect className="stchart__none" x={cx - barW / 2} y={y(1.5)}
+                      width={barW} height={plotH - y(1.5) + PAD_T} />
               ) : (
                 <>
                   <rect className={`stchart__bar${low ? ' is-low' : ''}`}
