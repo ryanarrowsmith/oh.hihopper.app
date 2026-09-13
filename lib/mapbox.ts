@@ -122,6 +122,36 @@ export function whyNoPin(r: Exclude<GeocodeResult, { ok: true }>) {
 }
 
 /** The image URL, built server-side. Never rendered into the page. */
+/**
+ * An aerial of an exact box, for measuring on.
+ *
+ * Separate from staticMapUrl because it asks for a different thing: not "the map
+ * around here at about this zoom" but "these four corners, at this size". The
+ * estimator turns taps into coordinates using that box, so the box has to be the
+ * one the picture actually covers — see lib/geo.ts for why a zoom level would
+ * not do. The caller matches the box's shape to the image's; a box whose aspect
+ * disagrees with the image gets quietly widened by Mapbox, and then every
+ * measurement is off by that much.
+ *
+ * Satellite, with no labels: a street name burned across a fence line is a
+ * street name somebody will trace.
+ */
+export function aerialBoxUrl(o: {
+  west: number; south: number; east: number; north: number
+  width: number; height: number
+}) {
+  const raw = process.env.MAPBOX_TOKEN
+  if (!raw || !raw.trim()) return null
+  const token = raw.trim().replace(/^['"]|['"]$/g, '')
+  const style = process.env.MAPBOX_STYLE_AERIAL || 'mapbox/satellite-v9'
+  const w = Math.min(Math.round(o.width), 1280)
+  const h = Math.min(Math.round(o.height), 1280)
+  const n = (x: number) => x.toFixed(6)
+  return `https://api.mapbox.com/styles/v1/${style}/static/`
+    + `[${n(o.west)},${n(o.south)},${n(o.east)},${n(o.north)}]/${w}x${h}@2x`
+    + `?access_token=${token}&attribution=false&logo=false`
+}
+
 export function staticMapUrl(o: {
   latitude: number; longitude: number; zoom?: number
   width?: number; height?: number; dark?: boolean

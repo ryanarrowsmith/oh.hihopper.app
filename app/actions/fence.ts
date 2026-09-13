@@ -291,3 +291,211 @@ export async function setFenceSettings(_p: Result | null, form: FormData): Promi
   revalidatePath('/admin/fence')
   return { ok: true, message: 'Pricing settings saved.' }
 }
+
+// ------------------------------------------------------------------- the line
+/**
+ * The runs of one job, as drawn.
+ *
+ * Written whole: what arrives is the complete set of runs for this job, so a run
+ * removed on the screen is removed here. The client supplies each run's id — a
+ * uuid it made itself — which is what makes saving twice idempotent instead of
+ * inserting the line again every two seconds.
+ *
+ * Everything in `runs` came from a browser, so nothing in it is trusted: the
+ * shape, the ranges and the counts are checked here, and `fence_run`'s own check
+ * constraint catches a transposed pair the way nothing in JavaScript can.
+ *
+ * Whether this person may draw at all is the database's answer, not this
+ * function's. `fence_run`'s policy is `hopper_fence_edits(..., 'estimate')`, so a
+ * project manager and a sealed estimate are both refused — by matching no rows
+ * rather than by raising, which is why a write that changes nothing says so.
+ */
+export async function saveRuns(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const job = str(form, 'job_id')
+  if (!job) return { ok: false, message: 'No job.' }
+
+  type In = { id?: string | null; label?: string; points?: unknown; closed?: boolean
+              grade?: number | null; plan_ft?: number; sort?: number
+              measured_by?: string | null }
+  let sent: In[]
+  try { sent = JSON.parse(str(form, 'runs')) } catch { return { ok: false, message: 'The line did not arrive in one piece. Nothing was saved.' } }
+  if (!Array.isArray(sent)) return { ok: false, message: 'The line did not arrive in one piece. Nothing was saved.' }
+  if (sent.length > 24) return { ok: false, message: 'Twenty-four runs is the limit on one job.' }
+
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  const rows = []
+  for (const [i, r] of sent.entries()) {
+    if (!r.id || !uuid.test(r.id)) return { ok: false, message: 'A run arrived without a usable id.' }
+    const pts = Array.isArray(r.points) ? r.points : []
+    if (pts.length > 500) return { ok: false, message: 'A run of more than 500 points is a tracing, not a fence line.' }
+    const clean: [number, number][] = []
+    for (const p of pts) {
+      if (!Array.isArray(p) || p.length !== 2) return { ok: false, message: 'A point arrived in the wrong shape.' }
+      const lng = Number(p[0]), lat = Number(p[1])
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)
+          || Math.abs(lng) > 180 || Math.abs(lat) > 90) {
+        return { ok: false, message: 'A point arrived outside the world.' }
+      }
+      clean.push([lng, lat])
+    }
+    const grade = r.grade == null ? null : Number(r.grade)
+    rows.push({
+      id: r.id, account_id: account, job_id: job,
+      label: (r.label ?? `Run ${i + 1}`).toString().slice(0, 40),
+      // A line of one point measures nothing, and the check constraint refuses
+      // an array of one — so a run still being started is stored without its
+      // geometry rather than rejected.
+      points: clean.length >= 2 ? clean : null,
+      plan_ft: Number.isFinite(Number(r.plan_ft)) ? Number(r.plan_ft) : 0,
+      grade_pct: grade !== null && Number.isFinite(grade) && Math.abs(grade) <= 60 ? grade : null,
+      closed_loop: !!r.closed,
+      // The screen says how the length was arrived at; the column's check
+      // constraint says which words are allowed, and anything else is dropped
+      // rather than argued with.
+      measured_by: ['aerial', 'wheel', 'laser', 'plans', 'typed']
+        .includes(String(r.measured_by)) ? String(r.measured_by)
+        : clean.length >= 2 ? 'aerial' : null,
+      sort: Number.isFinite(Number(r.sort)) ? Number(r.sort) : i,
+    })
+  }
+
+  if (rows.length) {
+    const { data, error } = await db.schema('hopper').from('fence_run')
+      .upsert(rows, { onConflict: 'id' }).select('id')
+    if (error) return { ok: false, message: refused(error.message, 'measure') }
+    if ((data ?? []).length === 0) {
+      return { ok: false, message: 'Nothing was saved. The estimate is either sealed or not yours to edit.' }
+    }
+  }
+
+  // Runs the screen no longer has. Deleting by "not in the list" rather than by
+  // id keeps the two in step even if a save was missed.
+  const keep = rows.map((r) => r.id)
+  const gone = db.schema('hopper').from('fence_run')
+    .delete().eq('account_id', account).eq('job_id', job)
+  await (keep.length ? gone.not('id', 'in', `(${keep.join(',')})`) : gone)
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object_id: job,
+    summary: rows.length
+      ? `Measured the line: ${rows.length} run${rows.length === 1 ? '' : 's'}, `
+        + `${Math.round(rows.reduce((s, r) => s + r.plan_ft, 0))} ft in plan`
+      : 'Cleared the measure',
+  })
+  revalidatePath(`/fence/${job}`)
+  revalidatePath(`/fence/${job}/estimate`)
+  return { ok: true, message: 'Saved.' }
+}
+
+// ---------------------------------------------------------------- what goes in
+/**
+ * The class and the spec, which between them narrow everything downstream — the
+ * catalog, the gates, the labor task, the tools on the crew ticket and the charge
+ * codes. Class first is not a UI flourish: a temporary-fence job priced off a
+ * permanent spec is a quote nobody can build.
+ */
+export async function setJobSpec(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const job = str(form, 'job_id')
+  const cls = str(form, 'cls')
+  const spec = nul(form, 'spec_code')
+  if (!job || !cls) return { ok: false, message: 'Nothing to save.' }
+
+  // The spec has to belong to the class. Both come from the same form, so this
+  // is the one place the pair can be checked before it is stored.
+  if (spec) {
+    const { data } = await db.schema('hopper').from('fence_spec')
+      .select('cls').eq('account_id', account).eq('code', spec).maybeSingle()
+    const has = (data as any)?.cls
+    if (has && has !== cls) {
+      return { ok: false, message: `${spec} is a ${has} spec, so it cannot go on a ${cls} job.` }
+    }
+  }
+
+  const { data, error } = await db.schema('hopper').from('fence_job')
+    .update({ cls, spec_code: spec }).eq('account_id', account).eq('id', job)
+    .select('ref').maybeSingle()
+  if (error) return { ok: false, message: refused(error.message, 'job') }
+  if (!data) return { ok: false, message: 'Nothing was saved. The job is either sealed or not yours to edit.' }
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object: (data as any).ref, object_id: job,
+    summary: `Set ${(data as any).ref} to ${cls}${spec ? `, ${spec}` : ''}`,
+  })
+  revalidatePath(`/fence/${job}`); revalidatePath(`/fence/${job}/estimate`)
+  return { ok: true, message: 'Saved.' }
+}
+
+/**
+ * The gates, written whole like the runs.
+ *
+ * A gate is an opening, so it does two things to the takeoff at once: it takes
+ * its width out of the fence line and it puts two terminal posts back in. Which
+ * is why the quantity lives here rather than being counted off the drawing.
+ */
+export async function setGates(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const job = str(form, 'job_id')
+  if (!job) return { ok: false, message: 'No job.' }
+
+  type In = { type_code?: string; qty?: number }
+  let sent: In[]
+  try { sent = JSON.parse(str(form, 'gates')) } catch { return { ok: false, message: 'The gates did not arrive in one piece.' } }
+  if (!Array.isArray(sent) || sent.length > 40) {
+    return { ok: false, message: 'The gates did not arrive in one piece.' }
+  }
+
+  const codes = sent.map((g) => (g.type_code ?? '').toString()).filter(Boolean)
+  const { data: known } = await db.schema('hopper').from('fence_gate_type')
+    .select('code').eq('account_id', account).in('code', codes.length ? codes : ['-'])
+  const ok = new Set(((known ?? []) as any[]).map((t) => t.code))
+
+  const rows = sent
+    .filter((g) => g.type_code && ok.has(g.type_code) && Number(g.qty) > 0)
+    .map((g) => ({
+      account_id: account, job_id: job,
+      type_code: g.type_code as string,
+      qty: Math.min(99, Math.max(1, Math.round(Number(g.qty)))),
+    }))
+
+  // Whole-set again: the screen holds every gate on the job, so what is gone from
+  // it is gone. There is no transaction across two REST calls, so the NEW rows go
+  // in before the old ones come out -- a failed insert then loses nothing, where
+  // delete-then-insert would have emptied the list and stopped.
+  const before = await db.schema('hopper').from('fence_gate')
+    .select('id').eq('account_id', account).eq('job_id', job)
+  const old = ((before.data ?? []) as any[]).map((g) => g.id)
+
+  if (rows.length) {
+    const { data, error } = await db.schema('hopper').from('fence_gate')
+      .insert(rows).select('id')
+    if (error) return { ok: false, message: refused(error.message, 'gates') }
+    if ((data ?? []).length === 0) {
+      return { ok: false, message: 'Nothing was saved. The estimate is either sealed or not yours to edit.' }
+    }
+  }
+
+  if (old.length) {
+    const { error: gone } = await db.schema('hopper').from('fence_gate')
+      .delete().eq('account_id', account).eq('job_id', job).in('id', old)
+    if (gone) {
+      return { ok: false, message:
+        'The new gates were saved, but the ones they replace are still there. '
+        + 'Reload and remove the duplicates.' }
+    }
+  } else if (!rows.length) {
+    // Nothing before, nothing now. Saying "saved" would be a lie about a write
+    // that never happened, and a refusal would be a lie about a failure.
+    return { ok: true, message: 'No gates on this job.' }
+  }
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object_id: job,
+    summary: rows.length
+      ? `Set the gates: ${rows.reduce((s, r) => s + r.qty, 0)} in ${rows.length} kind${rows.length === 1 ? '' : 's'}`
+      : 'Removed every gate',
+  })
+  revalidatePath(`/fence/${job}`); revalidatePath(`/fence/${job}/estimate`)
+  return { ok: true, message: 'Saved.' }
+}

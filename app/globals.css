@@ -8804,3 +8804,181 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   .fjaown__r{grid-template-columns:1fr; gap:7px}
   .fjachip{flex:1 1 auto; justify-content:center}
 }
+
+/* ------------------------------------------------------------- the estimator
+   /fence/[id]/estimate. Own prefix (`fx`), same reason as `fj` and `fja`.
+
+   Written for a phone held in one hand in a customer's yard, and allowed to
+   spread out on a desk — not the other way round. Three consequences worth
+   stating: the plan is capped in VIEWPORT height so the control strip is always
+   on screen without scrolling, every drawing control is full width under 640px
+   because a thumb misses a 28px button, and `touch-action:none` on the plan stops
+   the browser scrolling the page while somebody is drawing on it.
+   -------------------------------------------------------------------------- */
+.fxn{
+  display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px;
+  margin-right:9px; font-family:var(--mono); font-size:12px; font-weight:600;
+  background:var(--ink); color:var(--paper); vertical-align:1px}
+.fxstamp{display:flex; flex-direction:column; gap:5px; align-items:flex-start; max-width:42ch}
+.fxstamp .fjmark{font-size:12.5px; font-weight:800; letter-spacing:.02em}
+.fxstamp small{font-size:12px; color:var(--ink-3)}
+.fxhint{font-size:12.5px; color:var(--ink-3); margin-top:10px; max-width:62ch}
+.fxsub{font-size:13px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--ink-3); margin:18px 0 9px}
+
+/* ---------------------------------------------------------------- the plan */
+.fxsurface{border:1px solid var(--rule); background:var(--sunken)}
+.fxbox{
+  position:relative; overflow:hidden; width:100%;
+  aspect-ratio:4/3; max-height:58vh;
+  touch-action:none;            /* the page must not scroll under a drawing finger */
+  user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:transparent}
+.fxbox--draw{cursor:crosshair}
+.fxbox--move{cursor:grab}
+.fxaerial{
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block;
+  pointer-events:none}
+.fxink{position:absolute; inset:0; width:100%; height:100%; overflow:visible}
+
+/* The line is drawn twice: a dark strand under a light one, so it reads on grass,
+   on gravel and on a white concrete pad without a color that means anything. */
+.fxline__under{fill:none; stroke:rgba(35,31,32,.55); stroke-width:6; stroke-linejoin:round;
+  stroke-linecap:round}
+.fxline{fill:none; stroke:#FFFFFF; stroke-width:2.4; stroke-linejoin:round; stroke-linecap:round}
+.fxrun.is-on .fxline{stroke:var(--amber); stroke-width:3}
+.fxtag{font-family:var(--mono); font-size:11px; fill:var(--ink); text-anchor:middle}
+.fxtag__bg{fill:rgba(251,249,245,.92)}
+.fxvert__grab{fill:transparent; stroke:none}
+.fxvert__dot{fill:var(--paper); stroke:var(--ink); stroke-width:2}
+.fxvert.is-picked .fxvert__dot{fill:var(--amber); stroke:var(--ink)}
+.fxvert{cursor:grab; touch-action:none}
+.fxscale{
+  position:absolute; left:10px; bottom:10px; display:flex; align-items:center; gap:7px;
+  padding:4px 8px; background:rgba(251,249,245,.92); border:1px solid var(--rule);
+  font-family:var(--mono); font-size:11px; pointer-events:none}
+.fxscale__bar{height:3px; background:var(--ink); display:block}
+.fxnomap{position:absolute; inset:0; display:grid; place-items:center; color:var(--ink-3);
+  font-size:13px; padding:20px; text-align:center}
+
+/* ------------------------------------------------------------- the controls */
+.fxstrip{
+  display:flex; flex-direction:column; gap:10px; padding:12px;
+  border:1px solid var(--rule); border-top:0; background:var(--surface)}
+.fxseg, .fxzoom{display:flex; align-items:center; gap:2px; padding:3px; background:var(--sunken);
+  border:1px solid var(--rule)}
+.fxseg button, .fxacts button{
+  display:inline-flex; align-items:center; justify-content:center; gap:7px;
+  padding:10px 12px; font-size:13px; font-weight:700; letter-spacing:-.01em;
+  border:1px solid transparent; background:transparent; color:var(--ink-2); cursor:pointer}
+.fxseg button{flex:1 1 0}
+.fxseg button svg, .fxacts button svg{width:14px; height:14px; flex:0 0 14px}
+.fxseg button.is-on{background:var(--surface); border-color:var(--rule); color:var(--ink);
+  box-shadow:inset 0 2px 0 var(--amber)}
+.fxzoom{justify-content:space-between}
+.fxzoom b{font-family:var(--mono); font-size:12px; color:var(--ink-2)}
+.fxzoom button{
+  width:40px; height:36px; display:grid; place-items:center; background:var(--surface);
+  border:1px solid var(--rule); color:var(--ink); cursor:pointer}
+.fxzoom button svg{width:14px; height:14px}
+.fxzoom button:disabled, .fxacts button:disabled{opacity:.4; cursor:default}
+.fxacts{display:grid; grid-template-columns:1fr 1fr; gap:6px}
+.fxacts button{background:var(--surface); border-color:var(--rule)}
+.fxacts button.is-on{border-color:var(--ink); box-shadow:inset 0 2px 0 var(--amber)}
+
+/* ----------------------------------------------------- runs and the summary */
+.fxruns{display:flex; flex-wrap:wrap; gap:6px; margin-top:12px}
+.fxrunchip{
+  display:flex; flex-direction:column; gap:1px; padding:8px 12px; text-align:left;
+  background:var(--surface); border:1px solid var(--rule); cursor:pointer}
+.fxrunchip b{font-size:13px}
+.fxrunchip span{font-family:var(--mono); font-size:11px; color:var(--ink-3)}
+.fxrunchip.is-on{box-shadow:inset 0 2px 0 var(--amber); border-color:var(--ink-3)}
+.fxsum{
+  display:grid; gap:14px; margin-top:12px; padding:14px;
+  border:1px solid var(--rule); background:var(--surface)}
+.fxsum__big b{display:block; font-size:30px; font-weight:800; letter-spacing:-.03em;
+  line-height:1.05}
+.fxsum__big span{font-size:12.5px; color:var(--ink-3)}
+.fxgrade{display:grid; gap:5px; max-width:22ch}
+.fxgrade span{font-size:12.5px; font-weight:700}
+.fxgrade small{font-size:11.5px; color:var(--ink-3)}
+.fxsaved{display:flex; align-items:center; gap:10px; font-family:var(--mono); font-size:11.5px;
+  color:var(--ink-3)}
+.fxsaved--dirty{color:#8A5A0B}
+.fxsaved--failed{color:var(--bad); font-weight:700}
+
+/* ------------------------------------------------------------------- gates */
+.fxgatelist{list-style:none; margin:0; padding:0; border:1px solid var(--rule);
+  background:var(--surface)}
+.fxgate{display:flex; align-items:center; gap:12px; padding:11px 13px}
+.fxgate + .fxgate{border-top:1px solid var(--rule-soft)}
+.fxgate.is-on{box-shadow:inset 3px 0 0 var(--amber)}
+.fxgate__n{flex:1 1 auto; min-width:0}
+.fxgate__n b{display:block; font-size:13.5px}
+.fxgate__n small{display:block; font-size:11.5px; color:var(--ink-3); margin-top:2px}
+.fxstep{display:flex; align-items:center; gap:2px; flex:0 0 auto}
+.fxstep button{
+  width:42px; height:38px; font-size:18px; line-height:1; background:var(--surface);
+  border:1px solid var(--rule); color:var(--ink); cursor:pointer}
+.fxstep button:disabled{opacity:.4; cursor:default}
+.fxstep b{min-width:34px; text-align:center; font-family:var(--mono); font-size:14px}
+.fxstep--read b{color:var(--ink-2)}
+.fxgatesum{font-size:12.5px; color:var(--ink-2); margin-top:10px}
+.fxgateacts{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:12px}
+
+/* ----------------------------------------------------- facts and the tally */
+.fxwhere{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px}
+.fxfact{border:1px solid var(--rule); background:var(--surface); padding:11px 13px}
+.fxfact b{display:block; font-size:12px; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--ink-3); margin-bottom:5px}
+.fxfact span{font-size:13.5px}
+.fxspec{display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 14px; margin-top:12px;
+  padding:11px 13px; background:var(--warmbg); border:1px solid var(--warmrule)}
+.fxspec b{font-size:13.5px}
+.fxspec span{font-family:var(--mono); font-size:12px; color:var(--ink-2)}
+.fxspec small{font-size:12px; color:var(--ink-3); flex:1 1 100%}
+.fxtally{border:1px solid var(--rule); background:var(--surface)}
+.fxtally__r{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 14px;
+  padding:11px 13px; align-items:baseline}
+.fxtally__r + .fxtally__r{border-top:1px solid var(--rule-soft)}
+.fxtally__r b{font-size:13.5px}
+.fxtally__r span{font-family:var(--mono); font-size:14px; text-align:right}
+.fxtally__r small{grid-column:1/-1; font-size:11.5px; color:var(--ink-3)}
+.fxtally__r.is-total{background:var(--sunken); box-shadow:inset 3px 0 0 var(--amber)}
+.fxtally__r.is-total span{font-size:19px; font-weight:800; letter-spacing:-.02em}
+.fxposts{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px;
+  margin-top:12px}
+.fxposts > div{border:1px solid var(--rule); background:var(--surface); padding:11px 13px}
+.fxposts b{display:block; font-size:24px; font-weight:800; letter-spacing:-.03em; line-height:1.1}
+.fxposts span{display:block; font-size:12.5px; font-weight:700}
+.fxposts small{display:block; font-size:11.5px; color:var(--ink-3); margin-top:3px}
+.fxtable{width:100%; border-collapse:collapse; margin-top:14px; background:var(--surface);
+  border:1px solid var(--rule)}
+.fxtable th{
+  text-align:left; font-size:11.5px; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--ink-3); padding:9px 12px; border-bottom:1px solid var(--rule); font-weight:700}
+.fxtable td{padding:10px 12px; border-top:1px solid var(--rule-soft); font-size:13px}
+.fxtable .fxnum{font-family:var(--mono); text-align:right}
+
+@media (min-width:641px){
+  .fxbox{aspect-ratio:16/9; max-height:62vh}
+  .fxstrip{flex-direction:row; align-items:center; flex-wrap:wrap}
+  /* On a phone the two mode buttons split the width evenly. On a desk they are
+     content-sized, because equal halves of an auto-width row made "Move the
+     map" wrap to two lines beside a one-line "Draw". */
+  .fxseg{flex:0 0 auto}
+  .fxseg button{flex:0 0 auto; white-space:nowrap}
+  .fxacts{display:flex; flex:1 1 auto; justify-content:flex-end}
+  .fxsum{grid-template-columns:auto minmax(0,1fr) auto; align-items:end}
+}
+@media (max-width:640px){
+  /* A thumb misses a small target and a missed target on this screen puts a
+     fence post in the neighbour's yard. Everything that changes the line is
+     full width and at least 44px tall. */
+  .fxacts{grid-template-columns:1fr 1fr}
+  .fxacts button{min-height:44px}
+  .fxseg button{min-height:44px}
+  .fxtable th:nth-child(3), .fxtable td:nth-child(3){display:none}
+}
+.fjsec__go{color:inherit; text-decoration:none; border-bottom:2px solid var(--amber)}
+.fjsec__go:hover{color:var(--steel-ink)}
