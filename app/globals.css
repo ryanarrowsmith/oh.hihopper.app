@@ -8520,3 +8520,111 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 
 .stsay{ margin:14px 0 0; font:500 13px/1.6 var(--sans); color:var(--ink-3);
   max-width:70ch }
+
+/* ==========================================================================
+   FENCE BUILDER
+   Own prefix (`fj`) throughout, because `.chip`, `.sec` and `.row` are each
+   already two things in this sheet and a third would be somebody's afternoon.
+   State is carried by a MARK with a word beside it, never by colored type.
+   ========================================================================== */
+.fjact{margin-left:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.fjwho{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ink-3);
+}
+.fjempty{color:var(--ink-2); max-width:62ch}
+
+/* ---- the list ---- */
+.fjhead{
+  display:grid; grid-template-columns:minmax(0,2.4fr) 200px 110px; gap:14px;
+  padding:8px 16px; border-bottom:1px solid var(--rule);
+}
+.fjhead span{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ink-3);
+}
+.fjrows{list-style:none; margin:0; padding:0; border:1px solid var(--rule); border-top:0; background:var(--surface)}
+.fjrow + .fjrow{border-top:1px solid var(--rule-soft)}
+.fjrow__go{
+  display:grid; grid-template-columns:minmax(0,2.4fr) 200px 110px; gap:14px; align-items:center;
+  padding:13px 16px; text-decoration:none; color:inherit;
+}
+.fjrow__go:hover{background:var(--sunken)}
+.fjname{display:block; font-size:14.5px; font-weight:700; letter-spacing:-.01em}
+.fjsub{display:block; font-size:12px; color:var(--ink-3); margin-top:2px}
+.fjstage b{font-weight:700; font-size:13.5px; display:block}
+.fjdays{font-size:12px; color:var(--ink-3); display:block; margin-top:2px}
+.fjdays--long{color:var(--bad); font-weight:700}
+.fjbadge{
+  font-style:normal; font-family:var(--mono); font-size:9.5px; letter-spacing:.1em;
+  text-transform:uppercase; border:1px solid var(--rule); padding:3px 7px; color:var(--ink-2);
+}
+.fjnone{font-style:normal; color:var(--canvas-3)}
+
+/* ---- the mark ---- */
+.fjmark{
+  display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:10px;
+  letter-spacing:.1em; text-transform:uppercase; font-weight:500; white-space:nowrap;
+}
+.fjmark svg{width:13px; height:13px; flex:0 0 13px}
+.fjmark--sealed{color:var(--ink-2)}
+.fjmark--edit{color:var(--steel-ink)}
+.fjmark--read{color:var(--ink-3)}
+.fjmark--warn,.fjmark--late{color:var(--bad)}
+.fjmark--absent{color:var(--canvas-3)}
+
+/* ---- the plan ---- */
+.fjbar{height:4px; background:var(--canvas-2); position:relative; overflow:hidden}
+.fjbar i{position:absolute; inset:0 auto 0 0; background:var(--steel); display:block}
+.fjprog{font-family:var(--mono); font-size:11.5px; color:var(--ink-2); margin-top:8px}
+.fjphase__h{display:flex; align-items:baseline; gap:12px; margin-bottom:10px}
+.fjphase__h h2{font-size:17px; font-weight:800; letter-spacing:-.02em}
+.fjcount{
+  margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--ink-3); letter-spacing:.08em;
+}
+.fjsec{border:1px solid var(--rule); background:var(--surface); padding:13px 15px; margin-bottom:10px}
+.fjsec--sealed{background:var(--sunken); box-shadow:inset 3px 0 0 var(--canvas-3)}
+.fjsec--edit{box-shadow:inset 3px 0 0 var(--steel)}
+.fjsec__h{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.fjsec__h h3{font-size:14.5px; font-weight:700}
+.fjsec__h .fjmark{margin-left:auto}
+.fjtasks{list-style:none; margin:10px 0 0; padding:0}
+.fjtask{display:flex; gap:10px; align-items:flex-start; padding:7px 0; border-top:1px solid var(--rule-soft)}
+.fjtask__box{
+  flex:0 0 16px; width:16px; height:16px; border:1.5px solid var(--canvas-3); margin-top:2px;
+  background:var(--surface);
+}
+.fjtask--done .fjtask__box{background:var(--good); border-color:var(--good)}
+.fjtask--done .fjtask__t b{color:var(--ink-3); text-decoration:line-through}
+.fjtask__t b{font-size:14px; font-weight:600; display:block}
+.fjtask__t em{
+  font-style:normal; font-family:var(--mono); font-size:10px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+.fjwhy{
+  margin-top:10px; padding:9px 11px; background:var(--paper); border:1px dashed var(--rule);
+  font-size:13px; color:var(--ink-2);
+}
+.fjfoot{margin-top:24px}
+
+/* A row of results becomes a card on a phone — the standing rule. */
+@media (max-width:640px){
+  .fjhead{display:none}
+  .fjrow__go{grid-template-columns:1fr; gap:0; padding:13px 14px}
+  .fjrow__go .rcell{display:flex; justify-content:space-between; gap:12px; align-items:baseline;
+    padding:6px 0; border-top:1px solid var(--rule-soft)}
+  .fjrow__go .rcell--lead{display:block; border-top:0; padding-top:0}
+  .fjrow__go .rcell__lab{
+    display:block; font-family:var(--mono); font-size:9.5px; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--ink-3);
+  }
+  .fjrow__go .rcell__val{text-align:right}
+  .fjstage b,.fjdays{display:inline-block}
+  .fjsec__h .fjmark{margin-left:0; width:100%}
+}
+
+@media print{
+  .fjact,.fjfoot{display:none}
+  .fjsec,.fjtask,.fjrow{break-inside:avoid}
+  .fjsec{border-color:#000}
+}

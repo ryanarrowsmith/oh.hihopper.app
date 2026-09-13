@@ -73,6 +73,14 @@ export const MODULE_NAV: Record<string, Item> = {
       { href: '/staffing/rankings', label: 'Stack Rankings' },
       { href: '/staffing/documents', label: 'Documents' },
     ] },
+  /* A fence line: posts and two rails. The module is about a line on a map
+     before it is about anything else. */
+  fence: { href: '/fence', label: 'Fence Builder',
+    icon: I('<path d="M2 9.5h20M2 14.5h20"/><path d="M5.5 5v14M12 5v14M18.5 5v14"/>'),
+    kids: [
+      { href: '/fence/rates', label: 'Rate book' },
+      { href: '/admin/fence', label: 'Admin' },
+    ] },
   meetings: { href: '/meetings', label: 'Meetings',
     icon: I('<path d="M3 6h18v11H8l-5 4z"/><path d="M8 10h8M8 13h5"/>') },
 }
