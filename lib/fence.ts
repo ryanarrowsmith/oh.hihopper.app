@@ -162,6 +162,7 @@ export type Rate = {
   cls: 'permanent' | 'temporary' | 'secure' | null
   name_en: string; name_es: string | null; uom: string
   sell: number | null; verified_on: string | null; source: string | null
+  active: boolean
   cost?: number | null; markup?: number | null
 }
 
@@ -182,21 +183,26 @@ export const RATE_KINDS = [
  * sell-side one. Asking a second question first ("may I?") would be a second
  * answer to a question the database already answers, and the two would drift.
  */
-export async function loadRates(accountId: string) {
+export async function loadRates(accountId: string, retired = false) {
   const db = supabaseServer()
   const base = 'id, code, kind, grp, cls, name_en, name_es, uom, sell, verified_on, source, active'
 
-  const priv = await db.schema('hopper').from('fence_rate')
+  // The admin panel wants the retired lines too -- a figure switched off with
+  // no way to see it again is a figure that cannot be switched back on. Every
+  // other caller wants the book as it is quoted from.
+  const only = (q: any) => (retired ? q : q.eq('active', true))
+
+  const priv = await only(db.schema('hopper').from('fence_rate')
     .select(`${base}, cost, markup`)
-    .eq('account_id', accountId).eq('active', true)
-    .order('kind').order('code')
+    .eq('account_id', accountId))
+    .order('active', { ascending: false }).order('kind').order('code')
 
   if (!priv.error) return { rates: (priv.data ?? []) as Rate[], seesCost: true }
 
-  const plain = await db.schema('hopper').from('fence_rate')
+  const plain = await only(db.schema('hopper').from('fence_rate')
     .select(base)
-    .eq('account_id', accountId).eq('active', true)
-    .order('kind').order('code')
+    .eq('account_id', accountId))
+    .order('active', { ascending: false }).order('kind').order('code')
 
   return { rates: (plain.data ?? []) as Rate[], seesCost: false }
 }

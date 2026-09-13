@@ -31,7 +31,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
  */
 export type AuditKind =
   | 'entity' | 'department' | 'location' | 'person' | 'module' | 'access' | 'report'
-  | 'calendar' | 'list' | 'news' | 'wiki' | 'desk' | 'system'
+  | 'calendar' | 'list' | 'news' | 'wiki' | 'desk' | 'fence' | 'system'
 
 /** What the platform calls the thing, where its word differs from Hopper's. */
 const SUBJECT: Record<AuditKind, string | null> = {
@@ -53,6 +53,11 @@ const SUBJECT: Record<AuditKind, string | null> = {
   // about how the business answers people. The tickets themselves are the
   // triggers' business, not this one's.
   desk: 'queue',
+  // The lists Fence Builder prices and translates from -- the rate book, the
+  // specs, the glossary, the charge codes. What one JOB did is the triggers'
+  // business; a change to the book every future job is priced from is a
+  // decision, and decisions go in the ledger.
+  fence: 'fence reference',
   system: null,
 }
 

@@ -8738,3 +8738,69 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   }
   .fjrow__go--rate .rcell__val,.fjrow__go--sell .rcell__val{text-align:right}
 }
+
+/* ------------------------------------------------------------------ fence admin
+   The seven-section panel at /admin/fence. Own prefix (`fja`) for the same
+   reason the job screens took `fj`: this sheet already defines `.sec`, `.row`
+   and `.chip` more than once, and a panel that inherits whichever one loaded
+   last is a panel that changes shape when an unrelated block is edited.
+
+   The rail is LINKS. They are styled as chips rather than as tabs because
+   nothing behind them is a tab: each one is a URL that draws a different
+   server-rendered section, and a chip does not promise the instant switch a
+   tab does. ------------------------------------------------------------------ */
+.fjarail{margin:18px 0 4px}
+.fjachips{display:flex; flex-wrap:wrap; gap:6px; border-bottom:1px solid var(--rule)}
+.fjachip{
+  display:inline-flex; align-items:center; padding:7px 12px; font-size:12.5px; font-weight:700;
+  letter-spacing:-.01em; color:var(--ink-2); background:var(--sunken); text-decoration:none;
+  border:1px solid var(--rule); border-bottom:1px solid var(--rule); margin-bottom:-1px}
+.fjachip:hover{color:var(--ink); background:var(--surface)}
+/* The live chip joins the paper below it -- same white, and its own bottom
+   border painted in that white over the rule the row carries -- so the section
+   reads as hanging off the chip you pressed rather than floating under a strip
+   of seven. */
+.fjachip.is-on{
+  color:var(--ink); background:var(--surface); border-bottom-color:var(--surface);
+  box-shadow:inset 0 2px 0 var(--amber)}
+.fjastep{display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:11px 2px 2px}
+.fjacount{font-family:var(--mono); font-size:11.5px; color:var(--ink-3)}
+.fjago{font-size:12.5px; color:var(--steel-ink); text-decoration:none; font-weight:600}
+.fjago:hover{text-decoration:underline}
+
+.fjagroup{margin-bottom:18px}
+.fjagroup h3{
+  display:flex; align-items:baseline; gap:9px; font-size:13px; font-weight:800;
+  letter-spacing:.04em; text-transform:uppercase; color:var(--ink-3); margin:0 0 8px}
+.fjagroup h3 small{
+  font-family:var(--mono); font-size:11px; letter-spacing:0; text-transform:none;
+  color:var(--ink-3); border:1px solid var(--rule); padding:1px 5px}
+.fjacode{font-family:var(--mono); font-size:12.5px; font-weight:600; letter-spacing:-.01em}
+.fjamono{font-family:var(--mono); font-size:12.5px}
+.fjasell{font-weight:700}
+.fjawarn .fjmark{font-size:12px}
+.fjahint{font-size:12px; color:var(--ink-3); margin-top:5px; max-width:44ch}
+.fjakey{display:flex; gap:18px; flex-wrap:wrap; margin-top:12px; font-size:12px; color:var(--ink-3)}
+
+/* The ownership map, and the three facts under Pricing. Both are read-only
+   statements, so neither gets a control-shaped box. */
+.fjaown{border:1px solid var(--rule); background:var(--surface)}
+.fjaown__r{
+  display:grid; grid-template-columns:140px minmax(0,1fr); gap:14px; align-items:baseline;
+  padding:11px 15px}
+.fjaown__r + .fjaown__r{border-top:1px solid var(--rule-soft)}
+.fjaown__r b{font-size:13.5px}
+.fjaown__r span{display:flex; flex-wrap:wrap; gap:6px 16px}
+.fjafacts{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px}
+.fjafact{border:1px solid var(--rule); background:var(--surface); padding:13px 15px}
+.fjafact b{display:block; font-size:13.5px; margin-bottom:7px}
+.fjafact p{font-size:12.5px; color:var(--ink-2); margin-top:8px}
+
+/* In use, and on the list. */
+.fjmark--done{color:var(--good)}
+.fjmark--idle{color:var(--canvas-3)}
+
+@media (max-width:640px){
+  .fjaown__r{grid-template-columns:1fr; gap:7px}
+  .fjachip{flex:1 1 auto; justify-content:center}
+}

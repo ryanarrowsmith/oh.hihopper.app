@@ -5,7 +5,8 @@
  * catches the padlock before it reads "sealed", and the two people on a crew
  * who do not separate those hues get the same information as everybody else.
  */
-export type MarkKind = 'edit' | 'read' | 'sealed' | 'warn' | 'late' | 'absent'
+export type MarkKind =
+  | 'edit' | 'read' | 'sealed' | 'warn' | 'late' | 'absent' | 'done' | 'idle'
 
 const PATHS: Record<MarkKind, string> = {
   edit:   'M11.2 2.4l2.4 2.4L5.6 12.8 2.4 13.6l.8-3.2z',
@@ -14,6 +15,8 @@ const PATHS: Record<MarkKind, string> = {
   warn:   'M8 1.9l6.2 11H1.8z',
   late:   '',
   absent: '',
+  done:   '',
+  idle:   '',
 }
 
 export function FenceMark({ kind, children, title }: {
@@ -40,6 +43,10 @@ export function FenceMark({ kind, children, title }: {
           <circle cx="8" cy="8" r="5.8" /><path d="M4 12L12 4" />
         </>}
         {kind === 'edit' && <path d={PATHS.edit} />}
+        {/* In use, and merely on the list. A tick and a dot, because "not in
+            this document" in an icon-sized column wraps to four lines. */}
+        {kind === 'done' && <path d="M3 8.4l3.2 3.2L13 4.8" />}
+        {kind === 'idle' && <circle cx="8" cy="8" r="2.2" fill="currentColor" stroke="none" />}
       </svg>
       {children}
     </span>
