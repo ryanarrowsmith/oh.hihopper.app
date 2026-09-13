@@ -15,11 +15,11 @@ import type { Result } from '@/app/actions/admin'
  * second copy of "who may do this" is a second place to be wrong, and only one
  * of them is the copy the database believes.
  *
- * The rate book is the one worth a word of warning: `cost` and `markup` are
- * revoked at the column level for people who do not price work, so a form that
- * posts them from somebody who cannot read them will be refused by the
- * database rather than quietly writing a figure over one they never saw. The
- * screen does not draw those fields in that case, and this is the backstop.
+ * The rate book is the one worth a word of warning: `cost` and `markup` live in
+ * `fence_rate_cost`, behind their own policy, and only somebody who administers
+ * the account may write them. The screen does not draw those fields to anybody
+ * else; a post that carries them anyway is refused by the database, which is
+ * the backstop rather than the plan.
  */
 
 async function ctx() {
@@ -132,6 +132,7 @@ export async function dropFencePerson(_p: Result | null, form: FormData): Promis
 
 // --------------------------------------------------------------- rate book
 export async function setRate(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
   const id = nul(form, 'id')
   const code = str(form, 'code').toUpperCase()
   if (!code) return { ok: false, message: 'A rate needs a code.' }
@@ -149,12 +150,34 @@ export async function setRate(_p: Result | null, form: FormData): Promise<Result
     patch.verified_on = new Date().toISOString().slice(0, 10)
     patch.source = 'invoice'
   }
-  const cost = num(form, 'cost'), markup = num(form, 'markup')
-  if (cost !== null) patch.cost = cost
-  if (markup !== null) patch.markup = markup
 
-  return put('fence_rate', id, patch,
+  const saved = await put('fence_rate', id, patch,
     { thing: 'rate book', name: code, also: ['/fence/rates'] })
+  if (!saved.ok) return saved
+
+  // The cost side is its own row in its own table. Absent, not blank: a form
+  // posted by somebody who cannot see costs carries neither field, and must not
+  // reset a figure it never showed. `sell` follows by trigger, so the two can
+  // never disagree.
+  const cost = num(form, 'cost'), markup = num(form, 'markup')
+  if (cost === null && markup === null) return saved
+
+  const rate = id ?? (await db.schema('hopper').from('fence_rate')
+    .select('id').eq('account_id', account).eq('code', code).maybeSingle()).data?.id
+  if (!rate) return saved
+
+  const had = await db.schema('hopper').from('fence_rate_cost')
+    .select('cost, markup').eq('account_id', account).eq('rate_id', rate).maybeSingle()
+
+  const { error } = await db.schema('hopper').from('fence_rate_cost').upsert({
+    account_id: account, rate_id: rate,
+    cost: cost ?? Number(had.data?.cost ?? 0),
+    markup: markup ?? Number(had.data?.markup ?? 1),
+  }, { onConflict: 'account_id,rate_id' })
+
+  if (error) return { ok: false, message: refused(error.message, 'rate book') }
+  revalidatePath('/admin/fence'); revalidatePath('/fence/rates')
+  return { ok: true, message: `${code} saved.` }
 }
 
 // --------------------------------------------------------------- specs, gates
@@ -238,19 +261,27 @@ export async function setFenceSettings(_p: Result | null, form: FormData): Promi
     return { ok: false, message: 'Waste is a percentage, and 25% of it would be a different problem.' }
   }
 
-  const patch: Record<string, unknown> = {
+  const { error } = await db.schema('hopper').from('fence_settings').upsert({
     account_id: account, margin_floor: floor, waste_pct: waste,
     link_expires: on(form, 'link_expires'), updated_at: new Date().toISOString(),
-  }
-  // Absent, not blank: somebody who cannot read what an hour costs us posts a
-  // form without those two fields, and must not blank them by saving the rest.
-  const rate = num(form, 'crew_rate'), markup = num(form, 'labor_markup')
-  if (rate !== null) patch.crew_rate = rate
-  if (markup !== null) patch.labor_markup = markup
-
-  const { error } = await db.schema('hopper').from('fence_settings')
-    .upsert(patch, { onConflict: 'account_id' })
+  }, { onConflict: 'account_id' })
   if (error) return { ok: false, message: refused(error.message, 'pricing settings') }
+
+  // The cost half is a different table with a different rule. Absent, not
+  // blank: somebody who cannot read what an hour costs us posts a form without
+  // those two fields and must not blank them by saving the rest.
+  const rate = num(form, 'crew_rate'), markup = num(form, 'labor_markup')
+  if (rate !== null || markup !== null) {
+    const had = await db.schema('hopper').from('fence_cost_settings')
+      .select('crew_rate, labor_markup').eq('account_id', account).maybeSingle()
+    const { error: e2 } = await db.schema('hopper').from('fence_cost_settings').upsert({
+      account_id: account,
+      crew_rate: rate ?? Number(had.data?.crew_rate ?? 96),
+      labor_markup: markup ?? Number(had.data?.labor_markup ?? 1.85),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'account_id' })
+    if (e2) return { ok: false, message: refused(e2.message, 'pricing settings') }
+  }
 
   await logAudit(db, {
     account_id: account, kind: 'fence', object: 'Pricing settings',

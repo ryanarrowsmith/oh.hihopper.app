@@ -1,6 +1,6 @@
 import 'server-only'
 import { supabaseServer } from '@/lib/supabase/server'
-import { SECTIONS, type JobRole } from '@/lib/fence'
+import { SECTIONS, loadRights, type JobRole } from '@/lib/fence'
 import type { Lang } from '@/lib/i18n'
 
 /**
@@ -75,19 +75,6 @@ export type Settings = {
  *  separate questions: an account with no settings row yet answers "no row",
  *  which must not be mistaken for "you may not see costs". */
 export type SettingsRead = { row: Settings | null; seesCost: boolean }
-
-/** May this person change these lists, and may they see the book at all. Both
- *  answers come from hopper.fence_rights(), which calls the same two helpers
- *  the policies call -- so a screen cannot offer an edit the database refuses,
- *  and there is no second copy of the rule to drift. */
-export type Rights = { mayManage: boolean; mayReadBook: boolean }
-
-export async function loadRights(accountId: string): Promise<Rights> {
-  const { data } = await supabaseServer().schema('hopper')
-    .rpc('fence_rights', { acct: accountId }).maybeSingle()
-  const r: any = data
-  return { mayManage: !!r?.may_manage, mayReadBook: !!r?.may_read_book }
-}
 
 /** What a job of this name may change, in the words the job screen uses. */
 export function editsFor(role: JobRole): string {
@@ -168,33 +155,34 @@ export async function loadFenceAdmin(accountId: string) {
   }
 }
 
-/** The pricing floor, and the cost figures only some people may read. */
+/**
+ * The pricing floor, and the two cost figures.
+ *
+ * Two tables, because they answer to different rules: the floor and the waste
+ * allowance are readable by anybody who can see the book, while what an hour of
+ * crew costs us and what we multiply it by live in `fence_cost_settings` behind
+ * the same policy as the rate costs. A person who may not read them reads no
+ * row, not an error (see 0120).
+ */
 export async function loadSettings(accountId: string): Promise<SettingsRead> {
   const db = supabaseServer()
-  const base = 'margin_floor, waste_pct, link_expires'
+  const [plain, cost, rights] = await Promise.all([
+    db.schema('hopper').from('fence_settings')
+      .select('margin_floor, waste_pct, link_expires').eq('account_id', accountId).maybeSingle(),
+    db.schema('hopper').from('fence_cost_settings')
+      .select('crew_rate, labor_markup').eq('account_id', accountId).maybeSingle(),
+    loadRights(accountId),
+  ])
 
-  const priv = await db.schema('hopper').from('fence_settings')
-    .select(`${base}, crew_rate, labor_markup`).eq('account_id', accountId).maybeSingle()
-  if (!priv.error) {
-    const r: any = priv.data
-    return {
-      seesCost: true,
-      row: r ? {
-        margin_floor: Number(r.margin_floor), waste_pct: Number(r.waste_pct),
-        link_expires: r.link_expires,
-        crew_rate: Number(r.crew_rate), labor_markup: Number(r.labor_markup),
-      } : null,
-    }
-  }
-
-  const plain = await db.schema('hopper').from('fence_settings')
-    .select(base).eq('account_id', accountId).maybeSingle()
   const r: any = plain.data
+  const c: any = cost.data
   return {
-    seesCost: false,
+    seesCost: rights.mayReadCosts,
     row: r ? {
       margin_floor: Number(r.margin_floor), waste_pct: Number(r.waste_pct),
-      link_expires: r.link_expires, crew_rate: null, labor_markup: null,
+      link_expires: r.link_expires,
+      crew_rate: c ? Number(c.crew_rate) : null,
+      labor_markup: c ? Number(c.labor_markup) : null,
     } : null,
   }
 }

@@ -175,36 +175,60 @@ export const RATE_KINDS = [
 ] as const
 
 /**
- * The book, and whether this person may see what it costs us.
+ * The book, and what it costs us when that is somebody's business.
  *
- * `cost` and `markup` are revoked at the column level, and PostgREST fails the
- * WHOLE query when you name a column you may not read — it does not hand back
- * nulls. So the privileged select is TRIED, and a refusal falls back to the
- * sell-side one. Asking a second question first ("may I?") would be a second
- * answer to a question the database already answers, and the two would drift.
+ * Cost and markup live in `hopper.fence_rate_cost`, a table with its own policy,
+ * because "may this person see cost" is a question about a PERSON and row
+ * security is the only thing here that can answer it. 0110 tried to answer it
+ * with a column grant and hid the figures from everybody, the account owner
+ * included -- a grant is per role, and every signed-in person in this app is the
+ * same role. See 0120.
+ *
+ * So there is no privileged-select-and-fall-back any more. The costs are read;
+ * a person who may not see them reads NO ROWS, which is the policy speaking
+ * rather than an error to catch. `sell` sits on the rate itself and is readable
+ * by anybody who can see the book at all.
  */
+/** May this person change the lists, see the book at all, and see what it costs
+ *  us. All three come from hopper.fence_rights(), which asks the same helpers
+ *  the policies ask, so no screen can offer what the database refuses. */
+export type Rights = { mayManage: boolean; mayReadBook: boolean; mayReadCosts: boolean }
+
+export async function loadRights(accountId: string): Promise<Rights> {
+  const { data } = await supabaseServer().schema('hopper')
+    .rpc('fence_rights', { acct: accountId }).maybeSingle()
+  const r: any = data
+  return {
+    mayManage: !!r?.may_manage,
+    mayReadBook: !!r?.may_read_book,
+    mayReadCosts: !!r?.may_read_costs,
+  }
+}
+
 export async function loadRates(accountId: string, retired = false) {
   const db = supabaseServer()
-  const base = 'id, code, kind, grp, cls, name_en, name_es, uom, sell, verified_on, source, active'
-
-  // The admin panel wants the retired lines too -- a figure switched off with
-  // no way to see it again is a figure that cannot be switched back on. Every
-  // other caller wants the book as it is quoted from.
   const only = (q: any) => (retired ? q : q.eq('active', true))
 
-  const priv = await only(db.schema('hopper').from('fence_rate')
-    .select(`${base}, cost, markup`)
-    .eq('account_id', accountId))
-    .order('active', { ascending: false }).order('kind').order('code')
+  const [book, costs, rights] = await Promise.all([
+    only(db.schema('hopper').from('fence_rate')
+      .select('id, code, kind, grp, cls, name_en, name_es, uom, sell, verified_on, source, active')
+      .eq('account_id', accountId))
+      .order('active', { ascending: false }).order('kind').order('code'),
+    db.schema('hopper').from('fence_rate_cost')
+      .select('rate_id, cost, markup').eq('account_id', accountId),
+    // Asked rather than inferred from an empty read: a cost-reader looking at a
+    // book with no figures in it yet must still be offered the cost field.
+    loadRights(accountId),
+  ])
 
-  if (!priv.error) return { rates: (priv.data ?? []) as Rate[], seesCost: true }
+  const cost = new Map(((costs.data ?? []) as any[]).map((c) => [c.rate_id, c]))
+  const rates = ((book.data ?? []) as any[]).map((r) => ({
+    ...r,
+    cost: cost.get(r.id) ? Number(cost.get(r.id).cost) : null,
+    markup: cost.get(r.id) ? Number(cost.get(r.id).markup) : null,
+  })) as Rate[]
 
-  const plain = await only(db.schema('hopper').from('fence_rate')
-    .select(base)
-    .eq('account_id', accountId))
-    .order('active', { ascending: false }).order('kind').order('code')
-
-  return { rates: (plain.data ?? []) as Rate[], seesCost: false }
+  return { rates, seesCost: rights.mayReadCosts, rights }
 }
 
 /** A figure with no verified date has never been checked against an invoice. */

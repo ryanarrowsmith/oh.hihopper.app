@@ -207,3 +207,82 @@ reason sales sees margin, and waste is a quantity rule rather than a price.
 Both migrations follow the 0110 lesson without being reminded: the schema's
 DEFAULT ACL grants `authenticated` `arwd` on every new table, so a column that
 must not be read is revoked at the table and then re-granted by name.
+
+## 0118 — the charge code catalog
+
+`fence_charge_line` is what one job bills. `fence_charge_code` is the book those
+lines are picked from, and it hangs off the **billing target** rather than off
+the module: a customer keying into something other than Navusoft has different
+codes, and seven of ours baked into the product would be a bug the day it is
+sold to the second customer.
+
+Every seeded code carries `provisional`. Navusoft publishes no import schema, so
+the codes were written from what the keying sheet has to say, and the screen says
+so rather than letting a guess pass for a confirmed field name. The mark is
+cleared per code, by hand, as each is matched against the real template.
+
+## 0119 — one answer to "may I change these lists"
+
+A pencil that raises a form the database then refuses is worse than no pencil.
+`hopper.fence_rights(acct)` answers, before the panel draws, whether this person
+may manage the account's reference data — by calling the same helpers the
+policies call, so there is no second copy of the rule.
+
+It is SECURITY **INVOKER** deliberately. It takes an account id, which on a
+DEFINER would be a `definer_exposed` finding, and it reads no row: both helpers
+test membership first, so asking about somebody else's account returns false.
+
+This exists because of how an RLS refusal actually arrives. An `update` the
+policy does not permit does not raise — it matches **no rows**. Without asking
+first, a granted salesperson pressing Save saw "that row is no longer here",
+which is a true sentence about the wrong thing.
+
+## 0120 — money is a person question, so RLS has to be the one answering it
+
+**0110 was wrong, and this corrects it.** It hid every money column with a
+column grant: revoke SELECT on the table, grant it back on the columns that are
+not money. Airtight, and useless — a column grant is per **role**, and every
+signed-in person in this app is the same role, `authenticated`. "The crew cannot
+see the price" came out as *nobody* can see the price. The account owner could
+not read the rate book's cost. `seesCost` in `lib/fence.ts` was a branch that
+could not be taken, so the admin panel never drew a cost field and there was no
+way, through the app, to set one.
+
+Two questions had been run together:
+
+1. **Does the crew ticket carry dollars?** It does not, and that was never a
+   grant's job: the ticket is its own route with no session, it resolves exactly
+   one job, and `lib/crew.ts` names every column it selects. No anon role holds
+   anything in this schema.
+
+2. **May this person see what we charge, and what it costs us?** That is a
+   question about a person, which is what row security is for.
+
+So sell prices — `fence_job.sold_price`, `fence_option.price`,
+`fence_charge_line.amount`, `fence_revision.sold_*`, `fence_rate.sell` — go back
+to being readable by signed-in staff, and **cost moves into its own tables**:
+`fence_rate_cost` and `fence_cost_settings`, each with a real policy on it. Rows,
+not columns. `internal.hopper_fence_costs()` is the rule: whoever administers the
+account, anybody whose fence job is sales or billing, and anybody holding the
+`fence_costs` grant — which `lib/access.ts` had already named and which now does
+something. Field crew is absent from that list and is the one job that must never
+appear in it.
+
+`fence_rate.sell` was a generated column over `cost * markup`. It is now a real
+column written by a trigger on `fence_rate_cost`, so the two still cannot
+disagree, and reading a sell price needs no access to the cost behind it.
+
+Margin follows cost, because margin is computed from it. That is the scope's own
+rule falling out of the schema rather than being enforced twice.
+
+The rejected alternative: a view that nulls the money for people who may not read
+it. A `security_invoker` view cannot — it checks the base table's column grants
+as the invoker, which hides the column from everybody again — and a view without
+`security_invoker` runs as its owner, so every policy on the base table has to be
+rewritten into the view's WHERE clause. Two copies of the rules is how the seal
+bug in 0112 happened.
+
+Probed as four people: a granted member with no fence job reads sell and no cost;
+the same person as a salesperson reads all 38 costs and cannot change one; moved
+to field crew, the costs disappear and sell stays; the owner reads costs and the
+crew rate. And the trigger: cost 4.50 at ×2 leaves sell at 9.0000.
