@@ -166,3 +166,23 @@ intake, cannot edit survey or the ticket, cannot edit the sealed estimate —
 and neither can the account owner, which is the seal doing its job. `sold_price`,
 `price`, `amount`, `cost` and `markup` all refuse; `sell` and the other 36 rate
 rows read fine; no rows from organizations they do not hold.
+
+## 0114 — language is a fact about the person
+
+English/Spanish is sitewide, so `hopper.person.lang` holds it and every module
+reads it. `fence_person.lang` existed for about a day and is dropped rather than
+kept in step: two places to answer "what does this person read" is two places to
+be wrong.
+
+`internal.hopper_lang(acct, uid)` is the one answer, so the shell, the crew
+ticket and the scope of work cannot disagree. The strings live in `lib/i18n.ts`
+— written, not machine-translated at render time. A missing Spanish string falls
+back to English and never to the key, because a customer reading
+`job.stage.survey` is worse than a Spanish speaker reading some English.
+
+The only machine translation in the product is the scope of work, and it is
+drafted, hand-edited by the PM, scored, and signed by a bilingual person before
+a crew builds from it.
+
+Fence Builder's copy is in the dictionary in full; the other modules join as
+they are touched.
