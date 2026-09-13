@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { currentSession } from '@/lib/tenant'
 import { supabaseServer } from '@/lib/supabase/server'
-import { fenceStance, howToDraw } from '@/lib/fence'
+import { fenceStance, howToDraw, loadRights } from '@/lib/fence'
 import { SPINE, spineOf, score, easeWord, heldTo, wordsIn, type Part } from '@/lib/sow'
 import { FenceMark } from '@/components/FenceMark'
 import ActionForm from '@/components/ActionForm'
@@ -34,7 +34,7 @@ export default async function Sow({ params }: { params: { id: string } }) {
   if (!session) redirect('/no-access')
 
   const db = supabaseServer()
-  const [{ data: job }, { data: sow }, { data: terms }, stance, { data: seals }] =
+  const [{ data: job }, { data: sow }, { data: terms }, stance, rights, { data: seals }] =
     await Promise.all([
       db.schema('hopper').from('fence_job').select('id, ref, name, customer, cls, complete')
         .eq('account_id', session.accountId).eq('id', params.id).maybeSingle(),
@@ -45,13 +45,14 @@ export default async function Sow({ params }: { params: { id: string } }) {
       db.schema('hopper').from('fence_glossary').select('en, es')
         .eq('account_id', session.accountId).order('en'),
       fenceStance(session.accountId),
+      loadRights(session.accountId),
       db.schema('hopper').from('fence_seal').select('section')
         .eq('account_id', session.accountId).eq('job_id', params.id),
     ])
   if (!job) notFound()
 
   const sealed = new Set(((seals ?? []) as any[]).map((s) => s.section))
-  const stand = howToDraw('sow', stance.jobRole, sealed as Set<any>)
+  const stand = howToDraw('sow', stance.jobRole, sealed as Set<any>, rights.mayManage)
   const mayEdit = stand === 'edit' && !(job as any).complete
 
   const en = spineOf(((sow as any)?.parts_en ?? []) as Part[])

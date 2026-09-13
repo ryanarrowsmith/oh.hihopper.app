@@ -55,7 +55,8 @@ export type Job = {
   site_address: string | null
   cls: 'permanent' | 'temporary' | 'secure' | null
   stage: Section
-  entered_at: Section
+  /** The furthest phase this job has reached. Not a time. */
+  reached: Section
   crew: string | null
   starts_on: string | null
   complete: boolean
@@ -93,15 +94,26 @@ export async function fenceStance(accountId: string) {
 }
 
 /**
- * How a section should be drawn for this person. `edit` only when they own it
- * and it is not sealed; everybody who can open the job at all may note on it.
+ * How a section should be drawn for this person.
+ *
+ * The same three tests `internal.hopper_fence_edits` makes, in the same order,
+ * because a screen that draws a pencil the database refuses is worse than no
+ * pencil — and one that refuses to draw a pencil the database would have allowed
+ * is a person filing a bug about a feature that works.
+ *
+ * The seal is first, and it beats everything: nothing changes a sealed section,
+ * administrator included. Then the section's owner. Then whoever administers the
+ * account, which is what was missing here — it left an account owner reading
+ * their own module, because they hold no fence job and the helper never asked.
  */
 export function howToDraw(
   section: Section, jobRole: JobRole | null, sealed: Set<Section>,
+  mayManage = false,
 ): 'edit' | 'read' | 'sealed' {
   if (sealed.has(section)) return 'sealed'
   const owner = SECTIONS.find((s) => s.key === section)?.owner
-  return owner && owner === jobRole ? 'edit' : 'read'
+  if (owner && owner === jobRole) return 'edit'
+  return mayManage ? 'edit' : 'read'
 }
 
 /** The open jobs, newest stage movement first. Complete ones are hidden. */
@@ -109,7 +121,7 @@ export async function loadJobs(accountId: string, complete = false) {
   const db = supabaseServer()
   const { data } = await db.schema('hopper')
     .from('fence_job')
-    .select('id, ref, name, customer, site_address, cls, stage, entered_at, crew, starts_on, complete, created_at')
+    .select('id, ref, name, customer, site_address, cls, stage, reached, crew, starts_on, complete, created_at')
     .eq('account_id', accountId)
     .eq('complete', complete)
     .order('created_at', { ascending: false })
@@ -128,7 +140,7 @@ export async function loadJob(accountId: string, id: string) {
   const db = supabaseServer()
   const { data: job } = await db.schema('hopper')
     .from('fence_job')
-    .select('id, ref, name, customer, site_address, cls, stage, entered_at, crew, starts_on, complete, created_at')
+    .select('id, ref, name, customer, site_address, cls, stage, reached, crew, starts_on, complete, created_at')
     .eq('account_id', accountId).eq('id', id).maybeSingle()
   if (!job) return null
 

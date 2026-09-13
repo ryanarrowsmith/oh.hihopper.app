@@ -74,7 +74,7 @@ export default async function Estimate({ params }: { params: { id: string } }) {
   if (!m.job) notFound()
 
   const sealed = new Set(((seals ?? []) as any[]).map((s) => s.section))
-  const stand = howToDraw('estimate', stance.jobRole, sealed as Set<any>)
+  const stand = howToDraw('estimate', stance.jobRole, sealed as Set<any>, rights.mayManage)
   const mayEdit = stand === 'edit' && !m.job.complete
 
   const pin: LngLat | null = m.job.lat != null && m.job.lon != null

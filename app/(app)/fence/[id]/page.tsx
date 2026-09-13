@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { currentSession } from '@/lib/tenant'
 import {
-  loadJob, fenceStance, howToDraw, PHASES, SECTIONS, ROLE_WORD,
+  loadJob, fenceStance, howToDraw, loadRights, PHASES, SECTIONS, ROLE_WORD,
   type Section,
 } from '@/lib/fence'
 import { FenceMark } from '@/components/FenceMark'
@@ -30,11 +30,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (!loaded) notFound()
 
   const { job, tasks, seals } = loaded
-  const { jobRole } = await fenceStance(session.accountId)
+  const [{ jobRole }, rights] = await Promise.all([
+    fenceStance(session.accountId),
+    loadRights(session.accountId),
+  ])
   const sealed = new Set<Section>(seals.map((s) => s.section))
 
   const done = tasks.filter((t) => t.done).length
-  const entered = SECTIONS.findIndex((s) => s.key === job.entered_at)
+  const entered = SECTIONS.findIndex((s) => s.key === job.reached)
 
   return (
     <>
@@ -84,7 +87,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             </header>
 
             {rows.map((sec) => {
-              const how = howToDraw(sec, jobRole, sealed)
+              const how = howToDraw(sec, jobRole, sealed, rights.mayManage)
               const word = SECTIONS.find((s) => s.key === sec)!
               const secTasks = phaseTasks.filter((t) => t.section === sec)
               return (
