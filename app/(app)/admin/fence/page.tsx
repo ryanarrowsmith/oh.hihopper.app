@@ -11,7 +11,7 @@ import { loadRates, rateAge, RATE_KINDS, SECTIONS, ROLE_WORD, type JobRole } fro
 import { LANG_NAME } from '@/lib/i18n'
 import {
   setFencePerson, dropFencePerson, setRate, setSpec, setGateType,
-  setTerm, setCrew, setChargeCode, setTarget, setFenceSettings, setPlanStep,
+  setTerm, setCrew, setChargeCode, setChargeRule, setTarget, setFenceSettings, setPlanStep,
 } from '@/app/actions/fence'
 
 export const dynamic = 'force-dynamic'
@@ -58,6 +58,8 @@ const CLASSES = [
 const CLASS_WORD: Record<string, string> = {
   permanent: 'Permanent', temporary: 'Temporary', secure: 'Secure',
 }
+/** Every class of work a roll-up rule could be missing for. */
+const MISSING = ['permanent', 'temporary', 'secure'] as const
 
 /**
  * A row, and whether it opens.
@@ -152,7 +154,7 @@ export default async function FenceAdmin(
       {s === 'rates' && book && <RateBook rates={book.rates} seesCost={book.seesCost} may={may} />}
       {s === 'specs' && <Specs specs={a.specs} gates={a.gates} may={may} />}
       {s === 'glossary' && <Glossary terms={a.glossary} may={may} />}
-      {s === 'billing' && <Billing codes={a.codes} targets={a.targets} may={may} />}
+      {s === 'billing' && <Billing codes={a.codes} rules={a.rules} targets={a.targets} may={may} />}
       {s === 'crews' && <Crews crews={a.crews} people={a.people} may={may} />}
       {s === 'pricing' && <Pricing read={a.settings} may={may} />}
     </>
@@ -596,7 +598,17 @@ function Specs({ specs, gates, may }: {
         <div><label htmlFor={`gr-${r?.id ?? 'new'}`}>Rate code</label>
           <input className="field" id={`gr-${r?.id ?? 'new'}`} name="rate_code"
                  defaultValue={r?.rate_code ?? ''} placeholder="What it prices from" /></div>
+        <div><label htmlFor={`gb-${r?.id ?? 'new'}`}>Charge code</label>
+          <input className="field" id={`gb-${r?.id ?? 'new'}`} name="charge_code"
+                 defaultValue={r?.charge_code ?? ''}
+                 placeholder="What it bills under" /></div>
       </div>
+      <p className="fxhint">
+        Two different books. The rate code is what it PRICES from on a quote; the charge code is
+        what accounting BILLS it under. Leaving the charge code empty says this gate rides inside
+        the fence line rather than billing on one of its own — which is what a panel gate in a
+        temporary fence rental does.
+      </p>
       <div style={{ marginTop: 12 }}>
         <Toggle name="active" label="Offered on a quote" defaultOn={r ? r.active : true} />
       </div>
@@ -664,10 +676,10 @@ function Specs({ specs, gates, may }: {
       >
         {gates.length === 0 ? <p className="empty">No gates yet.</p> : (
           <div className="rlist rlist--cols"
-               style={{ ['--cols' as any]: '150px minmax(0,1.8fr) 130px 90px 130px' }}>
+               style={{ ['--cols' as any]: '140px minmax(0,1.6fr) 120px 80px 120px 120px' }}>
             <div className="rhead">
               <span>Code</span><span>Gate</span><span>Class</span><span>Width</span>
-              <span>Prices from</span>
+              <span>Prices from</span><span>Bills under</span>
             </div>
             {gates.map((r) => (
               <Row key={r.id} may={may} label={`Edit ${r.code}`} face={
@@ -695,6 +707,11 @@ function Specs({ specs, gates, may }: {
                     <span className="rcell__lab">Prices from</span>
                     <span className="rcell__val fjamono">
                       {r.rate_code ?? <span className="fjnone">nothing yet</span>}</span>
+                  </span>
+                  <span className="rcell">
+                    <span className="rcell__lab">Bills under</span>
+                    <span className="rcell__val fjamono">
+                      {r.charge_code ?? <span className="fjnone">in the fence line</span>}</span>
                   </span>
                 </>
               }>
@@ -786,8 +803,9 @@ function Glossary({ terms, may }: {
 }
 
 // ------------------------------------------------------- codes and billing
-function Billing({ codes, targets, may }: {
+function Billing({ codes, rules, targets, may }: {
   codes: Awaited<ReturnType<typeof loadFenceAdmin>>['codes']
+  rules: Awaited<ReturnType<typeof loadFenceAdmin>>['rules']
   targets: Awaited<ReturnType<typeof loadFenceAdmin>>['targets']; may: boolean
 }) {
   const guesses = codes.filter((c) => c.provisional).length
@@ -847,6 +865,34 @@ function Billing({ codes, targets, may }: {
         <Toggle name="provisional" label="Still a guess" defaultOn={r?.provisional ?? true}
                 say="Leave it on until the code has been matched to the real import template" />
         <Toggle name="active" label="In use" defaultOn={r ? r.active : true} />
+      </div>
+    </>
+  )
+
+  const RuleFields = ({ r }: { r?: (typeof rules)[number] }) => (
+    <>
+      <div className="formrow">
+        <div><label htmlFor={`rk-${r?.id ?? 'new'}`}>Class of work</label>
+          <Choice id={`rk-${r?.id ?? 'new'}`} name="cls" defaultValue={r?.cls ?? 'permanent'}
+                  options={CLASSES.map((c) => ({ value: c.value, label: c.label }))} /></div>
+        <div><label htmlFor={`rt-${r?.id ?? 'new'}`}>Collects</label>
+          <Choice id={`rt-${r?.id ?? 'new'}`} name="takes" defaultValue={r?.takes ?? 'fence'}
+                  options={[
+                    { value: 'fence', label: 'Everything but the gates' },
+                    { value: 'gate', label: 'Each gate, by default' },
+                  ]} /></div>
+        <div><label htmlFor={`rc-${r?.id ?? 'new'}`}>Bills under</label>
+          <input className="field" id={`rc-${r?.id ?? 'new'}`} name="charge_code" required
+                 defaultValue={r?.charge_code ?? ''} placeholder="INST-CL" /></div>
+      </div>
+      <div className="formrow" style={{ marginTop: 12 }}>
+        <div><label htmlFor={`rn-${r?.id ?? 'new'}`}>Why, for whoever reads this next</label>
+          <input className="field" id={`rn-${r?.id ?? 'new'}`} name="note"
+                 defaultValue={r?.note ?? ''} /></div>
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <Toggle name="active" label="In use" defaultOn={r ? r.active : true}
+                say="Retiring a gate rule says its gates bill inside the fence line" />
       </div>
     </>
   )
@@ -956,6 +1002,65 @@ function Billing({ codes, targets, may }: {
                 <RowForm action={setChargeCode}>
                   <input type="hidden" name="id" value={r.id} />
                   <CodeFields r={r} />
+                </RowForm>
+              </Row>
+            ))}
+          </div>
+        )}
+      </EditableSection>
+
+      <EditableSection
+        title="How a quote rolls up into those codes"
+        blurb="The recipe turns a measure into priced lines. This turns priced lines into the handful of lines accounting keys: one line for the fence, and a line for each gate that bills on its own. Nothing is re-priced on the way — it is a roll-up of what was sold."
+        addLabel="Adding a rule"
+        addForm={may ? <RowForm action={setChargeRule} label="Add it" busy="Adding…"><RuleFields /></RowForm> : undefined}
+      >
+        <p className="note">
+          <b>An absent gate rule is a statement, not a gap.</b> A temporary fence rental includes
+          its panel gates, so temporary has no gate rule and its gates bill inside the fence line.
+          A class with no <i>fence</i> rule cannot be billed at all, and the handoff screen says so
+          by name rather than quietly billing it as something else.
+        </p>
+        {MISSING.filter((c) => !rules.some((r) => r.cls === c && r.takes === 'fence' && r.active))
+          .map((c) => (
+            <p className="note note--err" key={c}>
+              <b>A {c} job has no install code.</b> Nothing on a {c} job can be handed to
+              accounting until one is here.
+            </p>
+          ))}
+        {rules.length === 0 ? <p className="empty">No roll-up rules yet.</p> : (
+          <div className="rlist rlist--cols"
+               style={{ ['--cols' as any]: '130px 150px 140px minmax(0,1fr)' }}>
+            <div className="rhead">
+              <span>Class</span><span>Collects</span><span>Bills under</span><span>Why</span>
+            </div>
+            {rules.map((r) => (
+              <Row key={r.id} may={may} label={`Edit the ${r.cls} ${r.takes} rule`} face={
+                <>
+                  <span className="rcell rcell--lead">
+                    <span className="fjname">{CLASS_WORD[r.cls] ?? r.cls}</span>
+                  </span>
+                  <span className="rcell">
+                    <span className="rcell__lab">Collects</span>
+                    <span className="rcell__val">
+                      {r.takes === 'fence' ? 'Everything but the gates' : 'Each gate, by default'}
+                      {!r.active && <FenceMark kind="absent">Retired</FenceMark>}
+                    </span>
+                  </span>
+                  <span className="rcell">
+                    <span className="rcell__lab">Bills under</span>
+                    <span className="rcell__val fjacode">{r.charge_code}</span>
+                  </span>
+                  <span className="rcell">
+                    <span className="rcell__lab">Why</span>
+                    <span className="rcell__val">
+                      {r.note ?? <span className="fjnone">nothing said</span>}</span>
+                  </span>
+                </>
+              }>
+                <RowForm action={setChargeRule}>
+                  <input type="hidden" name="id" value={r.id} />
+                  <RuleFields r={r} />
                 </RowForm>
               </Row>
             ))}

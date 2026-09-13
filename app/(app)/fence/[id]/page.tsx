@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { currentSession } from '@/lib/tenant'
+import { supabaseServer } from '@/lib/supabase/server'
 import {
   loadJob, fenceStance, howToDraw, loadRights, PHASES, SECTIONS, ROLE_WORD,
   type Section,
@@ -10,6 +11,18 @@ import FenceTasks from '@/components/FenceTasks'
 import { handToPm } from '@/app/actions/fence'
 
 export const dynamic = 'force-dynamic'
+
+/**
+ * The sections with a screen behind them, and what it is called.
+ *
+ * A heading that is not a link is a heading with nothing to open yet rather than
+ * a dead one, which is why this is a map and not a guess at a URL.
+ */
+const HAS_SCREEN: Partial<Record<Section, string>> = {
+  estimate: 'estimate',
+  sow: 'sow',
+  billing: 'billing',
+}
 
 /**
  * One job, as a project manager's plan.
@@ -32,10 +45,20 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (!loaded) notFound()
 
   const { job, tasks, seals, place } = loaded
-  const [{ jobRole }, rights] = await Promise.all([
+  const [{ jobRole }, rights, { data: options }] = await Promise.all([
     fenceStance(session.accountId),
     loadRights(session.accountId),
+    /* The quotes, because sending the job forward has to say WHICH ONE was sold.
+       After the seal nobody can — `hopper_fence_edits` checks the seal before it
+       checks anything else, administrator included — so the question is asked
+       here, at the last moment it can still be answered. */
+    supabaseServer().schema('hopper').from('fence_option')
+      .select('id, label, price, accepted')
+      .eq('account_id', session.accountId).eq('job_id', id)
+      .order('priced_at', { ascending: false }),
   ])
+  const quotes = (options ?? []) as { id: string; label: string; price: number | null; accepted: boolean }[]
+  const soldOne = quotes.find((q) => q.accepted) ?? null
   const sealed = new Set<Section>(seals.map((s) => s.section))
 
   const done = tasks.filter((t) => t.done).length
@@ -99,9 +122,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                         The estimate is the first; the others follow as they are
                         built, and a heading that is not a link is a heading with
                         nothing to open yet rather than a dead one. */}
-                    <h3>{sec === 'estimate' || sec === 'sow'
-                      ? <a className="fjsec__go"
-                           href={`/fence/${job.id}/${sec === 'sow' ? 'sow' : 'estimate'}`}>
+                    <h3>{HAS_SCREEN[sec]
+                      ? <a className="fjsec__go" href={`/fence/${job.id}/${HAS_SCREEN[sec]}`}>
                           {word.en}</a>
                       : word.en}</h3>
                     {how === 'sealed' && (
@@ -127,20 +149,39 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                       and the project manager's task list are one act, so they are
                       one button. */}
                   {sec === 'estimate' && how === 'edit' && !sealed.has('estimate') && (
-                    <form className="fjhand" action={async (f: FormData) => {
-                      'use server'
-                      await handToPm(null, f)
-                    }}>
-                      <input type="hidden" name="job_id" value={job.id} />
-                      <button className="btn btn--amber" type="submit">
-                        Send it to the project manager
-                      </button>
-                      <small>
-                        Seals the estimate — nothing changes it afterwards, not even an
-                        administrator — and opens the project manager&rsquo;s tasks, starting with
-                        the Navusoft account.
-                      </small>
-                    </form>
+                    quotes.length === 0 ? (
+                      <p className="fjwhy">
+                        Nothing is on the quote yet, so there is nothing to hand over.{' '}
+                        <a href={`/fence/${job.id}/estimate`}>Measure the line</a> first.
+                      </p>
+                    ) : (
+                      <form className="fjhand" action={async (f: FormData) => {
+                        'use server'
+                        await handToPm(null, f)
+                      }}>
+                        <input type="hidden" name="job_id" value={job.id} />
+                        <label className="fjhand__pick" htmlFor="fj-sold">
+                          Which option did the customer buy?
+                        </label>
+                        <select className="field" id="fj-sold" name="option_id"
+                                defaultValue={soldOne?.id ?? quotes[0].id}>
+                          {quotes.map((q) => (
+                            <option key={q.id} value={q.id}>
+                              {q.label} — ${Number(q.price ?? 0).toLocaleString('en-US')}
+                              {q.accepted ? ' (marked sold)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                        <button className="btn btn--amber" type="submit">
+                          Send it to the project manager
+                        </button>
+                        <small>
+                          Marks that option sold, seals the estimate — nothing changes it
+                          afterwards, not even an administrator — and opens the project
+                          manager&rsquo;s tasks, starting with the Navusoft account.
+                        </small>
+                      </form>
+                    )
                   )}
 
                   {how === 'sealed' && (
@@ -159,6 +200,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
       <p className="fjfoot">
         <Link href={'/fence' as any}>Back to jobs</Link>
+        {' · '}
+        <a href={`/fence/${job.id}/record`} target="_blank" rel="noreferrer">
+          The whole job, as a document
+        </a>
       </p>
     </>
   )

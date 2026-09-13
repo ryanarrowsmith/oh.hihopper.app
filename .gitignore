@@ -11,3 +11,6 @@ next-env.d.ts
 # these files is where a pooler connection string would land if the CLI ever
 # writes a live one. Nothing here belongs to the project.
 supabase/.temp/
+
+# Junk this session cannot delete (the mount refuses unlink), parked here instead.
+_to_delete/

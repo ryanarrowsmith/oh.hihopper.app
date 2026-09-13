@@ -40,6 +40,10 @@ export type PriceLine = {
   note: string | null
   /** The book has no line for this, so it measures and does not price. */
   gap: boolean
+  /** Which gate type this line is, on a gate line, and null on every other.
+   *  Carried so the frozen quote can be rolled up into charge codes later:
+   *  the charge code hangs off the gate TYPE, and two types share one rate. */
+  typeCode: string | null
 }
 
 export type Priced = {
@@ -100,7 +104,7 @@ export function priceIt(o: {
       lines.push({
         code: r.rate_code, name: r.rate_code, uom: '', per: r.per,
         qty: round2(qty), sell: null, cost: null, extended: null, extendedCost: null,
-        note: 'No line in the rate book', gap: true,
+        note: 'No line in the rate book', gap: true, typeCode: null,
       })
       continue
     }
@@ -113,7 +117,7 @@ export function priceIt(o: {
       sell, cost,
       extended: sell == null ? null : round2(qty * sell),
       extendedCost: cost == null ? null : round2(qty * cost),
-      note: r.note, gap: sell == null,
+      note: r.note, gap: sell == null, typeCode: null,
     })
     if (sell == null) gaps.push(rate.code)
   }
@@ -130,6 +134,7 @@ export function priceIt(o: {
         code: g.rate_code ?? g.type_code ?? '—', name: g.name ?? 'Gate', uom: 'ea',
         per: 'gate', qty: g.qty, sell: null, cost: null, extended: null,
         extendedCost: null, note: 'No line in the rate book', gap: true,
+        typeCode: g.type_code,
       })
       continue
     }
@@ -140,7 +145,7 @@ export function priceIt(o: {
       qty: g.qty, sell, cost,
       extended: sell == null ? null : round2(g.qty * sell),
       extendedCost: cost == null ? null : round2(g.qty * cost),
-      note: null, gap: sell == null,
+      note: null, gap: sell == null, typeCode: g.type_code,
     })
   }
 

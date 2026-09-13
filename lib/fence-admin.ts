@@ -36,7 +36,17 @@ export type Spec = {
 
 export type GateType = {
   id: string; code: string; cls: string; name_en: string; name_es: string | null
-  width_ft: number | null; rate_code: string | null; active: boolean
+  width_ft: number | null; rate_code: string | null
+  /** What it BILLS under, as opposed to what it prices from. Null means it rides
+   *  inside the fence line rather than billing on one of its own. */
+  charge_code: string | null
+  active: boolean
+}
+
+/** Which charge code a class of work rolls up into. See 0133. */
+export type ChargeRule = {
+  id: string; cls: string; takes: 'fence' | 'gate'; charge_code: string
+  note: string | null; active: boolean
 }
 
 export type Term = {
@@ -91,8 +101,8 @@ export async function loadFenceAdmin(accountId: string) {
   const db = supabaseServer()
   const h = () => db.schema('hopper')
 
-  const [fp, roster, specs, gates, terms, crews, codes, targets, sows, plan, settings, rights] =
-    await Promise.all([
+  const [fp, roster, specs, gates, terms, crews, codes, rules, targets, sows, plan, settings,
+         rights] = await Promise.all([
       h().from('fence_person').select('id, person_id, job_role').eq('account_id', accountId),
       h().from('person').select('id, full_name, email, role_title, lang, active')
         .eq('account_id', accountId).order('full_name'),
@@ -100,7 +110,7 @@ export async function loadFenceAdmin(accountId: string) {
         .select('id, code, cls, name_en, name_es, height_ft, spacing_ft, note, active')
         .eq('account_id', accountId).order('cls').order('code'),
       h().from('fence_gate_type')
-        .select('id, code, cls, name_en, name_es, width_ft, rate_code, active')
+        .select('id, code, cls, name_en, name_es, width_ft, rate_code, charge_code, active')
         .eq('account_id', accountId).order('width_ft'),
       h().from('fence_glossary').select('id, en, es, note')
         .eq('account_id', accountId).order('en'),
@@ -109,6 +119,8 @@ export async function loadFenceAdmin(accountId: string) {
       h().from('fence_charge_code')
         .select('id, code, description, recurring, cycle_days, note, provisional, target_id, sort, active')
         .eq('account_id', accountId).order('sort').order('code'),
+      h().from('fence_charge_rule').select('id, cls, takes, charge_code, note, active')
+        .eq('account_id', accountId).order('cls').order('takes'),
       h().from('fence_billing_target').select('id, name, to_email, instructions, active')
         .eq('account_id', accountId).order('name'),
       // Only enough of the scope of work to answer "is this word in use".
@@ -160,6 +172,7 @@ export async function loadFenceAdmin(accountId: string) {
     glossary,
     crews: crewRows,
     codes: (codes.data ?? []) as ChargeCode[],
+    rules: (rules.data ?? []) as ChargeRule[],
     targets: (targets.data ?? []) as Target[],
     plan: (plan.data ?? []) as PlanStep[],
     settings, rights,

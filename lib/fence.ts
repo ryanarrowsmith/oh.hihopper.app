@@ -80,6 +80,10 @@ export type Task = {
   due_on: string | null
   done: boolean
   from_plan: boolean
+  /** Who ticked it and when. The billing handoff has no project-manager column
+   *  to read, so the first survey step ticked is who picked the job up. */
+  done_by?: string | null
+  done_at?: string | null
 }
 
 export type Seal = { section: Section; sealed_at: string }
@@ -165,7 +169,7 @@ export async function loadJob(accountId: string, id: string) {
 
   const [{ data: tasks }, { data: seals }, { data: place }] = await Promise.all([
     db.schema('hopper').from('fence_task')
-      .select('id, section, en, es, due_on, done, from_plan, needs')
+      .select('id, section, en, es, due_on, done, from_plan, needs, done_by, done_at')
       .eq('job_id', id).order('due_on', { ascending: true }).order('sort', { ascending: true }),
     db.schema('hopper').from('fence_seal')
       .select('section, sealed_at').eq('job_id', id),

@@ -7,7 +7,9 @@ import { logAudit } from '@/lib/audit'
 import type { Result } from '@/app/actions/admin'
 import { loadMeasure, loadRecipe } from '@/lib/takeoff'
 import { priceIt } from '@/lib/price'
-import { loadRates, loadRights } from '@/lib/fence'
+import { loadRates, loadRights, loadJob } from '@/lib/fence'
+import { buildSheet as buildSheetFrom, mergeSheet, whatBlocks } from '@/lib/handoff'
+import { loadBilling } from '@/lib/billing'
 import { SPINE, draft, spineOf, type Part } from '@/lib/sow'
 import { aiReady, askClaude, firstJson, MODEL } from '@/lib/ai'
 import { factsFor, englishPrompt, spanishPrompt, figureCheck, mustKeepOf,
@@ -206,8 +208,37 @@ export async function setGateType(_p: Result | null, form: FormData): Promise<Re
     code, cls: str(form, 'cls') || 'permanent',
     name_en: str(form, 'name_en'), name_es: nul(form, 'name_es'),
     width_ft: num(form, 'width_ft'), rate_code: nul(form, 'rate_code'),
+    // What it PRICES from and what it BILLS under are two different books, and a
+    // gate is the only thing in the module that needs both.
+    charge_code: nul(form, 'charge_code'),
     active: on(form, 'active'),
   }, { thing: 'gate catalog', name: code })
+}
+
+/**
+ * Which charge code a class of work rolls up into.
+ *
+ * One rule per class per bucket, which is what the unique index says and what
+ * makes the roll-up derivable rather than a search. An ABSENT gate rule is a
+ * statement rather than an omission: a temporary fence rental includes its panel
+ * gates, so temporary has no gate rule and its gates bill inside the fence line.
+ * Retiring a rule is how you say that.
+ */
+export async function setChargeRule(_p: Result | null, form: FormData): Promise<Result> {
+  const cls = str(form, 'cls')
+  const takes = str(form, 'takes')
+  const code = str(form, 'charge_code').toUpperCase()
+  if (!['permanent', 'temporary', 'secure'].includes(cls)) {
+    return { ok: false, message: 'A rule belongs to one class of work.' }
+  }
+  if (!['fence', 'gate'].includes(takes)) {
+    return { ok: false, message: 'A rule collects either the fence or the gates.' }
+  }
+  if (!code) return { ok: false, message: 'A rule needs the code it rolls up into.' }
+  return put('fence_charge_rule', nul(form, 'id'), {
+    cls, takes, charge_code: code,
+    note: nul(form, 'note'), active: on(form, 'active'),
+  }, { thing: 'roll-up rules', name: `${cls} · ${takes} · ${code}` })
 }
 
 // --------------------------------------------------------------- glossary
@@ -579,6 +610,10 @@ export async function putOnQuote(_p: Result | null, form: FormData): Promise<Res
       lines: priced.lines.map((l) => ({
         code: l.code, name: l.name, uom: l.uom, per: l.per,
         qty: l.qty, sell: l.sell, extended: l.extended, gap: l.gap,
+        // The gate TYPE, on a gate line. The charge code a gate bills under
+        // hangs off the type, and two types share one rate code, so without
+        // this the billing sheet cannot tell a walk gate from a slider.
+        type_code: l.typeCode,
       })),
       sell: priced.sell,
       per_foot: priced.perFoot,
@@ -997,10 +1032,47 @@ export async function handToPm(_p: Result | null, form: FormData): Promise<Resul
   ])
   if (!row) return { ok: false, message: 'That job is not here.' }
 
-  const { data: option } = await db.schema('hopper').from('fence_option')
-    .select('id').eq('account_id', account).eq('job_id', job).limit(1)
-  if (!option?.length) {
+  const { data: options } = await db.schema('hopper').from('fence_option')
+    .select('id, label, price, spec_code, accepted')
+    .eq('account_id', account).eq('job_id', job)
+  if (!options?.length) {
     return { ok: false, message: 'Nothing has been put on the quote yet, so there is nothing to hand over.' }
+  }
+
+  /* WHICH ONE THEY BOUGHT, AND WHY IT IS SETTLED HERE.
+     The seal comes next, and a seal beats everybody — administrator included.
+     So a job sealed with no sold option could never afterwards be given one:
+     `hopper_fence_edits` checks the seal FIRST, which means nobody on earth
+     could mark the sale and the job would be permanently unbillable. The sale
+     is therefore part of the same act as the handoff, not a step somebody can
+     forget to do first. One sold option per job is enforced by a partial unique
+     index (0133); this is the only place that writes it after the estimate
+     screen. */
+  const chosen = str(form, 'option_id')
+  const sold = (options as any[]).find((o) => (chosen ? o.id === chosen : o.accepted))
+  if (!sold) {
+    return {
+      ok: false,
+      message: chosen
+        ? 'That option is no longer on this job.'
+        : 'Say which option the customer bought. After the seal nobody can, not even an administrator.',
+    }
+  }
+  if (!sold.accepted) {
+    const { data: marked, error: saleErr } = await db.schema('hopper').from('fence_option')
+      .update({ accepted: true }).eq('account_id', account).eq('id', sold.id)
+      .select('id').maybeSingle()
+    if (saleErr) return { ok: false, message: refused(saleErr.message, 'quote') }
+    if (!marked) {
+      return { ok: false, message: 'The estimate is either sealed already or not yours to change.' }
+    }
+    await db.schema('hopper').from('fence_option')
+      .update({ accepted: false }).eq('account_id', account).eq('job_id', job)
+      .neq('id', sold.id).eq('accepted', true)
+    await db.schema('hopper').from('fence_job').update({
+      sold_price: sold.price, sold_spec: sold.spec_code,
+      sold_on: new Date().toISOString().slice(0, 10),
+    }).eq('account_id', account).eq('id', job)
   }
 
   // The seal first. If this is refused, the plan must not be kicked off — a job
@@ -1039,6 +1111,7 @@ export async function handToPm(_p: Result | null, form: FormData): Promise<Resul
   await logAudit(db, {
     account_id: account, kind: 'fence', object: (row as any).ref, object_id: job,
     summary: `Handed ${(row as any).ref} to the project manager`
+      + `, sold as ${sold.label} at $${Number(sold.price ?? 0).toLocaleString('en-US')}`
       + `, sealing the estimate and opening ${rows.length} tasks`,
   })
   revalidatePath(`/fence/${job}`); revalidatePath('/fence')
@@ -1197,4 +1270,306 @@ export async function setPlanStep(_p: Result | null, form: FormData): Promise<Re
     sort: num(form, 'sort') ?? 0,
     active: on(form, 'active'),
   }, { thing: 'task plan', name: en })
+}
+
+// ---------------------------------------------------- the billing handoff
+/**
+ * Which option the customer bought.
+ *
+ * Sales' own act, before the seal, and exclusive: accepting one un-accepts the
+ * rest, because "we sold two of the three options" is not a thing and a screen
+ * that allows it produces a billing sheet nobody can derive. A partial unique
+ * index (0133) is the backstop; this is the thing that keeps it satisfied.
+ *
+ * The job's `sold_price` / `sold_spec` / `sold_on` are written alongside. Those
+ * columns have existed since 0110 with nothing writing them, and
+ * `fence_revision` was built to compare against them — a revision that cannot
+ * say what the price was before it is a revision of nothing.
+ */
+export async function acceptOption(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const id = str(form, 'option_id')
+  if (!id) return { ok: false, message: 'No option.' }
+
+  const { data: opt } = await db.schema('hopper').from('fence_option')
+    .select('id, job_id, label, price, spec_code, accepted')
+    .eq('account_id', account).eq('id', id).maybeSingle()
+  if (!opt) return { ok: false, message: 'That option is not here.' }
+  const job = (opt as any).job_id as string
+
+  // The others first. If this were done the other way round the unique index
+  // would refuse the accept, and the message would be about an index rather
+  // than about the thing the person did.
+  await db.schema('hopper').from('fence_option')
+    .update({ accepted: false })
+    .eq('account_id', account).eq('job_id', job).eq('accepted', true).neq('id', id)
+
+  const { data, error } = await db.schema('hopper').from('fence_option')
+    .update({ accepted: true }).eq('account_id', account).eq('id', id)
+    .select('id').maybeSingle()
+  if (error) return { ok: false, message: refused(error.message, 'quote') }
+  if (!data) {
+    return {
+      ok: false,
+      message: 'Nothing changed. The estimate is sealed, and after the seal nobody can move the sale — '
+        + 'not even an administrator. A revision is the way.',
+    }
+  }
+
+  await db.schema('hopper').from('fence_job').update({
+    sold_price: (opt as any).price, sold_spec: (opt as any).spec_code,
+    sold_on: new Date().toISOString().slice(0, 10),
+  }).eq('account_id', account).eq('id', job)
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object: (opt as any).label, object_id: job,
+    summary: `Marked ${(opt as any).label} as sold at $`
+      + `${Number((opt as any).price ?? 0).toLocaleString('en-US')}`,
+  })
+  revalidatePath(`/fence/${job}/estimate`); revalidatePath(`/fence/${job}`)
+  return { ok: true, message: 'Marked as sold. That is the quote billing will bill.' }
+}
+
+/**
+ * Write the sheet down.
+ *
+ * It is a roll-up of the sold option's frozen takeoff, worked out again here
+ * rather than read off the form — a client that can post amounts is a client
+ * that can post whatever it likes, and this is the number that leaves the
+ * building.
+ *
+ * A line somebody corrected by hand, and a line they added, both survive. The
+ * derived rows are the ones replaced, and they are recognised by carrying the
+ * option they came from. Without that the biller's correction would vanish the
+ * next time anybody pressed this button, which reads exactly like a save that
+ * did not save.
+ */
+export async function buildSheet(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const job = str(form, 'job_id')
+  if (!job) return { ok: false, message: 'No job.' }
+
+  const { data: row } = await db.schema('hopper').from('fence_job')
+    .select('id, ref, cls').eq('account_id', account).eq('id', job).maybeSingle()
+  if (!row) return { ok: false, message: 'That job is not here.' }
+
+  const b = await loadBilling(account, job)
+  if (!b.sold) {
+    return { ok: false, message: 'No quote is marked sold, so there is nothing to roll up.' }
+  }
+
+  const sheet = buildSheetFrom({
+    sold: b.sold, cls: (row as any).cls ?? 'permanent',
+    rules: b.rules, codes: b.codes, gateTypes: b.gateTypes,
+  })
+
+  // Out with the derived ones. `.select()` so a refusal is a count of nothing
+  // rather than a silent success -- an RLS-refused delete matches zero rows and
+  // reports no error at all.
+  const { error: gone } = await db.schema('hopper').from('fence_charge_line')
+    .delete().eq('account_id', account).eq('job_id', job)
+    .eq('edited', false).not('option_id', 'is', null).select('id')
+  if (gone) return { ok: false, message: refused(gone.message, 'billing sheet') }
+
+  const rows = sheet.lines.map((l, i) => ({
+    account_id: account, job_id: job, option_id: b.sold!.id,
+    code: l.code, description: l.description,
+    qty: l.qty, uom: l.uom, amount: l.amount,
+    recurring: l.recurring, note: l.note, edited: false,
+    sort: (i + 1) * 10,
+  }))
+
+  const { data: made, error } = await db.schema('hopper').from('fence_charge_line')
+    .insert(rows).select('id')
+  if (error) return { ok: false, message: refused(error.message, 'billing sheet') }
+  if (!made?.length) {
+    return {
+      ok: false,
+      message: 'Nothing was written. The billing handoff belongs to billing — '
+        + 'you can read every figure on it and add a note.',
+    }
+  }
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object: (row as any).ref, object_id: job,
+    summary: `Built the billing sheet for ${(row as any).ref}: ${made.length} lines`
+      + ` at $${sheet.total.toLocaleString('en-US')}`,
+    payload: { lines: made.length, total: sheet.total, sold: sheet.sold, tallies: sheet.tallies },
+  })
+  revalidatePath(`/fence/${job}/billing`)
+  return {
+    ok: true,
+    message: sheet.tallies
+      ? `${made.length} lines, $${sheet.total.toLocaleString('en-US')} — the same as the quote.`
+      : `${made.length} lines, $${sheet.total.toLocaleString('en-US')}, which is NOT what the quote`
+        + ` said ($${sheet.sold.toLocaleString('en-US')}). Do not send it until that is explained.`,
+  }
+}
+
+/** One line, corrected or added by hand. Marked so a rebuild leaves it alone. */
+export async function setChargeLine(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const job = str(form, 'job_id')
+  const id = nul(form, 'id')
+  const code = str(form, 'code')
+  const description = str(form, 'description')
+  if (!job) return { ok: false, message: 'No job.' }
+  if (!code || !description) {
+    return { ok: false, message: 'A line needs a code and something a person can read.' }
+  }
+
+  const patch = {
+    code, description,
+    qty: num(form, 'qty'), uom: nul(form, 'uom'),
+    amount: num(form, 'amount'),
+    recurring: on(form, 'recurring'),
+    note: nul(form, 'note'),
+    sort: num(form, 'sort') ?? 500,
+    // Touched by a person, so the next rebuild keeps its hands off it.
+    edited: true,
+  }
+
+  const q = db.schema('hopper').from('fence_charge_line')
+  const { data, error } = id
+    ? await q.update(patch).eq('account_id', account).eq('id', id).select('id').maybeSingle()
+    : await q.insert({ ...patch, account_id: account, job_id: job }).select('id').maybeSingle()
+
+  if (error) return { ok: false, message: refused(error.message, 'billing sheet') }
+  if (!data) {
+    return {
+      ok: false,
+      message: id ? 'That line is no longer here. Reload the sheet.'
+                  : 'Nothing was written. The billing handoff belongs to billing.',
+    }
+  }
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object: code, object_id: job,
+    summary: id ? `Corrected the ${code} line by hand` : `Added a ${code} line by hand`,
+  })
+  revalidatePath(`/fence/${job}/billing`)
+  return { ok: true, message: id ? 'Corrected. A rebuild will leave it alone now.' : 'Added.' }
+}
+
+export async function dropChargeLine(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const job = str(form, 'job_id')
+  const id = str(form, 'id')
+  if (!job || !id) return { ok: false, message: 'No line.' }
+
+  const { data, error } = await db.schema('hopper').from('fence_charge_line')
+    .delete().eq('account_id', account).eq('id', id).select('code').maybeSingle()
+  if (error) return { ok: false, message: refused(error.message, 'billing sheet') }
+  if (!data) return { ok: false, message: 'Nothing was removed. That line is gone, or not yours to remove.' }
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object: (data as any).code, object_id: job,
+    summary: `Took the ${(data as any).code} line off the billing sheet`,
+  })
+  revalidatePath(`/fence/${job}/billing`)
+  return { ok: true, message: 'Off the sheet.' }
+}
+
+/**
+ * Record that the job went to accounting.
+ *
+ * Hopper does not send this message; a person does, with their own hands, for
+ * the reason lib/invite-mail.ts sets out at length — mail an app writes gets
+ * eaten by corporate filters and nobody learns there was anything to wait for.
+ * So composing and recording are two acts, and this is the second one.
+ *
+ * THE GATE IS RE-ASKED HERE. The screen draws it, and the screen can be stale,
+ * bookmarked or simply wrong. Nothing releases while a change order is unpriced
+ * or a punch item is open, and the only copy of that rule that counts is the one
+ * the button asks.
+ */
+export async function recordHandoff(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const session = await currentSession()
+  const job = str(form, 'job_id')
+  if (!job) return { ok: false, message: 'No job.' }
+
+  const loaded = await loadJob(account, job)
+  if (!loaded) return { ok: false, message: 'That job is not here.' }
+  const b = await loadBilling(account, job)
+
+  const derived = b.sold
+    ? buildSheetFrom({
+        sold: b.sold, cls: loaded.job.cls ?? 'permanent',
+        rules: b.rules, codes: b.codes, gateTypes: b.gateTypes,
+      })
+    : null
+  const sheet = derived ? mergeSheet(derived, b.savedLines) : null
+
+  const blocked = whatBlocks({
+    sold: b.sold, place: loaded.place, tasks: loaded.tasks, sheet,
+    openRevisions: b.openRevisions, jobId: job,
+  })
+  if (blocked.length > 0) {
+    return {
+      ok: false,
+      message: `Not yet — ${blocked[0].what.toLowerCase()}`
+        + (blocked.length > 1 ? `, and ${blocked.length - 1} other thing`
+            + `${blocked.length > 2 ? 's' : ''} on the list above.` : '.'),
+    }
+  }
+  if (!sheet || b.savedLines.length === 0) {
+    return { ok: false, message: 'Write the sheet down first. What has not been saved cannot be recorded as sent.' }
+  }
+
+  const navusoft = String(loaded.place?.navusoft_account ?? '').trim() || null
+  const note = nul(form, 'note')
+  const how = str(form, 'how') === 'mailed' ? 'mailed' : 'copied'
+
+  const { data, error } = await db.schema('hopper').from('fence_handoff').insert({
+    account_id: account, job_id: job,
+    target_id: b.target?.id ?? null,
+    navusoft_account: navusoft,
+    to_email: b.target?.to_email ?? null,
+    how, note,
+    sent_by: session?.personId ?? null,
+    // Frozen, for the same reason an option freezes its takeoff: the location's
+    // number can be corrected next week, and what accounting was told cannot.
+    sheet: {
+      sold_option: b.sold?.id ?? null,
+      sold_price: sheet.sold,
+      total: sheet.total,
+      recurring: sheet.recurring,
+      lines: sheet.lines.map((l) => ({
+        code: l.code, description: l.description, qty: l.qty, uom: l.uom,
+        amount: l.amount, recurring: l.recurring, by_hand: l.byHand, edited: l.edited,
+      })),
+    },
+  }).select('id').maybeSingle()
+
+  if (error) return { ok: false, message: refused(error.message, 'billing handoff') }
+  if (!data) {
+    return {
+      ok: false,
+      message: 'Nothing was recorded. The billing handoff belongs to billing — '
+        + 'you can read it and note on it.',
+    }
+  }
+
+  // The cache on the job, written in the same breath as the record it caches.
+  // The handoff row is authoritative; this is what the jobs list reads.
+  await db.schema('hopper').from('fence_job')
+    .update({
+      navusoft_sent: navusoft, navusoft_sent_at: new Date().toISOString(),
+      stage: 'billing', reached: 'billing',
+    })
+    .eq('account_id', account).eq('id', job)
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object: loaded.job.ref, object_id: job,
+    summary: `Handed ${loaded.job.ref} to accounting under Navusoft ${navusoft}`
+      + ` — ${sheet.lines.length} lines, $${sheet.total.toLocaleString('en-US')}`,
+    payload: { navusoft_account: navusoft, total: sheet.total, how },
+  })
+  revalidatePath(`/fence/${job}/billing`); revalidatePath(`/fence/${job}`); revalidatePath('/fence')
+  return {
+    ok: true,
+    message: `Recorded against Navusoft ${navusoft}. It is in the job's record now, and a second`
+      + ' send is a second entry rather than an overwrite.',
+  }
 }

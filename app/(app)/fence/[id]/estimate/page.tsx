@@ -10,7 +10,7 @@ import FenceDraw from '@/components/FenceDraw'
 import FenceGates from '@/components/FenceGates'
 import ActionForm from '@/components/ActionForm'
 import Choice from '@/components/Choice'
-import { setJobSpec, putOnQuote, releaseOption } from '@/app/actions/fence'
+import { setJobSpec, putOnQuote, releaseOption, acceptOption } from '@/app/actions/fence'
 import type { LngLat } from '@/lib/geo'
 
 export const dynamic = 'force-dynamic'
@@ -443,6 +443,10 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                                 ? <FenceMark kind="done" title={rel.note ?? undefined}>
                                     Released {rel.released_at?.slice(0, 10)}</FenceMark>
                                 : <FenceMark kind="warn">Under the floor · not released</FenceMark>)}
+                              {/* Which one they bought. Billing rolls its sheet up out of
+                                  this and nothing else, and after the seal nobody can move
+                                  it — so it is worth a mark rather than a note. */}
+                              {q.accepted && <FenceMark kind="done">Sold</FenceMark>}
                             </span>
                             <span className="fxopt__p">{money(Number(q.price ?? 0))}</span>
                             {under && !rel && rights.mayRelease && (
@@ -454,10 +458,26 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                                 <button className="btn btn--amber" type="submit">Release it</button>
                               </form>
                             )}
+                            {mayEdit && !q.accepted && (
+                              <form className="fxopt__go" action={async (f: FormData) => {
+                                'use server'
+                                await acceptOption(null, f)
+                              }}>
+                                <input type="hidden" name="option_id" value={q.id} />
+                                <button className="btn" type="submit">Mark it sold</button>
+                              </form>
+                            )}
                           </li>
                         )
                       })}
                     </ul>
+                    {mayEdit && !quotes.some((q) => q.accepted) && (
+                      <p className="fxhint">
+                        None of these is marked sold yet. Billing rolls its sheet up out of the
+                        sold quote and nothing else — and the seal at handoff makes the answer
+                        permanent, so this is the last moment anybody can give one.
+                      </p>
+                    )}
                     {quotes.some((q) => q.takeoff?.below_floor && !released.get(q.id))
                       && !rights.mayRelease && (
                       <p className="note">

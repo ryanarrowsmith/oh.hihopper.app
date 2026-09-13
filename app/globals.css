@@ -9128,3 +9128,85 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 @media (max-width:640px){
   .fjnav__go .btn, .fjhand .btn{min-height:44px; width:100%}
 }
+
+/* ==========================================================================
+   THE BILLING HANDOFF
+   Five numbered blocks in the order the work is done, same as the estimator.
+   Prefixed `fxrel`/`fxkey`/`fxfiles`/`fxsend` rather than reusing `.fxgate`,
+   which already belongs to the gate picker on the estimate screen -- two
+   meanings for one class name is how a rule leaks onto a page that never asked
+   for it.
+   ========================================================================== */
+.fxlede{margin:16px 0 0; font-size:15.5px; line-height:1.6; color:var(--ink-2);
+  max-width:68ch}
+
+/* Releasable, or the list of jobs to go and do. Green says nothing on its own:
+   the mark carries the word. */
+.fxrel__ok{display:flex; align-items:flex-start; gap:12px; flex-wrap:wrap; margin:0;
+  padding:12px 14px; background:var(--warmbg); border:1px solid var(--warmrule)}
+.fxrel__ok span{flex:1 1 320px; font-size:13.5px; line-height:1.55; color:var(--ink-2)}
+.fxrel__list{list-style:none; margin:0; padding:0;
+  border:1px solid var(--rule); background:var(--surface)}
+.fxrel__list li{padding:12px 14px; box-shadow:inset 3px 0 0 var(--amber)}
+.fxrel__list li + li{border-top:1px solid var(--rule-soft)}
+.fxrel__list p{margin:6px 0 0; font-size:13px; line-height:1.55; color:var(--ink-2);
+  max-width:70ch}
+.fxrel__list a{display:inline-block; margin-top:6px; font-size:12.5px; font-weight:700}
+
+/* The five facts, before anybody reaches a figure. */
+.fxkey{display:grid; gap:1px; margin-top:4px; background:var(--rule);
+  border:1px solid var(--rule); grid-template-columns:repeat(auto-fit, minmax(210px, 1fr))}
+.fxkey > div{background:var(--surface); padding:11px 13px; min-width:0}
+.fxkey span{display:block; font-size:11px; font-weight:800; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--ink-3)}
+.fxkey b{display:block; margin-top:5px; font-size:15px; line-height:1.35;
+  overflow-wrap:anywhere}
+.fxkey b i{font-style:normal; font-weight:500; color:var(--ink-3)}
+.fxkey small{display:block; margin-top:5px; font-size:11.5px; line-height:1.5;
+  color:var(--ink-3)}
+
+/* What gets filed to the account. */
+.fxfiles{list-style:none; margin:4px 0 0; padding:0;
+  border:1px solid var(--rule); background:var(--surface)}
+.fxfiles li{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; padding:11px 13px}
+.fxfiles li + li{border-top:1px solid var(--rule-soft)}
+.fxfiles li > span{flex:1 1 300px; font-size:13px; line-height:1.55; color:var(--ink-2)}
+.fxfiles a{font-size:12.5px; font-weight:700; white-space:nowrap}
+
+/* The message a person sends with their own hands. */
+.fxsend{margin-top:4px}
+.fxsend__go{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px}
+.fxsend__to{font-size:12.5px; color:var(--ink-3)}
+.fxsend__msg{margin:0; padding:14px; overflow-x:auto; background:var(--sunken);
+  border:1px solid var(--rule); font-family:var(--mono); font-size:12px; line-height:1.6;
+  white-space:pre; color:var(--ink)}
+
+/* Which option was sold, asked at the last moment anybody can answer. */
+.fjhand__pick{flex:1 1 100%; font-size:11.5px; font-weight:800; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--ink-3)}
+.fjhand select.field{flex:1 1 260px; min-width:0}
+
+@media (max-width:640px){
+  .fxsend__go .btn, .fxsend__go > a.btn{min-height:44px; width:100%}
+  .fxsend__msg{font-size:11px}
+  .fjhand select.field{width:100%; min-height:44px}
+}
+
+/* ==========================================================================
+   THE RECORD, AS A DOCUMENT
+   Rides on .pdoc / .pblock, the printable-document pattern the dashboards
+   already use, and adds only what a fence job needs: a facts table, a total
+   row, and the scope of work in both languages.
+   ========================================================================== */
+.fxrec th{width:1%; white-space:nowrap; padding-right:14px; text-align:left;
+  font-weight:700; color:var(--ink-2)}
+.fxrec__lead{margin:0 0 8px; font-size:10pt; line-height:1.55; color:var(--ink-2)}
+.fxrec__tot td{border-top:1.5px solid var(--rule); font-weight:800}
+.fxrec__part{margin-top:5mm; break-inside:avoid}
+.fxrec__part h3{margin:0 0 2mm; font-size:10.5pt; font-weight:800}
+.fxrec__part p{margin:0 0 2mm; font-size:9.5pt; line-height:1.6}
+.fxrec__es{color:var(--ink-2)}
+.fxrec__map{margin:4mm 0 0; break-inside:avoid}
+.fxrec__map img{width:100%; height:auto; display:block; border:1px solid var(--rule)}
+.fxrec__notes{margin-top:4mm}
+.fxrec__notes p{margin:0 0 2mm; font-size:9.5pt; line-height:1.6; color:var(--ink-2)}
