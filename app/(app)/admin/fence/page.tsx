@@ -11,7 +11,7 @@ import { loadRates, rateAge, RATE_KINDS, SECTIONS, ROLE_WORD, type JobRole } fro
 import { LANG_NAME } from '@/lib/i18n'
 import {
   setFencePerson, dropFencePerson, setRate, setSpec, setGateType,
-  setTerm, setCrew, setChargeCode, setTarget, setFenceSettings,
+  setTerm, setCrew, setChargeCode, setTarget, setFenceSettings, setPlanStep,
 } from '@/app/actions/fence'
 
 export const dynamic = 'force-dynamic'
@@ -30,11 +30,12 @@ export const dynamic = 'force-dynamic'
  * lines further down.
  */
 
-const KEYS = ['people', 'rates', 'specs', 'glossary', 'billing', 'crews', 'pricing'] as const
+const KEYS = ['people', 'plan', 'rates', 'specs', 'glossary', 'billing', 'crews', 'pricing'] as const
 type Key = (typeof KEYS)[number]
 
 const TITLE: Record<Key, string> = {
   people: 'People and access',
+  plan: 'Task plan',
   rates: 'Rate book',
   specs: 'Specs and gates',
   glossary: 'Glossary',
@@ -147,6 +148,7 @@ export default async function FenceAdmin(
       {Rail}
 
       {s === 'people' && <People people={a.people} spare={a.spare} may={may} />}
+      {s === 'plan' && <Plan steps={a.plan} may={may} />}
       {s === 'rates' && book && <RateBook rates={book.rates} seesCost={book.seesCost} may={may} />}
       {s === 'specs' && <Specs specs={a.specs} gates={a.gates} may={may} />}
       {s === 'glossary' && <Glossary terms={a.glossary} may={may} />}
@@ -270,6 +272,125 @@ function TakeOff({ id, name }: { id: string; name: string }) {
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="name" value={name} />
     </RowDanger>
+  )
+}
+
+// ---------------------------------------------------------------- task plan
+const PHASES_AFTER = [
+  { value: 'survey', label: 'Survey', hint: 'The project manager picks it up' },
+  { value: 'schedule', label: 'Schedule', hint: 'Dates, crew, materials' },
+  { value: 'sow', label: 'Scope of work', hint: 'Written, checked, signed' },
+  { value: 'ticket', label: 'Crew ticket', hint: 'What the crew does on site' },
+  { value: 'closeout', label: 'Close-out', hint: 'QA, photographs, release' },
+  { value: 'billing', label: 'Billing', hint: 'Keyed into the billing system' },
+]
+const NEEDS = [
+  { value: '', label: 'Nothing — a person’s word', hint: 'Most steps' },
+  { value: 'navusoft_account', label: 'The Navusoft account number',
+    hint: 'Cannot be ticked until the number is against the address' },
+]
+
+function Plan({ steps, may }: {
+  steps: Awaited<ReturnType<typeof loadFenceAdmin>>['plan']; may: boolean
+}) {
+  const Fields = ({ r }: { r?: (typeof steps)[number] }) => (
+    <>
+      <div className="formrow">
+        <div><label htmlFor={`pl-s-${r?.id ?? 'new'}`}>Phase</label>
+          <Choice id={`pl-s-${r?.id ?? 'new'}`} name="section" defaultValue={r?.section ?? 'survey'}
+                  options={PHASES_AFTER} /></div>
+        <div><label htmlFor={`pl-o-${r?.id ?? 'new'}`}>Order</label>
+          <input className="field" id={`pl-o-${r?.id ?? 'new'}`} name="sort" inputMode="numeric"
+                 defaultValue={r?.sort ?? (steps.length + 1) * 10} /></div>
+        <div><label htmlFor={`pl-d-${r?.id ?? 'new'}`}>Due, days after handoff</label>
+          <input className="field" id={`pl-d-${r?.id ?? 'new'}`} name="due_days" inputMode="numeric"
+                 defaultValue={r?.due_days ?? ''} placeholder="No date" /></div>
+      </div>
+      <div className="formrow" style={{ marginTop: 12 }}>
+        <div><label htmlFor={`pl-e-${r?.id ?? 'new'}`}>The step, in English</label>
+          <input className="field" id={`pl-e-${r?.id ?? 'new'}`} name="en" required
+                 defaultValue={r?.en} /></div>
+        <div><label htmlFor={`pl-p-${r?.id ?? 'new'}`}>En español</label>
+          <input className="field" id={`pl-p-${r?.id ?? 'new'}`} name="es" required
+                 defaultValue={r?.es} /></div>
+      </div>
+      <div className="formrow" style={{ marginTop: 12 }}>
+        <div><label htmlFor={`pl-n-${r?.id ?? 'new'}`}>Needs before it can be ticked</label>
+          <Choice id={`pl-n-${r?.id ?? 'new'}`} name="needs" defaultValue={r?.needs ?? ''}
+                  options={NEEDS} /></div>
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <Toggle name="active" label="In the plan" defaultOn={r ? r.active : true}
+                say="Off leaves it here and stops opening it on new jobs" />
+      </div>
+    </>
+  )
+
+  const gated = steps.filter((r) => r.needs).length
+
+  return (
+    <EditableSection
+      title="What happens after sales hands it over"
+      blurb={`${steps.length} standing steps. They are copied onto a job when sales sends it forward — so changing the plan changes the next job, and nobody halfway through a build gets new homework.`}
+      addLabel="Adding a step"
+      actions={gated > 0 ? (
+        <span className="fjawarn"><FenceMark kind="sealed">
+          {gated} cannot be ticked without their figure
+        </FenceMark></span>
+      ) : undefined}
+      addForm={may ? <RowForm action={setPlanStep} label="Add it" busy="Adding…"><Fields /></RowForm> : undefined}
+    >
+      <p className="note">
+        Sales&rsquo; own phases are not here. The plan starts where sales stops, so a step in
+        intake or on the estimate would be a to-do arriving after the work it describes was
+        finished.
+      </p>
+      {steps.length === 0 ? <p className="empty">No plan yet.</p> : (
+        PHASES_AFTER.map((ph) => {
+          const mine = steps.filter((r) => r.section === ph.value)
+          if (mine.length === 0) return null
+          return (
+            <div key={ph.value} className="fjagroup">
+              <h3>{ph.label}<small>{mine.length}</small></h3>
+              <div className="rlist rlist--cols"
+                   style={{ ['--cols' as any]: 'minmax(0,1.6fr) minmax(0,1.2fr) 130px' }}>
+                <div className="rhead"><span>Step</span><span>Español</span><span>Due</span></div>
+                {mine.map((r) => (
+                  <Row key={r.id} may={may} label={`Edit ${r.en}`} face={
+                    <>
+                      <span className="rcell rcell--lead">
+                        <span className="fjname">{r.en}</span>
+                        {!r.active && <FenceMark kind="absent">Off</FenceMark>}
+                        {r.needs === 'navusoft_account' && (
+                          <FenceMark kind="sealed" title="Not done until the number is there">
+                            Needs the account number
+                          </FenceMark>
+                        )}
+                      </span>
+                      <span className="rcell">
+                        <span className="rcell__lab">Español</span>
+                        <span className="rcell__val">{r.es}</span>
+                      </span>
+                      <span className="rcell">
+                        <span className="rcell__lab">Due</span>
+                        <span className="rcell__val fjamono">
+                          {r.due_days == null ? <span className="fjnone">no date</span>
+                            : `+${r.due_days}d`}</span>
+                      </span>
+                    </>
+                  }>
+                    <RowForm action={setPlanStep}>
+                      <input type="hidden" name="id" value={r.id} />
+                      <Fields r={r} />
+                    </RowForm>
+                  </Row>
+                ))}
+              </div>
+            </div>
+          )
+        })
+      )}
+    </EditableSection>
   )
 }
 

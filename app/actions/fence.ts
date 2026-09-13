@@ -1165,3 +1165,36 @@ export async function setNavusoftAccount(_p: Result | null, form: FormData): Pro
       : 'Cleared.',
   }
 }
+
+// --------------------------------------------------------- the plan itself
+/**
+ * A standing step, added to or changed in the plan.
+ *
+ * Changing the plan changes the NEXT job. Jobs already under way keep the tasks
+ * they were handed, because a copy is what they got — which is the whole reason
+ * the handoff copies rather than references, and worth repeating here so nobody
+ * "fixes" it by joining.
+ *
+ * Sales' own sections are not offered. The plan is kicked off when sales sends
+ * the job forward, so a step in intake or estimate would be a to-do arriving
+ * after the work it describes was finished.
+ */
+export async function setPlanStep(_p: Result | null, form: FormData): Promise<Result> {
+  const en = str(form, 'en')
+  const es = str(form, 'es')
+  const section = str(form, 'section')
+  if (!en || !es) {
+    return { ok: false, message: 'A step needs both languages — a crew reads the Spanish.' }
+  }
+  if (!['survey', 'schedule', 'sow', 'ticket', 'closeout', 'billing'].includes(section)) {
+    return { ok: false, message: 'The plan starts where sales stops, so a step belongs to a phase after the handoff.' }
+  }
+  const needs = str(form, 'needs')
+  return put('fence_task_plan', nul(form, 'id'), {
+    section, en, es,
+    needs: needs === 'navusoft_account' ? needs : null,
+    due_days: num(form, 'due_days'),
+    sort: num(form, 'sort') ?? 0,
+    active: on(form, 'active'),
+  }, { thing: 'task plan', name: en })
+}

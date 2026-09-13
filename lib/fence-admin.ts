@@ -62,6 +62,11 @@ export type Target = {
   instructions: string | null; active: boolean
 }
 
+export type PlanStep = {
+  id: string; section: string; en: string; es: string
+  needs: string | null; due_days: number | null; sort: number; active: boolean
+}
+
 export type Settings = {
   margin_floor: number
   waste_pct: number
@@ -86,7 +91,7 @@ export async function loadFenceAdmin(accountId: string) {
   const db = supabaseServer()
   const h = () => db.schema('hopper')
 
-  const [fp, roster, specs, gates, terms, crews, codes, targets, sows, settings, rights] =
+  const [fp, roster, specs, gates, terms, crews, codes, targets, sows, plan, settings, rights] =
     await Promise.all([
       h().from('fence_person').select('id, person_id, job_role').eq('account_id', accountId),
       h().from('person').select('id, full_name, email, role_title, lang, active')
@@ -108,6 +113,9 @@ export async function loadFenceAdmin(accountId: string) {
         .eq('account_id', accountId).order('name'),
       // Only enough of the scope of work to answer "is this word in use".
       h().from('fence_sow').select('parts_en, parts_es').eq('account_id', accountId),
+      h().from('fence_task_plan')
+        .select('id, section, en, es, needs, due_days, sort, active')
+        .eq('account_id', accountId).order('sort'),
       loadSettings(accountId),
       loadRights(accountId),
     ])
@@ -153,6 +161,7 @@ export async function loadFenceAdmin(accountId: string) {
     crews: crewRows,
     codes: (codes.data ?? []) as ChargeCode[],
     targets: (targets.data ?? []) as Target[],
+    plan: (plan.data ?? []) as PlanStep[],
     settings, rights,
   }
 }
