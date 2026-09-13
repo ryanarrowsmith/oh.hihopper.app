@@ -991,11 +991,14 @@ function Pricing({ read, may }: {
               <div><label htmlFor="ps-rate">Burdened crew rate, $ / hr</label>
                 <input className="field" id="ps-rate" name="crew_rate" inputMode="decimal"
                        defaultValue={settings?.crew_rate ?? 96} />
-                <p className="fjahint">What an hour of crew costs us, all in.</p></div>
+                <p className="fjahint">What an hour of crew costs us, all in — the figure a
+                  new labor line in the rate book is seeded from. A job prices its hours off the
+                  LAB- rate for its class, not off this.</p></div>
               <div><label htmlFor="ps-markup">Labor markup</label>
                 <input className="field" id="ps-markup" name="labor_markup" inputMode="decimal"
                        defaultValue={settings?.labor_markup ?? 1.85} />
-                <p className="fjahint">Applied to crew hours, separately from material.</p></div>
+                <p className="fjahint">The markup a new labor line starts at. The rate book is
+                  where a live one is changed.</p></div>
             </div>
           ) : (
             /* Not shown and not posted. What an hour costs us and what we

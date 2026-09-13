@@ -2,14 +2,15 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { currentSession } from '@/lib/tenant'
 import { supabaseServer } from '@/lib/supabase/server'
-import { fenceStance, howToDraw } from '@/lib/fence'
-import { loadMeasure } from '@/lib/takeoff'
+import { fenceStance, howToDraw, loadRates, loadRights } from '@/lib/fence'
+import { loadMeasure, loadRecipe } from '@/lib/takeoff'
+import { priceIt } from '@/lib/price'
 import { FenceMark } from '@/components/FenceMark'
 import FenceDraw from '@/components/FenceDraw'
 import FenceGates from '@/components/FenceGates'
 import ActionForm from '@/components/ActionForm'
 import Choice from '@/components/Choice'
-import { setJobSpec } from '@/app/actions/fence'
+import { setJobSpec, putOnQuote } from '@/app/actions/fence'
 import type { LngLat } from '@/lib/geo'
 
 export const dynamic = 'force-dynamic'
@@ -48,12 +49,20 @@ export default async function Estimate({ params }: { params: { id: string } }) {
   if (!session) redirect('/no-access')
 
   const db = supabaseServer()
-  const [m, stance, { data: seals }] = await Promise.all([
-    loadMeasure(session.accountId, params.id),
-    fenceStance(session.accountId),
-    db.schema('hopper').from('fence_seal').select('section')
-      .eq('account_id', session.accountId).eq('job_id', params.id),
-  ])
+  const [m, stance, { data: seals }, recipe, book, rights, { data: options }] =
+    await Promise.all([
+      loadMeasure(session.accountId, params.id),
+      fenceStance(session.accountId),
+      db.schema('hopper').from('fence_seal').select('section')
+        .eq('account_id', session.accountId).eq('job_id', params.id),
+      loadRecipe(session.accountId),
+      loadRates(session.accountId),
+      loadRights(session.accountId),
+      db.schema('hopper').from('fence_option')
+        .select('id, label, price, priced_at, note, accepted')
+        .eq('account_id', session.accountId).eq('job_id', params.id)
+        .order('priced_at', { ascending: false }),
+    ])
   if (!m.job) notFound()
 
   const sealed = new Set(((seals ?? []) as any[]).map((s) => s.section))
@@ -70,6 +79,14 @@ export default async function Estimate({ params }: { params: { id: string } }) {
 
   const s = m.sums
   const unpriced = m.gates.filter((g) => !g.priced).length
+
+  const priced = priceIt({
+    takeoff: s, gates: m.gates, spec: m.spec, recipe,
+    rates: book.rates, wastePct: m.wastePct, seesCost: rights.mayReadCosts,
+  })
+  const thin = priced.margin != null && priced.margin < m.marginFloor
+  const quotes = (options ?? []) as any[]
+  const money = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`
 
   return (
     <>
@@ -278,7 +295,7 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                 <small>added to fabric and rail</small></div>
             </div>
 
-            <table className="fxtable">
+            <table className="fxtable fxmeasure">
               <thead><tr><th>Run</th><th>Plan</th><th>With grade</th><th>Corners</th><th>How</th></tr></thead>
               <tbody>
                 {s.runs.map((r) => (
@@ -295,11 +312,126 @@ export default async function Estimate({ params }: { params: { id: string } }) {
               </tbody>
             </table>
 
-            <p className="note">
-              <b>The price is not here yet.</b> This screen measures; the money — materials from
-              the rate book, labor in crew hours, the margin against the{' '}
-              {m.marginFloor}% floor — is the next thing built, and the quote map with it.
-            </p>
+            {!m.spec ? (
+              <p className="note">
+                <b>No fence type chosen</b>, so there is nothing to price this against. The
+                recipe — what a foot of this fence is made of — hangs off the spec.
+              </p>
+            ) : (
+              <>
+                <div className="fxprice">
+                  <div className="fxprice__big">
+                    <b>{money(priced.sell)}</b>
+                    <span>
+                      {priced.perFoot ? `${money(priced.perFoot)} a foot` : '—'}
+                      {priced.margin != null && (
+                        <> · margin <b className={thin ? 'fxthin' : undefined}>{priced.margin}%</b></>
+                      )}
+                    </span>
+                  </div>
+                  {/* Cause above effect: what the figure is made of sits under it,
+                      and what it is held against sits beside it. */}
+                  {priced.margin != null && (
+                    <div className={`fxfloor${thin ? ' is-thin' : ''}`}>
+                      {thin
+                        ? <FenceMark kind="warn">Under the {m.marginFloor}% floor</FenceMark>
+                        : <FenceMark kind="done">Clears the {m.marginFloor}% floor</FenceMark>}
+                      <small>{thin
+                        ? 'A quote under the floor needs a manager to release it before it goes out.'
+                        : `${Math.round(priced.margin - m.marginFloor)} points of room.`}</small>
+                    </div>
+                  )}
+                  {priced.margin == null && rights.mayReadCosts && (
+                    <div className="fxfloor">
+                      <FenceMark kind="warn">No margin</FenceMark>
+                      <small>One line has no cost behind it, so the margin would be a guess.</small>
+                    </div>
+                  )}
+                </div>
+
+                {priced.gaps.length > 0 && (
+                  <p className="note note--err">
+                    <b>{priced.gaps.length === 1 ? 'One line has' : `${priced.gaps.length} lines have`}{' '}
+                    no price in the book</b> — {priced.gaps.join(', ')}. They are measured below and
+                    counted at nothing, so this total is short.{' '}
+                    <Link href="/admin/fence?s=rates">The rate book</Link> is where that is fixed.
+                  </p>
+                )}
+
+                <table className="fxtable fxbill">
+                  {/* Unit cost and unit sell are marked so a phone can drop
+                      them: standing in a yard you want the quantity and what the
+                      line comes to, and a six-column bill squeezed to 390px is
+                      six columns nobody can read. */}
+                  <thead><tr>
+                    <th>Code</th><th>What</th><th>Qty</th>
+                    {rights.mayReadCosts && <th className="fxunit">Cost</th>}
+                    <th className="fxunit">Sell</th><th>Extended</th>
+                  </tr></thead>
+                  <tbody>
+                    {priced.lines.map((l, i) => (
+                      <tr key={`${l.code}-${l.per}-${i}`} className={l.gap ? 'is-gap' : undefined}>
+                        <td className="fxcode">{l.code}</td>
+                        <td>{l.name}
+                          {l.note && <small>{l.note}</small>}</td>
+                        <td className="fxnum">{l.qty.toLocaleString('en-US')} {l.uom}</td>
+                        {rights.mayReadCosts && (
+                          <td className="fxnum fxunit">{l.cost == null ? '—' : `$${l.cost}`}</td>
+                        )}
+                        <td className="fxnum fxunit">{l.sell == null ? '—' : `$${l.sell}`}</td>
+                        <td className="fxnum">{l.extended == null
+                          ? <FenceMark kind="warn">no price</FenceMark>
+                          : money(l.extended)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <p className="fxhint">
+                  Every rate here is a placeholder. Nothing prices honestly until On Call&rsquo;s
+                  real cost and sell replace the seeded book.
+                </p>
+
+                {mayEdit && (
+                  <div className="fxquote">
+                    <ActionForm action={putOnQuote} label="Put it on the quote"
+                                busy="Pricing…">
+                      <input type="hidden" name="job_id" value={m.job.id} />
+                      <div className="formrow">
+                        <div><label htmlFor="q-label">What to call this option</label>
+                          <input className="field" id="q-label" name="label"
+                                 placeholder={`${m.spec.name_en} · ${Math.round(s.fenceFt)} ft`} /></div>
+                      </div>
+                      <p className="fxhint">
+                        The price is worked out again on the way in, from the book as it stands,
+                        and the whole argument is frozen with it — the measure, the quantities and
+                        every sell line. A year from now this quote still explains itself.
+                      </p>
+                    </ActionForm>
+                  </div>
+                )}
+
+                {quotes.length > 0 && (
+                  <>
+                    <h3 className="fxsub">On the quote</h3>
+                    <ul className="fxopts">
+                      {quotes.map((q) => (
+                        <li key={q.id} className="fxopt">
+                          <span className="fxopt__n">
+                            <b>{q.label}</b>
+                            <small>
+                              {q.priced_at ? `Priced ${q.priced_at.slice(0, 10)}` : 'Not priced'}
+                              {q.note ? ` · ${q.note}` : ''}
+                            </small>
+                          </span>
+                          <span className="fxopt__p">{money(Number(q.price ?? 0))}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </>
+            )}
           </>
         )}
       </section>

@@ -8976,9 +8976,62 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
      fence post in the neighbour's yard. Everything that changes the line is
      full width and at least 44px tall. */
   .fxacts{grid-template-columns:1fr 1fr}
-  .fxacts button{min-height:44px}
-  .fxseg button{min-height:44px}
-  .fxtable th:nth-child(3), .fxtable td:nth-child(3){display:none}
+  .fxacts button, .fxseg button{min-height:44px}
+  /* 44px is the floor for anything a thumb presses. The steppers and the zoom
+     pair were 38 and 36 -- measured at 390px, not eyeballed. */
+  .fxzoom button, .fxstep button{min-height:44px; min-width:44px}
+  .fxsaved .lnk{min-height:44px}
+  .fxgateacts .btn, .fxquote .btn{min-height:44px; width:100%}
+  /* The MEASURE table drops its grade column on a phone. Scoped to that table:
+     as `.fxtable` it also hid the third column of the bill, which was the
+     quantity -- a bill of quantities with the quantities missing. Found by
+     rendering it at 390, not by reading the rule. */
+  .fxmeasure th:nth-child(3), .fxmeasure td:nth-child(3){display:none}
 }
 .fjsec__go{color:inherit; text-decoration:none; border-bottom:2px solid var(--amber)}
 .fjsec__go:hover{color:var(--steel-ink)}
+
+/* ------------------------------------------------------- the estimator's price */
+.fxprice{
+  display:grid; gap:14px; padding:16px; margin-bottom:14px;
+  border:1px solid var(--rule); background:var(--surface);
+  box-shadow:inset 4px 0 0 var(--amber)}
+.fxprice__big b{display:block; font-size:38px; font-weight:800; letter-spacing:-.035em;
+  line-height:1}
+.fxprice__big span{display:block; margin-top:6px; font-size:13px; color:var(--ink-2)}
+.fxprice__big span b{display:inline; font-size:inherit; font-weight:800}
+.fxthin{color:var(--bad)}
+.fxfloor{display:flex; flex-direction:column; gap:4px}
+.fxfloor small{font-size:12px; color:var(--ink-3)}
+.fxfloor.is-thin small{color:var(--bad)}
+.fxbill td small{display:block; font-size:11.5px; color:var(--ink-3); margin-top:2px}
+.fxbill .fxcode{font-family:var(--mono); font-size:12px; white-space:nowrap}
+.fxbill tr.is-gap{background:var(--warmbg)}
+.fxbill tr:last-child td{border-bottom:2px solid var(--ink)}
+.fxquote{margin-top:16px; padding:14px; border:1px solid var(--rule); background:var(--sunken)}
+.fxopts{list-style:none; margin:0; padding:0; border:1px solid var(--rule);
+  background:var(--surface)}
+.fxopt{display:flex; align-items:center; gap:14px; padding:11px 13px}
+.fxopt + .fxopt{border-top:1px solid var(--rule-soft)}
+.fxopt__n{flex:1 1 auto; min-width:0}
+.fxopt__n b{display:block; font-size:13.5px}
+.fxopt__n small{display:block; font-size:11.5px; color:var(--ink-3); margin-top:2px}
+.fxopt__p{font-family:var(--mono); font-size:15px; font-weight:700}
+
+@media (min-width:641px){
+  .fxprice{grid-template-columns:minmax(0,1fr) auto; align-items:center}
+  .fxfloor{align-items:flex-end; text-align:right}
+}
+@media (max-width:640px){
+  /* The bill loses its two unit columns rather than scrolling sideways. A table
+     that scrolls with no sign that it scrolls is a table with hidden columns and
+     no way to know it -- and on this screen the quantity and what the line comes
+     to are the two figures that matter. The unit prices are on the rate book. */
+  .fxbill .fxunit{display:none}
+  /* And the code and the rule behind each line go too. A code is trade
+     shorthand for whoever keys the job — that is the billing handoff, not this
+     screen — and the note explaining why a foot wants 1.2 ties is a sentence
+     that turns a bill row into five lines on a phone. What, how many, how much. */
+  .fxbill .fxcode, .fxbill thead th:first-child{display:none}
+  .fxbill td small{display:none}
+}

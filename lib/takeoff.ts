@@ -156,3 +156,22 @@ export async function loadMeasure(accountId: string, jobId: string) {
     sums: takeoff(runRows, gateRows, spec),
   }
 }
+
+/**
+ * The trade rules for this account — what a foot of fence is made of.
+ *
+ * Here rather than in lib/price.ts so that the pricer stays a pure function over
+ * values, with no database client in it and nothing to stub when it is checked.
+ */
+export type Recipe = {
+  cls: string; spec_code: string | null; rate_code: string
+  per: string; qty: number; waste: boolean; note: string | null; sort: number
+}
+
+export async function loadRecipe(accountId: string): Promise<Recipe[]> {
+  const { data } = await supabaseServer().schema('hopper').from('fence_recipe')
+    .select('cls, spec_code, rate_code, per, qty, waste, note, sort')
+    .eq('account_id', accountId).eq('active', true)
+    .order('sort')
+  return ((data ?? []) as any[]).map((r) => ({ ...r, qty: Number(r.qty) })) as Recipe[]
+}

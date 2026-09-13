@@ -5,6 +5,9 @@ import { supabaseServer } from '@/lib/supabase/server'
 import { currentSession } from '@/lib/tenant'
 import { logAudit } from '@/lib/audit'
 import type { Result } from '@/app/actions/admin'
+import { loadMeasure, loadRecipe } from '@/lib/takeoff'
+import { priceIt } from '@/lib/price'
+import { loadRates, loadRights } from '@/lib/fence'
 
 /**
  * Fence Builder's reference data, as writes.
@@ -498,4 +501,121 @@ export async function setGates(_p: Result | null, form: FormData): Promise<Resul
   })
   revalidatePath(`/fence/${job}`); revalidatePath(`/fence/${job}/estimate`)
   return { ok: true, message: 'Saved.' }
+}
+
+// ------------------------------------------------------------ onto the quote
+/**
+ * Freeze this estimate as an option somebody can be shown.
+ *
+ * The price is RECOMPUTED here, from the runs and gates in the database, using
+ * the book as it stands this second. Nothing about the figure comes from the
+ * form: a posted total is a total the browser chose, and the browser is not
+ * where prices are decided.
+ *
+ * What gets frozen is the whole argument, not just the answer — the measure, the
+ * quantities and the sell lines go onto the option where anybody on the job can
+ * read them, and the cost side goes into `fence_option_cost` behind the cost
+ * policy. A year from now the book will have moved and this quote will still
+ * explain itself.
+ */
+export async function putOnQuote(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const job = str(form, 'job_id')
+  if (!job) return { ok: false, message: 'No job.' }
+
+  const [m, recipe, book, rights] = await Promise.all([
+    loadMeasure(account, job),
+    loadRecipe(account),
+    loadRates(account),
+    loadRights(account),
+  ])
+  if (!m.job) return { ok: false, message: 'That job is not here.' }
+  if (m.sums.fenceFt <= 0) {
+    return { ok: false, message: 'Nothing is measured yet, so there is nothing to price.' }
+  }
+  if (!m.spec) return { ok: false, message: 'Choose a fence type first — the price comes off the spec.' }
+
+  const priced = priceIt({
+    takeoff: m.sums, gates: m.gates, spec: m.spec, recipe,
+    rates: book.rates, wastePct: m.wastePct, seesCost: rights.mayReadCosts,
+  })
+  if (priced.sell <= 0) {
+    return { ok: false, message: 'The book priced this at nothing. Fix the gaps before quoting it.' }
+  }
+
+  const label = str(form, 'label')
+    || `${m.spec.name_en} · ${Math.round(m.sums.fenceFt).toLocaleString('en-US')} ft`
+  const belowFloor = priced.margin != null && priced.margin < m.marginFloor
+
+  const { data: option, error } = await db.schema('hopper').from('fence_option').insert({
+    account_id: account, job_id: job,
+    label: label.slice(0, 80),
+    spec_code: m.spec.code,
+    price: priced.sell,
+    priced_at: new Date().toISOString(),
+    note: belowFloor
+      ? `Below the ${m.marginFloor}% margin floor at ${priced.margin}%. Needs releasing.`
+      : nul(form, 'note'),
+    // Quantities and sell, never cost. This is the half everybody on the job may
+    // read, and it is the half that answers "where did 104 line posts come from".
+    takeoff: {
+      priced_on: new Date().toISOString().slice(0, 10),
+      spec: m.spec.code, cls: m.job.cls,
+      waste_pct: m.wastePct,
+      measure: {
+        plan_ft: Math.round(m.sums.planFt * 10) / 10,
+        slope_ft: Math.round(m.sums.slopeFt * 10) / 10,
+        opening_ft: Math.round(m.sums.openingFt * 10) / 10,
+        fence_ft: Math.round(m.sums.fenceFt * 10) / 10,
+        line_posts: m.sums.linePosts,
+        terminal_posts: m.sums.terminalPosts,
+        corner_posts: m.sums.cornerPosts,
+        runs: m.sums.runs,
+      },
+      lines: priced.lines.map((l) => ({
+        code: l.code, name: l.name, uom: l.uom, per: l.per,
+        qty: l.qty, sell: l.sell, extended: l.extended, gap: l.gap,
+      })),
+      sell: priced.sell,
+      per_foot: priced.perFoot,
+      gaps: priced.gaps,
+      below_floor: belowFloor,
+    },
+  }).select('id, label').single()
+
+  if (error) return { ok: false, message: refused(error.message, 'estimate') }
+  if (!option) return { ok: false, message: 'Nothing was saved. The estimate is either sealed or not yours to edit.' }
+
+  // The cost side, when this person may see it at all. A quote frozen by
+  // somebody who cannot read costs freezes no costs -- which is correct and
+  // worth knowing, so it is said rather than left to be discovered.
+  if (priced.cost != null) {
+    await db.schema('hopper').from('fence_option_cost').insert({
+      account_id: account, option_id: (option as any).id,
+      detail: {
+        cost: priced.cost, margin: priced.margin,
+        lines: priced.lines.map((l) => ({ code: l.code, qty: l.qty, cost: l.cost,
+                                          extended_cost: l.extendedCost })),
+      },
+    })
+  }
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object: (option as any).label, object_id: job,
+    summary: `Priced ${m.job.ref} at $${priced.sell.toLocaleString('en-US')}`
+      + ` over ${Math.round(m.sums.fenceFt)} ft`
+      + (belowFloor ? `, below the ${m.marginFloor}% floor` : ''),
+    payload: { fence_ft: Math.round(m.sums.fenceFt), sell: priced.sell,
+               below_floor: belowFloor, gaps: priced.gaps.length },
+  })
+
+  revalidatePath(`/fence/${job}`); revalidatePath(`/fence/${job}/estimate`)
+  return {
+    ok: true,
+    message: priced.cost == null
+      ? `On the quote at $${priced.sell.toLocaleString('en-US')}. The cost side was not frozen with it, because costs are not shown to you.`
+      : belowFloor
+        ? `On the quote at $${priced.sell.toLocaleString('en-US')} — ${priced.margin}%, under the ${m.marginFloor}% floor. It is marked as needing a release.`
+        : `On the quote at $${priced.sell.toLocaleString('en-US')}.`,
+  }
 }
