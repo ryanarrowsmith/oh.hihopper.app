@@ -63,7 +63,16 @@ export type Job = {
   created_at: string
 }
 
+export type Location = {
+  id: string; name: string | null; customer: string | null
+  line1: string; line2: string | null; city: string | null; region: string | null
+  postcode: string | null; lat: number | null; lon: number | null
+  navusoft_account: string | null; note: string | null
+}
+
 export type Task = {
+  /** What has to exist before it may be called done. Null on most of them. */
+  needs?: string | null
   id: string
   section: Section
   en: string
@@ -149,22 +158,32 @@ export async function loadJob(accountId: string, id: string) {
   const db = supabaseServer()
   const { data: job } = await db.schema('hopper')
     .from('fence_job')
-    .select('id, ref, name, customer, site_address, cls, stage, reached, crew, starts_on, complete, created_at')
+    .select('id, ref, name, customer, site_address, cls, stage, reached, crew, starts_on,'
+      + ' complete, created_at, location_id, navusoft_sent, navusoft_sent_at')
     .eq('account_id', accountId).eq('id', id).maybeSingle()
   if (!job) return null
 
-  const [{ data: tasks }, { data: seals }] = await Promise.all([
+  const [{ data: tasks }, { data: seals }, { data: place }] = await Promise.all([
     db.schema('hopper').from('fence_task')
-      .select('id, section, en, es, due_on, done, from_plan')
+      .select('id, section, en, es, due_on, done, from_plan, needs')
       .eq('job_id', id).order('due_on', { ascending: true }).order('sort', { ascending: true }),
     db.schema('hopper').from('fence_seal')
       .select('section, sealed_at').eq('job_id', id),
+    // Where the work happens, and what it bills under. A job with no location
+    // record yet falls back to its own typed address.
+    (job as any).location_id
+      ? db.schema('hopper').from('fence_location')
+          .select('id, name, customer, line1, line2, city, region, postcode, lat, lon,'
+            + ' navusoft_account, note')
+          .eq('account_id', accountId).eq('id', (job as any).location_id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ])
 
   return {
-    job: job as Job,
+    job: job as unknown as Job,
     tasks: (tasks ?? []) as Task[],
     seals: (seals ?? []) as Seal[],
+    place: (place ?? null) as unknown as Location | null,
   }
 }
 

@@ -6,6 +6,8 @@ import {
   type Section,
 } from '@/lib/fence'
 import { FenceMark } from '@/components/FenceMark'
+import FenceTasks from '@/components/FenceTasks'
+import { handToPm } from '@/app/actions/fence'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,7 +31,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const loaded = await loadJob(session.accountId, id)
   if (!loaded) notFound()
 
-  const { job, tasks, seals } = loaded
+  const { job, tasks, seals, place } = loaded
   const [{ jobRole }, rights] = await Promise.all([
     fenceStance(session.accountId),
     loadRights(session.accountId),
@@ -116,17 +118,29 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                   </div>
 
                   {secTasks.length > 0 && (
-                    <ul className="fjtasks">
-                      {secTasks.map((t) => (
-                        <li key={t.id} className={t.done ? 'fjtask fjtask--done' : 'fjtask'}>
-                          <span className="fjtask__box" aria-hidden="true" />
-                          <span className="fjtask__t">
-                            <b>{t.en}</b>
-                            {t.due_on && <em>Due {t.due_on}</em>}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                    <FenceTasks jobId={job.id} tasks={secTasks} mayEdit={how === 'edit'}
+                                navusoft={place?.navusoft_account ?? null}
+                                hasPlace={!!place} />
+                  )}
+
+                  {/* Sales sends it forward from the section it owns. The seal
+                      and the project manager's task list are one act, so they are
+                      one button. */}
+                  {sec === 'estimate' && how === 'edit' && !sealed.has('estimate') && (
+                    <form className="fjhand" action={async (f: FormData) => {
+                      'use server'
+                      await handToPm(null, f)
+                    }}>
+                      <input type="hidden" name="job_id" value={job.id} />
+                      <button className="btn btn--amber" type="submit">
+                        Send it to the project manager
+                      </button>
+                      <small>
+                        Seals the estimate — nothing changes it afterwards, not even an
+                        administrator — and opens the project manager&rsquo;s tasks, starting with
+                        the Navusoft account.
+                      </small>
+                    </form>
                   )}
 
                   {how === 'sealed' && (

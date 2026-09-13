@@ -963,3 +963,205 @@ export async function aiDraftSow(_p: Result | null, form: FormData): Promise<Res
         + `takeoff owns the numbers, and nobody but you owns the judgement.`,
   }
 }
+
+// ------------------------------------------------ sales sends it forward
+/**
+ * The handoff: sales finishes, and the project manager's work appears.
+ *
+ * Two things happen and they belong together. The estimate is SEALED — the sales
+ * portion locks here, which is the module's oldest rule and the reason a seal
+ * beats an administrator. And the task plan is kicked off: every standing step
+ * from `fence_task_plan` becomes a real task on this job.
+ *
+ * The plan is copied, not referenced. A job's tasks are what the plan said when
+ * the job was handed over; editing the plan next month changes the next job, not
+ * this one. Somebody halfway through a build does not get new homework because
+ * head office reworded a checklist.
+ *
+ * Idempotent on the tasks: a second press adds nothing, because the seal is what
+ * says the handoff happened and the plan rows are matched on what they say.
+ */
+export async function handToPm(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const job = str(form, 'job_id')
+  if (!job) return { ok: false, message: 'No job.' }
+
+  const [{ data: row }, { data: plan }, { data: already }] = await Promise.all([
+    db.schema('hopper').from('fence_job').select('id, ref, stage, reached')
+      .eq('account_id', account).eq('id', job).maybeSingle(),
+    db.schema('hopper').from('fence_task_plan')
+      .select('section, en, es, needs, due_days, sort')
+      .eq('account_id', account).eq('active', true).order('sort'),
+    db.schema('hopper').from('fence_task').select('section, en')
+      .eq('account_id', account).eq('job_id', job),
+  ])
+  if (!row) return { ok: false, message: 'That job is not here.' }
+
+  const { data: option } = await db.schema('hopper').from('fence_option')
+    .select('id').eq('account_id', account).eq('job_id', job).limit(1)
+  if (!option?.length) {
+    return { ok: false, message: 'Nothing has been put on the quote yet, so there is nothing to hand over.' }
+  }
+
+  // The seal first. If this is refused, the plan must not be kicked off — a job
+  // with a project manager's task list and an unsealed estimate is a job where
+  // sales can still move the price under somebody.
+  const { error: sealed } = await db.schema('hopper').from('fence_seal').upsert({
+    account_id: account, job_id: job, section: 'estimate',
+    sealed_at: new Date().toISOString(),
+    // The unique constraint is (job_id, section) — the account is implied by the
+    // job, and naming a column the index does not carry makes the upsert a plain
+    // insert that fails the second time.
+  }, { onConflict: 'job_id,section' })
+  if (sealed) return { ok: false, message: refused(sealed.message, 'estimate') }
+
+  const have = new Set(((already ?? []) as any[]).map((t) => `${t.section}|${t.en}`))
+  const today = new Date()
+  const rows = ((plan ?? []) as any[])
+    .filter((p) => !have.has(`${p.section}|${p.en}`))
+    .map((p) => ({
+      account_id: account, job_id: job, section: p.section,
+      en: p.en, es: p.es, needs: p.needs ?? null,
+      due_on: p.due_days == null ? null
+        : new Date(today.getTime() + p.due_days * 86_400_000).toISOString().slice(0, 10),
+      from_plan: true, sort: p.sort, done: false,
+    }))
+
+  if (rows.length) {
+    const { error } = await db.schema('hopper').from('fence_task').insert(rows)
+    if (error) return { ok: false, message: refused(error.message, 'task plan') }
+  }
+
+  await db.schema('hopper').from('fence_job')
+    .update({ stage: 'survey', reached: 'survey' })
+    .eq('account_id', account).eq('id', job)
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object: (row as any).ref, object_id: job,
+    summary: `Handed ${(row as any).ref} to the project manager`
+      + `, sealing the estimate and opening ${rows.length} tasks`,
+  })
+  revalidatePath(`/fence/${job}`); revalidatePath('/fence')
+  return {
+    ok: true,
+    message: rows.length
+      ? `Sealed and handed over. ${rows.length} tasks are open, starting with the Navusoft account.`
+      : 'Sealed and handed over. The task plan had nothing new to add.',
+  }
+}
+
+/**
+ * Tick a task, or untick it.
+ *
+ * A task that NEEDS something cannot be ticked until that something exists. The
+ * only one so far is the Navusoft account, and it is the one that matters: a
+ * checkbox claiming an account was created, with no account number beside it, is
+ * a checkbox somebody ticks on the way past — and this one gates billing.
+ */
+export async function setTaskDone(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const session = await currentSession()
+  const id = str(form, 'task_id')
+  const done = str(form, 'done') === 'true'
+  if (!id) return { ok: false, message: 'No task.' }
+
+  const { data: task } = await db.schema('hopper').from('fence_task')
+    .select('id, job_id, en, needs').eq('account_id', account).eq('id', id).maybeSingle()
+  if (!task) return { ok: false, message: 'That task is not here.' }
+
+  if (done && (task as any).needs === 'navusoft_account') {
+    const { data: job } = await db.schema('hopper').from('fence_job')
+      .select('location_id').eq('account_id', account).eq('id', (task as any).job_id).maybeSingle()
+    const { data: place } = (job as any)?.location_id
+      ? await db.schema('hopper').from('fence_location').select('navusoft_account')
+          .eq('account_id', account).eq('id', (job as any).location_id).maybeSingle()
+      : { data: null }
+    if (!String((place as any)?.navusoft_account ?? '').trim()) {
+      return {
+        ok: false,
+        message: 'Put the Navusoft account number in first. This task is that number — '
+          + 'ticking it without one is a claim nobody can check.',
+      }
+    }
+  }
+
+  const { data, error } = await db.schema('hopper').from('fence_task')
+    .update({
+      done,
+      done_by: done ? (session?.personId ?? null) : null,
+      done_at: done ? new Date().toISOString() : null,
+    })
+    .eq('account_id', account).eq('id', id).select('id').maybeSingle()
+
+  if (error) return { ok: false, message: refused(error.message, 'task') }
+  if (!data) return { ok: false, message: 'That section is either sealed or not yours to edit.' }
+
+  revalidatePath(`/fence/${(task as any).job_id}`)
+  return { ok: true, message: done ? 'Done.' : 'Put back.' }
+}
+
+/**
+ * The Navusoft account number, against the PLACE rather than the job.
+ *
+ * It belongs to the address: the same yard billed twice is the same account, and
+ * a number typed per job is a number that drifts between two jobs at one site.
+ * A job with no location record yet gets one made from the address it was typed
+ * with — which is the migration path off the free-text field, done one job at a
+ * time by the person who is standing there anyway.
+ */
+export async function setNavusoftAccount(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const job = str(form, 'job_id')
+  const number = str(form, 'navusoft_account')
+  if (!job) return { ok: false, message: 'No job.' }
+
+  const { data: row } = await db.schema('hopper').from('fence_job')
+    .select('id, ref, customer, site_address, lat, lon, entity_id, location_id')
+    .eq('account_id', account).eq('id', job).maybeSingle()
+  if (!row) return { ok: false, message: 'That job is not here.' }
+
+  let place = (row as any).location_id as string | null
+
+  if (!place) {
+    const line1 = String((row as any).site_address ?? '').trim()
+    if (!line1) {
+      return { ok: false, message: 'This job has no address yet, and the account number belongs to the address.' }
+    }
+    // One location per address per account, enforced by a unique index rather
+    // than by looking first — two people typing at once is exactly when a
+    // look-first check fails.
+    const { data: made, error } = await db.schema('hopper').from('fence_location')
+      .upsert({
+        account_id: account, entity_id: (row as any).entity_id,
+        customer: (row as any).customer, line1,
+        lat: (row as any).lat, lon: (row as any).lon,
+        navusoft_account: number || null,
+      }, { onConflict: 'account_id,addr_key' })
+      .select('id').maybeSingle()
+    if (error) return { ok: false, message: refused(error.message, 'location') }
+    place = (made as any)?.id ?? null
+    if (place) {
+      await db.schema('hopper').from('fence_job')
+        .update({ location_id: place }).eq('account_id', account).eq('id', job)
+    }
+  } else {
+    const { error } = await db.schema('hopper').from('fence_location')
+      .update({ navusoft_account: number || null })
+      .eq('account_id', account).eq('id', place)
+    if (error) return { ok: false, message: refused(error.message, 'location') }
+  }
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object: (row as any).ref, object_id: job,
+    summary: number
+      ? `Set the Navusoft account for ${(row as any).site_address ?? 'the site'}`
+      : `Cleared the Navusoft account for ${(row as any).site_address ?? 'the site'}`,
+  })
+  revalidatePath(`/fence/${job}`)
+  return {
+    ok: true,
+    message: number
+      ? 'Saved against the address, so every job at this site bills under it.'
+      : 'Cleared.',
+  }
+}
