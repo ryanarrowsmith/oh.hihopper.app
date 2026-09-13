@@ -1,4 +1,5 @@
 'use client'
+import { SPINE } from '@/lib/sow'
 import { useState } from 'react'
 import type { CrewTicket } from '@/lib/crew'
 
@@ -40,11 +41,29 @@ export default function CrewTabs({ ticket, labels }: { ticket: CrewTicket; label
       <div className="ck__body">
         {tab === 'sow' && (
           <>
-            <p className="ck__sow">
-              {(es ? ticket.sow?.es : ticket.sow?.en) ??
-                (es ? 'El alcance del trabajo aún no se ha enviado.'
-                    : 'The scope of work has not been sent yet.')}
-            </p>
+            {/* The fixed spine, so the same thing is always in the same place —
+                a crew looking for what is buried does not read from the top. */}
+            {ticket.sow?.parts.length ? (
+              <>
+                {!ticket.sow.signed && (
+                  <p className="ck__draft">
+                    {es ? 'Borrador — nadie lo ha firmado todavía.'
+                        : 'Draft — nobody has signed it yet.'}
+                  </p>
+                )}
+                {ticket.sow.parts.map((p) => (
+                  <section className="ck__part" key={p.key}>
+                    <h3>{SPINE.find((s) => s.key === p.key)?.[es ? 'es' : 'en'] ?? p.key}</h3>
+                    <p>{p.text}</p>
+                  </section>
+                ))}
+              </>
+            ) : (
+              <p className="ck__sow">
+                {es ? 'El alcance del trabajo aún no se ha enviado.'
+                    : 'The scope of work has not been sent yet.'}
+              </p>
+            )}
             <p className="ck__warn">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                 <path d="M8 1.9l6.2 11H1.8z" /><path d="M8 6.3v3.1M8 11.2v.2" />

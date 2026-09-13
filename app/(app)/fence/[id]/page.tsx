@@ -94,8 +94,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                         The estimate is the first; the others follow as they are
                         built, and a heading that is not a link is a heading with
                         nothing to open yet rather than a dead one. */}
-                    <h3>{sec === 'estimate'
-                      ? <a className="fjsec__go" href={`/fence/${job.id}/estimate`}>{word.en}</a>
+                    <h3>{sec === 'estimate' || sec === 'sow'
+                      ? <a className="fjsec__go"
+                           href={`/fence/${job.id}/${sec === 'sow' ? 'sow' : 'estimate'}`}>
+                          {word.en}</a>
                       : word.en}</h3>
                     {how === 'sealed' && (
                       <FenceMark kind="sealed" title="Sealed at handoff — a revision supersedes it">

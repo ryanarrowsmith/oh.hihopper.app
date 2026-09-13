@@ -8,6 +8,7 @@ import type { Result } from '@/app/actions/admin'
 import { loadMeasure, loadRecipe } from '@/lib/takeoff'
 import { priceIt } from '@/lib/price'
 import { loadRates, loadRights } from '@/lib/fence'
+import { SPINE, draft, spineOf, type Part } from '@/lib/sow'
 
 /**
  * Fence Builder's reference data, as writes.
@@ -662,4 +663,168 @@ export async function releaseOption(_p: Result | null, form: FormData): Promise<
   revalidatePath(`/fence/${(row as any).job_id}`)
   revalidatePath(`/fence/${(row as any).job_id}/estimate`)
   return { ok: true, message: 'Released. It can go to the customer.' }
+}
+
+// ------------------------------------------------------------- scope of work
+/** The spine, and nothing else. A key the app did not write is not a heading. */
+function partsFrom(form: FormData, lang: 'en' | 'es'): Part[] {
+  return SPINE.map((s) => ({
+    key: s.key,
+    text: (form.get(`part_${lang}_${s.key}`) ?? '').toString()
+      .replace(/\r\n/g, '\n').trim().slice(0, 8000),
+  }))
+}
+
+const sameParts = (a: Part[], b: Part[]) =>
+  a.length === b.length && a.every((p, i) => p.key === b[i].key && p.text === b[i].text)
+
+/**
+ * Write the scope — both languages, one act.
+ *
+ * ONE FORM, BECAUSE THE JOB IS A COMPARISON. Somebody making the Spanish true
+ * reads one part against the other, so the screen puts them on the same row and
+ * this saves them together. Two forms would have meant two Save buttons and two
+ * columns that drift out of line the moment one side runs longer.
+ *
+ * EACH SIDE IS STAMPED ONLY IF IT CHANGED, which is what keeps the staleness
+ * check honest: written_en later than written_es means the English moved and the
+ * Spanish did not, and a crew reading the Spanish is reading the older of the
+ * two. Saving both at once must not paper over that.
+ *
+ * A SIGNATURE DOES NOT SURVIVE AN EDIT. Somebody bilingual signs to say a crew
+ * can build from these words; change the words and the signature is about words
+ * that are no longer there. Saving without changing anything leaves it alone —
+ * pressing Save to check it saved should not unsign a scope.
+ */
+export async function saveSow(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const job = str(form, 'job_id')
+  if (!job) return { ok: false, message: 'No job.' }
+
+  const { data: had } = await db.schema('hopper').from('fence_sow')
+    .select('id, parts_en, parts_es, signed_at')
+    .eq('account_id', account).eq('job_id', job).maybeSingle()
+
+  const nextEn = partsFrom(form, 'en'), nextEs = partsFrom(form, 'es')
+  const movedEn = !sameParts(spineOf(((had as any)?.parts_en ?? []) as Part[]), nextEn)
+  const movedEs = !sameParts(spineOf(((had as any)?.parts_es ?? []) as Part[]), nextEs)
+  if (!movedEn && !movedEs) return { ok: true, message: 'Nothing had changed.' }
+
+  const now = new Date().toISOString()
+  const patch: Record<string, unknown> = { account_id: account, job_id: job }
+  if (movedEn) { patch.parts_en = nextEn; patch.written_en = now }
+  if (movedEs) { patch.parts_es = nextEs; patch.written_es = now }
+  if ((had as any)?.signed_at) { patch.signed_at = null; patch.signed_by = null }
+
+  const { data, error } = (had as any)?.id
+    ? await db.schema('hopper').from('fence_sow').update(patch)
+        .eq('account_id', account).eq('id', (had as any).id).select('id').maybeSingle()
+    : await db.schema('hopper').from('fence_sow').insert(patch).select('id').maybeSingle()
+
+  if (error) return { ok: false, message: refused(error.message, 'scope of work') }
+  if (!data) return { ok: false, message: 'Nothing was saved. The scope is either sealed or not yours to edit.' }
+
+  const which = movedEn && movedEs ? 'both languages' : movedEn ? 'the English' : 'the Spanish'
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object_id: job,
+    summary: `Wrote ${which} of the scope of work`,
+  })
+  revalidatePath(`/fence/${job}/sow`); revalidatePath(`/fence/${job}`)
+  return {
+    ok: true,
+    message: (had as any)?.signed_at
+      ? `Saved ${which}. The signature is cleared, because it was for the words that were there before.`
+      : `Saved ${which}.`,
+  }
+}
+
+/**
+ * A first draft, from the job's own figures.
+ *
+ * It REPLACES the language it drafts, which is why the button says so. There is
+ * no merge that would not be a guess about which half of a sentence was the
+ * person's.
+ */
+export async function draftSow(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const job = str(form, 'job_id')
+  const lang = str(form, 'lang') === 'es' ? 'es' : 'en'
+  if (!job) return { ok: false, message: 'No job.' }
+
+  const [m, { data: terms }, { data: had }] = await Promise.all([
+    loadMeasure(account, job),
+    db.schema('hopper').from('fence_glossary').select('en, es').eq('account_id', account),
+    db.schema('hopper').from('fence_sow').select('id, signed_at')
+      .eq('account_id', account).eq('job_id', job).maybeSingle(),
+  ])
+  if (!m.job) return { ok: false, message: 'That job is not here.' }
+  if (m.sums.fenceFt <= 0) {
+    return { ok: false, message: 'Nothing is measured yet, so a draft would be a page of blanks.' }
+  }
+
+  const parts = draft({
+    job: m.job, spec: m.spec, takeoff: m.sums, gates: m.gates,
+    glossary: ((terms ?? []) as any[]).map((t) => ({ en: t.en, es: t.es })),
+  }, lang)
+
+  const now = new Date().toISOString()
+  const patch: Record<string, unknown> = {
+    account_id: account, job_id: job, drafted_at: now,
+    [lang === 'es' ? 'parts_es' : 'parts_en']: parts,
+    [lang === 'es' ? 'written_es' : 'written_en']: now,
+  }
+  if ((had as any)?.signed_at) { patch.signed_at = null; patch.signed_by = null }
+
+  const { data, error } = (had as any)?.id
+    ? await db.schema('hopper').from('fence_sow').update(patch)
+        .eq('account_id', account).eq('id', (had as any).id).select('id').maybeSingle()
+    : await db.schema('hopper').from('fence_sow').insert(patch).select('id').maybeSingle()
+
+  if (error) return { ok: false, message: refused(error.message, 'scope of work') }
+  if (!data) return { ok: false, message: 'Nothing was saved. The scope is either sealed or not yours to edit.' }
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object_id: job,
+    summary: `Drafted the ${lang === 'es' ? 'Spanish' : 'English'} scope of work from the takeoff`,
+  })
+  revalidatePath(`/fence/${job}/sow`)
+  return { ok: true, message: 'Drafted from the measure. Every word of it is yours to change.' }
+}
+
+/**
+ * Sign it, meaning: a crew may build from these words.
+ *
+ * The signature is a person and a moment, and it belongs to the words that were
+ * there when it was made. Nothing here checks whether the signer reads Spanish —
+ * a database cannot know that, and pretending to check is worse than saying
+ * plainly on the screen what signing means.
+ */
+export async function signSow(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const session = await currentSession()
+  const job = str(form, 'job_id')
+  if (!job) return { ok: false, message: 'No job.' }
+
+  const { data: sow } = await db.schema('hopper').from('fence_sow')
+    .select('id, parts_en, parts_es').eq('account_id', account).eq('job_id', job).maybeSingle()
+  if (!sow) return { ok: false, message: 'There is no scope to sign yet.' }
+
+  const filled = (p: any) => Array.isArray(p) && p.some((x: any) => (x?.text ?? '').trim())
+  if (!filled((sow as any).parts_en) || !filled((sow as any).parts_es)) {
+    return { ok: false, message: 'Both languages have to be written before it can be signed.' }
+  }
+
+  const { data, error } = await db.schema('hopper').from('fence_sow')
+    .update({ signed_by: session?.userId ?? null, signed_at: new Date().toISOString() })
+    .eq('account_id', account).eq('id', (sow as any).id).select('id').maybeSingle()
+
+  if (error) return { ok: false, message: refused(error.message, 'scope of work') }
+  if (!data) return { ok: false, message: 'Nothing was saved. The scope is either sealed or not yours to edit.' }
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object_id: job,
+    summary: 'Signed the scope of work — a crew may build from it',
+  })
+  revalidatePath(`/fence/${job}/sow`); revalidatePath(`/fence/${job}`)
+  return { ok: true, message: 'Signed. The crew ticket can carry it.' }
 }

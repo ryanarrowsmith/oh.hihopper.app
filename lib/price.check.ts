@@ -25,8 +25,10 @@ import { priceIt } from '@/lib/price'
 const takeoff = { planFt: 1030, slopeFt: 1036, openingFt: 20, fenceFt: 1016,
   linePosts: 100, terminalPosts: 8, cornerPosts: 3, runs: [] } as any
 const gates = [
-  { id:'1', type_code:'G-VD-16', rate_code:'GATE-VD', qty:1, name:"16' double drive", width_ft:16, priced:true },
-  { id:'2', type_code:'G-WK-4', rate_code:'GATE-WK', qty:1, name:"4' walk gate", width_ft:4, priced:true },
+  { id:'1', type_code:'G-VD-16', rate_code:'GATE-VD', qty:1, name:"16' double drive",
+    name_es:null, width_ft:16, priced:true },
+  { id:'2', type_code:'G-WK-4', rate_code:'GATE-WK', qty:1, name:"4' walk gate",
+    name_es:null, width_ft:4, priced:true },
 ]
 const spec = { code:'CL-6-9-3', cls:'permanent', name_en:"6' chain link", name_es:null,
   height_ft:6, spacing_ft:10, note:null }

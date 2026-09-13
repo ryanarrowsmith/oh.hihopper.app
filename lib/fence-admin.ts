@@ -107,7 +107,7 @@ export async function loadFenceAdmin(accountId: string) {
       h().from('fence_billing_target').select('id, name, to_email, instructions, active')
         .eq('account_id', accountId).order('name'),
       // Only enough of the scope of work to answer "is this word in use".
-      h().from('fence_sow').select('body_en, body_es').eq('account_id', accountId),
+      h().from('fence_sow').select('parts_en, parts_es').eq('account_id', accountId),
       loadSettings(accountId),
       loadRights(accountId),
     ])
@@ -129,8 +129,10 @@ export async function loadFenceAdmin(accountId: string) {
     .filter((p) => p.active && !taken.has(p.id))
     .map((p) => ({ id: p.id, name: p.full_name as string }))
 
+  const flat = (parts: any) => (Array.isArray(parts) ? parts : [])
+    .map((p: any) => p?.text ?? '').join(' ')
   const written = ((sows.data ?? []) as any[])
-    .map((s) => `${s.body_en ?? ''}\n${s.body_es ?? ''}`.toLowerCase()).join('\n')
+    .map((s) => `${flat(s.parts_en)} ${flat(s.parts_es)}`.toLowerCase()).join('\n')
   const glossary: Term[] = ((terms.data ?? []) as any[]).map((t) => ({
     id: t.id, en: t.en, es: t.es, note: t.note,
     inUse: written.includes(t.en.toLowerCase()) || written.includes(t.es.toLowerCase()),

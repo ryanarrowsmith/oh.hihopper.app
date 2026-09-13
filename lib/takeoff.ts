@@ -31,7 +31,7 @@ export type RunRow = {
 
 export type GateRow = {
   id: string; type_code: string | null; rate_code: string | null; qty: number
-  name: string | null; width_ft: number | null; priced: boolean
+  name: string | null; name_es: string | null; width_ft: number | null; priced: boolean
 }
 
 export type Spec = {
@@ -48,7 +48,7 @@ export type Takeoff = {
   terminalPosts: number
   cornerPosts: number
   runs: { id: string; label: string; planFt: number; slopeFt: number
-          corners: number; drawn: boolean }[]
+          corners: number; drawn: boolean; closed: boolean }[]
 }
 
 /** One run's plan length: what was drawn, or what somebody measured. */
@@ -95,7 +95,9 @@ export function takeoff(runs: RunRow[], gates: GateRow[], spec: Spec | null): Ta
   return {
     planFt, slopeFt, openingFt, fenceFt,
     linePosts, terminalPosts, cornerPosts,
-    runs: each.map(({ closed, ...r }) => r),
+    // `closed` travels with the run: the scope of work says whether a line
+    // closes on itself, and a run that does has no ends to terminate.
+    runs: each,
   }
 }
 
@@ -131,6 +133,9 @@ export async function loadMeasure(accountId: string, jobId: string) {
       id: g.id, type_code: g.type_code, rate_code: g.rate_code ?? t?.rate_code ?? null,
       qty: Number(g.qty) || 0,
       name: t?.name_en ?? null,
+      // The Spanish name travels with the gate, because a crew ticket and a
+      // scope of work both need it and neither should be translating on the fly.
+      name_es: t?.name_es ?? null,
       width_ft: t?.width_ft == null ? null : Number(t.width_ft),
       // A gate the book cannot price is a gap to show, not one to swallow.
       priced: !!(g.rate_code ?? t?.rate_code),

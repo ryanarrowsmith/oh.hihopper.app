@@ -19,7 +19,11 @@ export type CrewTicket = {
     crew: string | null; starts_on: string | null
     lat: number | null; lon: number | null
   }
-  sow: { en: string | null; es: string | null } | null
+  /** The scope, in parts against the fixed spine, and whether anybody has signed
+   *  it. An unsigned scope still reaches the crew — a ticket that hides the words
+   *  until a signature arrives is a crew standing in a yard with nothing — but
+   *  the ticket says which it is. */
+  sow: { parts: { key: string; text: string }[]; signed: boolean } | null
   materials: { code: string; name_en: string; name_es: string | null; uom: string; qty: number }[]
   tools: { name_en: string; name_es: string | null; qty: number }[]
   tasks: { id: string; en: string; es: string | null; due_on: string | null; done: boolean }[]
@@ -47,7 +51,7 @@ export async function openTicket(token: string): Promise<CrewTicket | null> {
         .select('id, ref, name, customer, site_address, pin_note, crew, starts_on, lat, lon, account_id, spec_code, cls')
         .eq('id', jobId).maybeSingle(),
       db.schema('hopper').from('fence_sow')
-        .select('body_en, body_es').eq('job_id', jobId).maybeSingle(),
+        .select('parts_en, parts_es, signed_at').eq('job_id', jobId).maybeSingle(),
       db.schema('hopper').from('fence_run')
         .select('plan_ft, grade_pct').eq('job_id', jobId),
       db.schema('hopper').from('fence_gate')
@@ -109,15 +113,24 @@ export async function openTicket(token: string): Promise<CrewTicket | null> {
     ],
   }
 
+  const lang = (link.lang === 'en' ? 'en' : 'es') as Lang
+
   return {
-    lang: (link.lang === 'en' ? 'en' : 'es') as Lang,
+    lang,
     job: {
       id: (job as any).id, ref: (job as any).ref, name: (job as any).name,
       customer: (job as any).customer, site_address: (job as any).site_address,
       pin_note: (job as any).pin_note, crew: (job as any).crew,
       starts_on: (job as any).starts_on, lat: (job as any).lat, lon: (job as any).lon,
     },
-    sow: sow ? { en: (sow as any).body_en, es: (sow as any).body_es } : null,
+    // Their own language, chosen by the link, not both stacked on one screen.
+    sow: sow
+      ? {
+          parts: (((sow as any)[lang === 'es' ? 'parts_es' : 'parts_en'] ?? []) as any[])
+            .filter((p) => (p?.text ?? '').trim()),
+          signed: !!(sow as any).signed_at,
+        }
+      : null,
     materials,
     tools: TOOLS[(job as any).cls ?? 'permanent'] ?? TOOLS.permanent,
     tasks: (tasks ?? []) as CrewTicket['tasks'],

@@ -9046,3 +9046,66 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   .fxopt__go{flex:1 1 100%}
   .fxopt__go .btn{width:100%; min-height:44px}
 }
+
+/* --------------------------------------------------------- the scope of work
+   Own prefix (`sw`). One sheet, not two columns: the job on this screen is a
+   comparison — this part against that part — so the two languages share a row.
+   On a phone the row becomes a heading with the English under it and the Spanish
+   under that, which is the order somebody reads them in when there is only one
+   column. */
+.swsheet{border:1px solid var(--rule); background:var(--surface); margin-top:18px}
+.swsheet__h{
+  display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap;
+  padding:14px 16px; border-bottom:1px solid var(--rule); background:var(--sunken)}
+.swsheet__t{flex:1 1 260px}
+.swsheet__t h2{font-size:15px; font-weight:800; letter-spacing:-.01em}
+.swsheet__t p{font-size:12.5px; color:var(--ink-3); margin-top:4px; max-width:64ch}
+.swdrafts{display:flex; gap:8px; flex-wrap:wrap}
+.swform{padding:16px}
+.swrow{display:grid; gap:10px; padding:14px 0}
+.swrow + .swrow{border-top:1px solid var(--rule-soft)}
+.swrow--head{display:none}
+.swrow__k b{display:block; font-size:13.5px}
+.swrow__k i{display:block; font-style:normal; font-size:12.5px; color:var(--ink-3); margin-top:2px}
+.swrow__k small{display:block; font-size:11.5px; color:var(--ink-3); margin-top:6px; max-width:44ch}
+.swrow__k .fjmark{margin-top:4px}
+.swcell__l{
+  display:block; font-size:10.5px; font-weight:800; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ink-3); margin-bottom:4px}
+.swcell p{font-size:13.5px; color:var(--ink-2); line-height:1.55}
+.swtext{width:100%; resize:vertical; line-height:1.55; font-size:13.5px}
+.swhint{font-size:12px; color:var(--ink-3); margin-top:5px; max-width:56ch}
+.swchecks{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px}
+.swchecks > div{border:1px solid var(--rule); background:var(--surface); padding:12px 14px}
+.swchecks b{display:block; font-size:22px; font-weight:800; letter-spacing:-.02em; line-height:1.1}
+.swchecks span{display:block; font-size:12.5px; font-weight:700; margin-top:2px}
+.swchecks small{display:block; font-size:11.5px; color:var(--ink-3); margin-top:6px}
+.swchecks .is-bad{box-shadow:inset 3px 0 0 var(--bad)}
+.swsigned{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+.swsigned small{font-size:12.5px; color:var(--ink-3)}
+
+@media (min-width:901px){
+  .swrow{grid-template-columns:minmax(180px,1fr) minmax(0,1.5fr) minmax(0,1.5fr); gap:16px;
+    align-items:start}
+  .swrow--head{
+    display:grid; padding:0 0 8px; border-bottom:1px solid var(--rule);
+    font-size:10.5px; font-weight:800; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--ink-3)}
+  /* The per-box language label is for the stacked phone layout. Beside each
+     other they have a column head instead, and saying it twice is noise. */
+  .swcell__l{display:none}
+}
+@media (max-width:640px){
+  .swdrafts .btn, .swform .formgrid__go .btn, .swsign .formgrid__go .btn{
+    min-height:44px; width:100%}
+  .swdrafts{width:100%}
+  .swdrafts form{flex:1 1 100%}
+}
+
+/* The crew's own copy of the scope, on the ticket. */
+.ck__part + .ck__part{margin-top:18px}
+.ck__part h3{font-size:15px; font-weight:800; margin-bottom:6px}
+.ck__part p{font-size:15px; line-height:1.6}
+.ck__draft{
+  display:inline-block; font-size:13px; font-weight:700; padding:6px 10px; margin-bottom:14px;
+  background:var(--warmbg); border:1px solid var(--warmrule)}
