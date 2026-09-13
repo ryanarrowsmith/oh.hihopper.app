@@ -116,16 +116,25 @@ export function howToDraw(
   return mayManage ? 'edit' : 'read'
 }
 
-/** The open jobs, newest stage movement first. Complete ones are hidden. */
+/**
+ * The open jobs, newest first. Complete ones are hidden.
+ *
+ * The error comes back rather than being swallowed into an empty array. This
+ * screen said "No jobs yet" for ten minutes while the query was failing — a
+ * column had been renamed in the database before the code that reads it was
+ * deployed — and an empty list is the one answer that looks like everything is
+ * fine. A screen that cannot tell "nothing here" from "I could not ask" will
+ * always report the reassuring one.
+ */
 export async function loadJobs(accountId: string, complete = false) {
   const db = supabaseServer()
-  const { data } = await db.schema('hopper')
+  const { data, error } = await db.schema('hopper')
     .from('fence_job')
     .select('id, ref, name, customer, site_address, cls, stage, reached, crew, starts_on, complete, created_at')
     .eq('account_id', accountId)
     .eq('complete', complete)
     .order('created_at', { ascending: false })
-  return (data ?? []) as Job[]
+  return { jobs: (data ?? []) as Job[], error: error?.message ?? null }
 }
 
 export async function countComplete(accountId: string) {

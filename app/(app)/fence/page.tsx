@@ -23,7 +23,7 @@ export default async function Page({ searchParams }: {
 
   const { complete } = await searchParams
   const showingComplete = complete === '1'
-  const [jobs, done] = await Promise.all([
+  const [{ jobs, error }, done] = await Promise.all([
     loadJobs(session.accountId, showingComplete),
     countComplete(session.accountId),
   ])
@@ -54,7 +54,14 @@ export default async function Page({ searchParams }: {
         <Link className="btn btn--primary" href={'/fence/new' as any}>New estimate</Link>
       </div></div>
 
-      {jobs.length === 0 ? (
+      {/* "Nothing here" and "I could not ask" are different answers, and only one
+          of them is reassuring. Saying the wrong one is how a broken read looks
+          like a quiet Tuesday. */}
+      {error ? (
+        <section className="sec"><p className="note note--err">
+          <b>The jobs could not be read.</b> {error}
+        </p></section>
+      ) : jobs.length === 0 ? (
         <section className="sec"><p className="fjempty">
           No jobs yet. The rate book and the billing target are set up, so the first
           estimate has something to price against.
