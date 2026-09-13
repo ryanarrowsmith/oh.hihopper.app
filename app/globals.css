@@ -9109,3 +9109,5 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 .ck__draft{
   display:inline-block; font-size:13px; font-weight:700; padding:6px 10px; margin-bottom:14px;
   background:var(--warmbg); border:1px solid var(--warmrule)}
+.swby{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-top:14px}
+.swby small{font-size:12px; color:var(--ink-3)}

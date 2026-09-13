@@ -9,6 +9,9 @@ import { loadMeasure, loadRecipe } from '@/lib/takeoff'
 import { priceIt } from '@/lib/price'
 import { loadRates, loadRights } from '@/lib/fence'
 import { SPINE, draft, spineOf, type Part } from '@/lib/sow'
+import { aiReady, askClaude, firstJson, MODEL } from '@/lib/ai'
+import { factsFor, englishPrompt, spanishPrompt, figureCheck, mustKeepOf,
+         numbersEverywhere, SYSTEM } from '@/lib/sow-ai'
 
 /**
  * Fence Builder's reference data, as writes.
@@ -827,4 +830,136 @@ export async function signSow(_p: Result | null, form: FormData): Promise<Result
   })
   revalidatePath(`/fence/${job}/sow`); revalidatePath(`/fence/${job}`)
   return { ok: true, message: 'Signed. The crew ticket can carry it.' }
+}
+
+// ------------------------------------------------------- drafted by a model
+/**
+ * Ask Claude to write the scope.
+ *
+ * THE TAKEOFF OWNS THE NUMBERS AND THE MODEL OWNS THE SENTENCES. The facts go in
+ * as structured data — no prices, ever, built field by field so that adding a
+ * column to fence_job cannot quietly start sending it — and what comes back is
+ * checked against those facts before a word of it is stored. A figure in the
+ * prose that is in none of the facts REFUSES the draft: a hallucinated post
+ * spacing is a fence built wrong at the customer's expense, and a warning under
+ * a saved draft is a warning nobody reads.
+ *
+ * A dropped figure is only reported, because that is a judgement about what
+ * belongs in the prose and the project manager is the one making it.
+ *
+ * Spanish is written FROM THE ENGLISH, which is the one place in this module
+ * where a translation is a translation: the English is the document the business
+ * agreed to, the glossary pairs are handed over as the shop's own words, and the
+ * check on the screen then verifies both independently.
+ */
+export async function aiDraftSow(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const job = str(form, 'job_id')
+  const lang = str(form, 'lang') === 'es' ? 'es' : 'en'
+  if (!job) return { ok: false, message: 'No job.' }
+  if (!aiReady()) {
+    return { ok: false, message: 'No Anthropic key is set on this deployment, so nothing can be drafted by a model.' }
+  }
+
+  const [m, { data: terms }, { data: had }, { data: notes }] = await Promise.all([
+    loadMeasure(account, job),
+    db.schema('hopper').from('fence_glossary').select('en, es').eq('account_id', account),
+    db.schema('hopper').from('fence_sow')
+      .select('id, parts_en, parts_es, signed_at').eq('account_id', account)
+      .eq('job_id', job).maybeSingle(),
+    // What people have actually said about this job. The survey note is usually
+    // the difference between a template and a scope somebody can build from.
+    db.schema('hopper').from('fence_note').select('body, section, by_crew')
+      .eq('account_id', account).eq('job_id', job)
+      .order('created_at', { ascending: false }).limit(12),
+  ])
+  if (!m.job) return { ok: false, message: 'That job is not here.' }
+  if (m.sums.fenceFt <= 0) {
+    return { ok: false, message: 'Nothing is measured yet, so there are no facts to write from.' }
+  }
+
+  const glossary = ((terms ?? []) as any[]).map((t) => ({ en: t.en, es: t.es }))
+  const en = spineOf(((had as any)?.parts_en ?? []) as Part[])
+  if (lang === 'es' && !en.some((p) => p.text.trim())) {
+    return { ok: false, message: 'Write the English first — the Spanish is written from it.' }
+  }
+
+  const facts = factsFor({
+    job: m.job, spec: m.spec, takeoff: m.sums, gates: m.gates,
+    notes: ((notes ?? []) as any[]).map((n) => String(n.body ?? '').slice(0, 600)).filter(Boolean),
+  })
+
+  const said = await askClaude({
+    system: SYSTEM,
+    user: lang === 'es' ? spanishPrompt(facts, en, glossary) : englishPrompt(facts, en),
+    maxTokens: 2400,
+  })
+  if (!said.ok) return { ok: false, message: said.why }
+
+  const got = firstJson<Record<string, string>>(said.text)
+  if (!got) {
+    return { ok: false, message: 'The model did not answer in the shape it was asked for. Nothing was saved.' }
+  }
+
+  const parts: Part[] = SPINE.map((sp) => ({
+    key: sp.key, text: String(got[sp.key] ?? '').trim().slice(0, 8000),
+  }))
+  if (!parts.some((p) => p.text)) {
+    return { ok: false, message: 'The model came back with an empty scope. Nothing was saved.' }
+  }
+
+  // What it was allowed to know: the facts, plus whatever a person had already
+  // typed. For the Spanish, the English it is translating counts too.
+  const allowed = numbersEverywhere(facts).join(' ')
+    + ' ' + en.map((p) => p.text).join(' ')
+    + ' ' + spineOf(((had as any)?.parts_es ?? []) as Part[]).map((p) => p.text).join(' ')
+  const check = figureCheck({
+    allowed,
+    // What it must not lose is the measure and the gates. The job reference and
+    // the zip code are numbers too, and reporting those as "left out" is noise.
+    mustKeep: mustKeepOf(facts),
+    wrote: parts.map((p) => p.text).join(' '),
+  })
+
+  if (check.invented.length) {
+    return {
+      ok: false,
+      message: `Refused. The draft contains ${check.invented.length === 1 ? 'a figure' : 'figures'} `
+        + `that appear nowhere in this job — ${check.invented.join(', ')}. Nothing was saved. `
+        + `The takeoff owns the numbers, so a draft that adds one is thrown away rather than corrected.`,
+    }
+  }
+
+  const now = new Date().toISOString()
+  const patch: Record<string, unknown> = {
+    account_id: account, job_id: job, drafted_at: now, draft_model: said.model,
+    [lang === 'es' ? 'parts_es' : 'parts_en']: parts,
+    [lang === 'es' ? 'written_es' : 'written_en']: now,
+    [lang === 'es' ? 'drafted_es' : 'drafted_en']: 'claude',
+  }
+  if ((had as any)?.signed_at) { patch.signed_at = null; patch.signed_by = null }
+
+  const { data, error } = (had as any)?.id
+    ? await db.schema('hopper').from('fence_sow').update(patch)
+        .eq('account_id', account).eq('id', (had as any).id).select('id').maybeSingle()
+    : await db.schema('hopper').from('fence_sow').insert(patch).select('id').maybeSingle()
+
+  if (error) return { ok: false, message: refused(error.message, 'scope of work') }
+  if (!data) return { ok: false, message: 'Nothing was saved. The scope is either sealed or not yours to edit.' }
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object_id: job,
+    summary: `${said.model} drafted the ${lang === 'es' ? 'Spanish' : 'English'} scope of work`,
+    payload: { model: said.model, missing_figures: check.missing.length },
+  })
+  revalidatePath(`/fence/${job}/sow`)
+
+  return {
+    ok: true,
+    message: check.missing.length
+      ? `Drafted by ${said.model}. It left out ${check.missing.join(', ')} — figures the takeoff `
+        + `gave it. Put them back if they belong, then read it before signing.`
+      : `Drafted by ${said.model}. Read it before signing: a model writes the sentences, the `
+        + `takeoff owns the numbers, and nobody but you owns the judgement.`,
+  }
 }

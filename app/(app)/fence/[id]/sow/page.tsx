@@ -7,8 +7,9 @@ import { SPINE, spineOf, score, easeWord, heldTo, wordsIn, type Part } from '@/l
 import { FenceMark } from '@/components/FenceMark'
 import ActionForm from '@/components/ActionForm'
 import GrowText from '@/components/GrowText'
-import { saveSow, draftSow, signSow } from '@/app/actions/fence'
+import { saveSow, draftSow, signSow, aiDraftSow } from '@/app/actions/fence'
 import { LANG_NAME } from '@/lib/i18n'
+import { aiReady, MODEL } from '@/lib/ai'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,7 +39,8 @@ export default async function Sow({ params }: { params: { id: string } }) {
       db.schema('hopper').from('fence_job').select('id, ref, name, customer, cls, complete')
         .eq('account_id', session.accountId).eq('id', params.id).maybeSingle(),
       db.schema('hopper').from('fence_sow')
-        .select('parts_en, parts_es, written_en, written_es, drafted_at, signed_at, signed_by')
+        .select('parts_en, parts_es, written_en, written_es, drafted_at, signed_at, signed_by,'
+          + ' drafted_en, drafted_es, draft_model')
         .eq('account_id', session.accountId).eq('job_id', params.id).maybeSingle(),
       db.schema('hopper').from('fence_glossary').select('en, es')
         .eq('account_id', session.accountId).order('en'),
@@ -70,15 +72,21 @@ export default async function Sow({ params }: { params: { id: string } }) {
     && wordsIn(es) > 0)
   const signed = (sow as any)?.signed_at as string | null
 
-  const Draft = ({ lang, has }: { lang: 'en' | 'es'; has: boolean }) => (
+  const ai = aiReady()
+
+  const Draft = ({ lang, has, by }: {
+    lang: 'en' | 'es'; has: boolean; by: 'facts' | 'claude'
+  }) => (
     <form action={async (f: FormData) => {
       'use server'
-      await draftSow(null, f)
+      await (by === 'claude' ? aiDraftSow(null, f) : draftSow(null, f))
     }}>
       <input type="hidden" name="job_id" value={(job as any).id} />
       <input type="hidden" name="lang" value={lang} />
-      <button className="btn" type="submit">
-        {has ? `Draft the ${LANG_NAME[lang]} again` : `Draft the ${LANG_NAME[lang]}`}
+      <button className={by === 'claude' ? 'btn btn--amber' : 'btn'} type="submit">
+        {by === 'claude'
+          ? `Write the ${LANG_NAME[lang]} with Claude`
+          : has ? `Render the ${LANG_NAME[lang]} again` : `Render the ${LANG_NAME[lang]}`}
       </button>
     </form>
   )
@@ -109,9 +117,32 @@ export default async function Sow({ params }: { params: { id: string } }) {
 
       {!(sow as any)?.drafted_at && mayEdit && (
         <p className="note" style={{ marginTop: 16 }}>
-          <b>Nothing drafted yet.</b> A draft is rendered from the takeoff, the specification and
-          the gate list — the measurements in it come from the same figures that priced the job,
-          which is the part that must not be improvised. Every word of it is then yours.
+          <b>Nothing drafted yet.</b> Two things can write the first version.{' '}
+          <b>Render</b> turns the takeoff, the specification and the gate list into sentences and
+          cannot invent a figure.{' '}
+          {ai
+            ? <><b>Write with Claude</b> ({MODEL}) does the same job in better prose — the facts
+              go to the model as data, no prices among them, and any figure that comes back which
+              is in none of them throws the whole draft away rather than saving it with a warning
+              nobody reads.</>
+            : <>Writing it with a model is switched off here, because this deployment has no
+              Anthropic key.</>}
+          {' '}Either way, every word is then yours.
+        </p>
+      )}
+
+      {/* Who wrote this matters to somebody deciding how hard to read it before
+          they sign it. The row records it per language; the screen says it. */}
+      {((sow as any)?.drafted_en || (sow as any)?.drafted_es) && (
+        <p className="swby">
+          <FenceMark kind="read">
+            {[(sow as any).drafted_en && `English ${(sow as any).drafted_en === 'claude'
+              ? `drafted by ${(sow as any).draft_model ?? 'a model'}` : 'rendered from the takeoff'}`,
+              (sow as any).drafted_es && `Spanish ${(sow as any).drafted_es === 'claude'
+                ? `drafted by ${(sow as any).draft_model ?? 'a model'}` : 'rendered from the takeoff'}`,
+            ].filter(Boolean).join(' · ')}
+          </FenceMark>
+          <small>Then edited by hand, if anybody has. A draft is a starting point, not an answer.</small>
         </p>
       )}
 
@@ -128,8 +159,10 @@ export default async function Sow({ params }: { params: { id: string } }) {
           </div>
           {mayEdit && (
             <div className="swdrafts">
-              <Draft lang="en" has={wordsIn(en) > 0} />
-              <Draft lang="es" has={wordsIn(es) > 0} />
+              {ai && <Draft lang="en" has={wordsIn(en) > 0} by="claude" />}
+              {ai && <Draft lang="es" has={wordsIn(es) > 0} by="claude" />}
+              <Draft lang="en" has={wordsIn(en) > 0} by="facts" />
+              <Draft lang="es" has={wordsIn(es) > 0} by="facts" />
             </div>
           )}
         </header>
