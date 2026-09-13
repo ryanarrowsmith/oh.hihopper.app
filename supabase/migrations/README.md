@@ -94,3 +94,44 @@ right answer when you ask it, sitting next to a query that never asked.
 **0108** is `hopper.staff_stance(acct)` — one answer to "what am I here", so the
 pages do not each ask `access_grant` a question with its own policy. It decides
 what is OFFERED, never what is permitted.
+
+## 0109–0110 — Fence Builder, and the grant that was never taken back
+
+**0109** puts the module in: fifteen tables, and one idea that is not like the
+other modules. Everywhere else a level decides what you may do to everything in
+the module. Here each **section** of a job is owned by one job on the crew —
+sales owns intake and the estimate, the PM owns the survey, the schedule, the
+scope of work and the close-out, the field crew owns the ticket, billing owns
+the handoff. You edit your own, read everyone else's, and may note on any of
+them. `internal.hopper_fence_owner` is that list, in one place, so a screen and
+a policy cannot disagree about whose section it is.
+
+A **seal** closes a section at handoff and closes it to its owner as well —
+and to administrators, which is the part worth stating: `hopper_fence_edits`
+checks the seal *before* it checks `hopper_may_manage`. Sealing is an integrity
+rule, not a permission. Nothing unseals; a revision supersedes and leaves the
+old quote in the record.
+
+The crew ticket has **no anon grants at all**. The standalone version of this
+tool resolved its token in three `SECURITY DEFINER` functions, which is exactly
+what `definer_exposed` refuses here — a definer taking arguments in an exposed
+schema is an HTTP endpoint. The token is resolved by the app's own route with
+the service role instead.
+
+**0110 is the interesting one, and it was not predicted.** Money is column-level
+because row security cannot hide a column: a crew who may read the job must not
+read the margin. 0109 therefore granted only the columns it meant to — and every
+price was still readable, because **`hopper` carries a DEFAULT ACL granting
+`authenticated` `arwd` on every table created in the schema**. The tables came
+out of `create table` already holding table-level SELECT, and a column grant
+cannot narrow a table grant. Only `revoke select on <table>` then `grant select
+(cols)` closes it.
+
+Caught by asking `has_column_privilege` rather than by reading the migration,
+which is the same lesson as 0031, 0052, 0053, 0106 and 0107: a gate that returns
+the right answer when you ask it, sitting next to a query that never asked.
+
+Still to do before any fence screen ships: seed a rate book and a billing
+target, and probe the ownership model as two real signed-in people — one sales,
+one PM — rather than trusting `hopper_fence_edits` to answer honestly when asked
+directly.

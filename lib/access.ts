@@ -43,6 +43,21 @@ export const FLAT_OBJECTS: FlatObject[] = [
   { key: 'staff_records', label: 'Staff records',
     blurb: 'Scores, notes and documents for a line of report that is not your own.',
     verbs: ['view', 'edit'] },
+  /* Fence Builder. The module grant decides whether you can OPEN a job; which
+     sections of it you may EDIT is ownership, held in hopper.fence_person, and
+     no grant overrides it. These four are the things ownership does not cover. */
+  { key: 'fence_costs', label: 'Fence cost and markup',
+    blurb: 'What we pay and what we mark it up. Everyone else prices from sell.',
+    verbs: ['view', 'edit'] },
+  { key: 'fence_seal', label: 'Seal a fence section',
+    blurb: 'Close a section at handoff. Nothing unseals it — a revision supersedes.',
+    verbs: ['edit'] },
+  { key: 'fence_link', label: 'Cycle a crew link',
+    blurb: 'Issue, cycle and revoke the per-job link the crew works from.',
+    verbs: ['edit'] },
+  { key: 'fence_release', label: 'Release a fence job to billing',
+    blurb: 'Hand the finished job to whoever keys the invoice.',
+    verbs: ['edit'] },
   { key: 'audit_log', label: 'All activity',
     blurb: 'Activity across the whole account, not only your own line of report.',
     verbs: ['view', 'export'] },
@@ -65,6 +80,7 @@ export const MODULES = [
   { key: 'desk',              label: 'Desk' },
   { key: 'staffing',          label: 'Staffing' },
   { key: 'meetings',          label: 'Meetings' },
+  { key: 'fence',             label: 'Fence Builder' },
 ] as const
 
 export const CORE_MODULES = [
