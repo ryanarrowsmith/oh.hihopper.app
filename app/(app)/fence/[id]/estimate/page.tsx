@@ -10,7 +10,7 @@ import FenceDraw from '@/components/FenceDraw'
 import FenceGates from '@/components/FenceGates'
 import ActionForm from '@/components/ActionForm'
 import Choice from '@/components/Choice'
-import { setJobSpec, putOnQuote } from '@/app/actions/fence'
+import { setJobSpec, putOnQuote, releaseOption } from '@/app/actions/fence'
 import type { LngLat } from '@/lib/geo'
 
 export const dynamic = 'force-dynamic'
@@ -59,10 +59,18 @@ export default async function Estimate({ params }: { params: { id: string } }) {
       loadRates(session.accountId),
       loadRights(session.accountId),
       db.schema('hopper').from('fence_option')
-        .select('id, label, price, priced_at, note, accepted')
+        .select('id, label, price, priced_at, note, accepted, takeoff')
         .eq('account_id', session.accountId).eq('job_id', params.id)
         .order('priced_at', { ascending: false }),
     ])
+
+  // Which of those quotes has been let out below the floor, and by whom. Its own
+  // table, so releasing touches nothing about the option it releases.
+  const { data: releases } = await db.schema('hopper').from('fence_option_release')
+    .select('option_id, released_at, note')
+    .eq('account_id', session.accountId)
+    .in('option_id', ((options ?? []) as any[]).map((o) => o.id).length
+      ? ((options ?? []) as any[]).map((o) => o.id) : ['00000000-0000-0000-0000-000000000000'])
   if (!m.job) notFound()
 
   const sealed = new Set(((seals ?? []) as any[]).map((s) => s.section))
@@ -85,6 +93,7 @@ export default async function Estimate({ params }: { params: { id: string } }) {
     rates: book.rates, wastePct: m.wastePct, seesCost: rights.mayReadCosts,
   })
   const thin = priced.margin != null && priced.margin < m.marginFloor
+  const released = new Map(((releases ?? []) as any[]).map((r) => [r.option_id, r]))
   const quotes = (options ?? []) as any[]
   const money = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`
 
@@ -415,19 +424,70 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                   <>
                     <h3 className="fxsub">On the quote</h3>
                     <ul className="fxopts">
-                      {quotes.map((q) => (
-                        <li key={q.id} className="fxopt">
-                          <span className="fxopt__n">
-                            <b>{q.label}</b>
-                            <small>
-                              {q.priced_at ? `Priced ${q.priced_at.slice(0, 10)}` : 'Not priced'}
-                              {q.note ? ` · ${q.note}` : ''}
-                            </small>
-                          </span>
-                          <span className="fxopt__p">{money(Number(q.price ?? 0))}</span>
-                        </li>
-                      ))}
+                      {quotes.map((q) => {
+                        const under = !!q.takeoff?.below_floor
+                        const rel = released.get(q.id)
+                        return (
+                          <li key={q.id} className="fxopt">
+                            <span className="fxopt__n">
+                              <b>{q.label}</b>
+                              <small>
+                                {q.priced_at ? `Priced ${q.priced_at.slice(0, 10)}` : 'Not priced'}
+                                {q.takeoff?.measure?.fence_ft
+                                  ? ` · ${Math.round(q.takeoff.measure.fence_ft).toLocaleString('en-US')} ft`
+                                  : ''}
+                              </small>
+                              {/* Under the floor and not yet let out is a state
+                                  worth a mark; released is a fact worth a name. */}
+                              {under && (rel
+                                ? <FenceMark kind="done" title={rel.note ?? undefined}>
+                                    Released {rel.released_at?.slice(0, 10)}</FenceMark>
+                                : <FenceMark kind="warn">Under the floor · not released</FenceMark>)}
+                            </span>
+                            <span className="fxopt__p">{money(Number(q.price ?? 0))}</span>
+                            {under && !rel && rights.mayRelease && (
+                              <form className="fxopt__go" action={async (f: FormData) => {
+                                'use server'
+                                await releaseOption(null, f)
+                              }}>
+                                <input type="hidden" name="option_id" value={q.id} />
+                                <button className="btn btn--amber" type="submit">Release it</button>
+                              </form>
+                            )}
+                          </li>
+                        )
+                      })}
                     </ul>
+                    {quotes.some((q) => q.takeoff?.below_floor && !released.get(q.id))
+                      && !rights.mayRelease && (
+                      <p className="note">
+                        A quote under the {m.marginFloor}% floor needs somebody who may release it
+                        before it goes to the customer. That is not the estimate&rsquo;s owner —
+                        a salesperson releasing their own thin quote is the floor releasing itself.
+                      </p>
+                    )}
+                  </>
+                )}
+
+                {/* The quote map. Rendered on the server from the same geometry
+                    that priced the job, so the picture in a customer's hand ties
+                    back to the takeoff — a screenshot would carry whatever was on
+                    somebody's screen and nothing that says which job it is. */}
+                {s.runs.some((r) => r.drawn) && (
+                  <>
+                    <h3 className="fxsub">The quote map</h3>
+                    <figure className="fxmap">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={`/fence/${m.job.id}/map${quotes[0] ? `?option=${quotes[0].id}` : ''}`}
+                           alt={`The measured line on ${m.job.ref}`} />
+                      <figcaption>
+                        A picture, not a screenshot — the job, the length and the date are burned
+                        into it, and it draws{' '}
+                        {quotes[0] ? 'the line as frozen on the newest quote' : 'the line as it stands'}.
+                        {' '}<a href={`/fence/${m.job.id}/map${quotes[0] ? `?option=${quotes[0].id}` : ''}`}
+                              target="_blank" rel="noreferrer">Open it full size</a> to save or print.
+                      </figcaption>
+                    </figure>
                   </>
                 )}
               </>

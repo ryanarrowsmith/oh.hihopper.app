@@ -192,7 +192,9 @@ export const RATE_KINDS = [
 /** May this person change the lists, see the book at all, and see what it costs
  *  us. All three come from hopper.fence_rights(), which asks the same helpers
  *  the policies ask, so no screen can offer what the database refuses. */
-export type Rights = { mayManage: boolean; mayReadBook: boolean; mayReadCosts: boolean }
+export type Rights = {
+  mayManage: boolean; mayReadBook: boolean; mayReadCosts: boolean; mayRelease: boolean
+}
 
 export async function loadRights(accountId: string): Promise<Rights> {
   const { data } = await supabaseServer().schema('hopper')
@@ -202,6 +204,7 @@ export async function loadRights(accountId: string): Promise<Rights> {
     mayManage: !!r?.may_manage,
     mayReadBook: !!r?.may_read_book,
     mayReadCosts: !!r?.may_read_costs,
+    mayRelease: !!r?.may_release,
   }
 }
 

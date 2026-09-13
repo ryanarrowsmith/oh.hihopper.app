@@ -84,3 +84,19 @@ console.log('without cost -> cost:', noCost.cost, 'margin:', noCost.margin, 'sel
 const short = priceIt({ takeoff, gates, spec, recipe: [...recipe, R('permanent',null,'CL-GHOST','foot',1)] as any,
   rates, wastePct: 4, seesCost: true })
 console.log('with a missing rate -> gaps:', short.gaps, 'whole:', short.whole, 'cost still:', short.cost)
+
+// ---------------------------------------------------------------- the view
+// A quote map has to pick the same frame every time or the picture changes
+// under a quote that did not.
+import { viewFit, toPixel, feetPerPixel } from '@/lib/geo'
+const line: [number, number][] = [[-95.9900, 36.1500], [-95.9880, 36.1500], [-95.9880, 36.1512]]
+const v1 = viewFit(line, 1200, 700), v2 = viewFit(line, 1200, 700)
+console.log('view is stable:', JSON.stringify(v1) === JSON.stringify(v2))
+const px = line.map((p) => toPixel(v1, p))
+console.log('every point inside the frame:',
+  px.every(([x, y]) => x > 0 && x < 1200 && y > 0 && y < 700))
+console.log('aspect matches the image:',
+  Math.abs(((v1.y1 - v1.y0) / (v1.x1 - v1.x0)) - (700 / 1200)) < 1e-9)
+const straight = viewFit([[-95.99, 36.15], [-95.988, 36.15]], 1200, 700)
+console.log('a dead straight run still has a frame:',
+  Number.isFinite(feetPerPixel(straight)) && straight.y1 > straight.y0)

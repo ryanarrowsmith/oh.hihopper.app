@@ -619,3 +619,47 @@ export async function putOnQuote(_p: Result | null, form: FormData): Promise<Res
         : `On the quote at $${priced.sell.toLocaleString('en-US')}.`,
   }
 }
+
+// ------------------------------------------------------------- the release
+/**
+ * Let a quote under the margin floor go out.
+ *
+ * A release is a ROW, not a change to the option: the price, the takeoff and the
+ * lines are exactly what they were, with somebody's name and a time against them.
+ * A release that quietly reprices is a release nobody can audit — and a policy
+ * that could rewrite the price is a policy that will, one day, by accident.
+ *
+ * Who may is `internal.hopper_fence_release`, which is not the estimate's owner:
+ * a salesperson releasing their own thin quote is the floor releasing itself.
+ */
+export async function releaseOption(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const session = await currentSession()
+  const option = str(form, 'option_id')
+  if (!option) return { ok: false, message: 'No option.' }
+
+  const { data: row } = await db.schema('hopper').from('fence_option')
+    .select('id, label, job_id, price').eq('account_id', account).eq('id', option).maybeSingle()
+  if (!row) return { ok: false, message: 'That option is not here.' }
+
+  const { data, error } = await db.schema('hopper').from('fence_option_release').upsert({
+    account_id: account, option_id: option,
+    released_by: session?.userId ?? null,
+    released_at: new Date().toISOString(),
+    note: nul(form, 'note'),
+  }, { onConflict: 'account_id,option_id' }).select('option_id')
+
+  if (error) return { ok: false, message: refused(error.message, 'release') }
+  if ((data ?? []).length === 0) {
+    return { ok: false, message: 'Releasing a quote under the floor is not yours to do.' }
+  }
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object: (row as any).label, object_id: (row as any).job_id,
+    summary: `Released ${(row as any).label} below the margin floor`,
+    note: nul(form, 'note'),
+  })
+  revalidatePath(`/fence/${(row as any).job_id}`)
+  revalidatePath(`/fence/${(row as any).job_id}/estimate`)
+  return { ok: true, message: 'Released. It can go to the customer.' }
+}

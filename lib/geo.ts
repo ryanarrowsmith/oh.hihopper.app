@@ -88,6 +88,43 @@ export function viewAround(centre: LngLat, feet: number, w: number, h: number): 
   return { x0: cx - dx / 2, y0: cy - dy / 2, x1: cx + dx / 2, y1: cy + dy / 2, w, h }
 }
 
+/**
+ * A view that holds a whole line, with room around it.
+ *
+ * The drawing screen's view is chosen by the person; a picture of the finished
+ * line has to choose its own, and it has to choose the SAME one every time or a
+ * quote map regenerated next month is a different picture of the same fence. So
+ * it is derived from the geometry alone: the bounding box of the points, padded,
+ * then widened on whichever axis is short until it matches the image's shape.
+ */
+export function viewFit(points: LngLat[], w: number, h: number, pad = 0.14): View {
+  const ms = points.map(toMerc)
+  let x0 = Math.min(...ms.map((m) => m[0])), x1 = Math.max(...ms.map((m) => m[0]))
+  let y0 = Math.min(...ms.map((m) => m[1])), y1 = Math.max(...ms.map((m) => m[1]))
+
+  // A single straight run has no width at all on one axis, which would divide by
+  // zero and ask the map server for a box of nothing.
+  const floor = 1e-7
+  if (x1 - x0 < floor) { const c = (x0 + x1) / 2; x0 = c - floor; x1 = c + floor }
+  if (y1 - y0 < floor) { const c = (y0 + y1) / 2; y0 = c - floor; y1 = c + floor }
+
+  const padX = (x1 - x0) * pad, padY = (y1 - y0) * pad
+  x0 -= padX; x1 += padX; y0 -= padY; y1 += padY
+
+  // Match the image's shape. Mercator is conformal, so equal units are equal
+  // pixels and the correction is a straight ratio.
+  const want = h / w
+  const have = (y1 - y0) / (x1 - x0)
+  if (have < want) {
+    const grow = ((x1 - x0) * want - (y1 - y0)) / 2
+    y0 -= grow; y1 += grow
+  } else {
+    const grow = ((y1 - y0) / want - (x1 - x0)) / 2
+    x0 -= grow; x1 += grow
+  }
+  return { x0, y0, x1, y1, w, h }
+}
+
 /** Where on the image a coordinate falls. */
 export function toPixel(v: View, p: LngLat): [number, number] {
   const [x, y] = toMerc(p)
