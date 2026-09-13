@@ -135,3 +135,34 @@ Still to do before any fence screen ships: seed a rate book and a billing
 target, and probe the ownership model as two real signed-in people — one sales,
 one PM — rather than trusting `hopper_fence_edits` to answer honestly when asked
 directly.
+
+## 0111–0113 — the seed, and two bugs the probe found
+
+**0111** seeds a placeholder rate book (38 rows), a Navusoft billing target, and
+switches the module on for On Call Services and Rentals. Every rate carries
+`source = 'placeholder'` with no `verified_on`, so nothing here can be mistaken
+for a real cost — they exist so the estimator, the quote, the margin floor and
+the keying sheet can be exercised against something.
+
+Then the ownership model was probed as a real signed-in person rather than by
+asking the helpers whether they returned true. Both remaining bugs came out of
+that, and neither was visible in the SQL.
+
+**0112 — the seal sealed everything.** `hopper_fence_edits` tested
+`s.section = section`, where `section` is both the function's parameter and a
+column of `hopper.fence_seal`. In a SQL function the column wins, so the test
+read `s.section = s.section` — true for any row — and one seal anywhere on a job
+closed *every* section of it. With the estimate sealed, sales could no longer
+edit intake. The parameter is qualified as `hopper_fence_edits.section` now.
+
+**0113 — the rate book was invisible to everybody who could use it.** The book is
+account-wide, so its policy asked for the module at NULL scope. A module grant is
+written against an *organization*, so a salesperson holding fence on OCS resolved
+to null and read zero rows: cost correctly refused, and the sell side empty too.
+`internal.hopper_fence_book` asks "do you hold this module anywhere" instead.
+
+What the probe returns now, as a non-owner salesperson: reads the job, edits
+intake, cannot edit survey or the ticket, cannot edit the sealed estimate —
+and neither can the account owner, which is the seal doing its job. `sold_price`,
+`price`, `amount`, `cost` and `markup` all refuse; `sell` and the other 36 rate
+rows read fine; no rows from organizations they do not hold.
