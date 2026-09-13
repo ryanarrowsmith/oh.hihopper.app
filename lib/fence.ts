@@ -152,3 +152,57 @@ export function daysIn(iso: string | null): number {
   if (!iso) return 0
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000))
 }
+
+/* ==========================================================================
+   THE RATE BOOK
+   ========================================================================== */
+
+export type Rate = {
+  id: string; code: string; kind: string; grp: string | null
+  cls: 'permanent' | 'temporary' | 'secure' | null
+  name_en: string; name_es: string | null; uom: string
+  sell: number | null; verified_on: string | null; source: string | null
+  cost?: number | null; markup?: number | null
+}
+
+export const RATE_KINDS = [
+  { key: 'material',  en: 'Materials' },
+  { key: 'labor',     en: 'Labor' },
+  { key: 'equipment', en: 'Equipment' },
+  { key: 'rental',    en: 'Rental' },
+  { key: 'fleet',     en: 'Fleet' },
+] as const
+
+/**
+ * The book, and whether this person may see what it costs us.
+ *
+ * `cost` and `markup` are revoked at the column level, and PostgREST fails the
+ * WHOLE query when you name a column you may not read — it does not hand back
+ * nulls. So the privileged select is TRIED, and a refusal falls back to the
+ * sell-side one. Asking a second question first ("may I?") would be a second
+ * answer to a question the database already answers, and the two would drift.
+ */
+export async function loadRates(accountId: string) {
+  const db = supabaseServer()
+  const base = 'id, code, kind, grp, cls, name_en, name_es, uom, sell, verified_on, source, active'
+
+  const priv = await db.schema('hopper').from('fence_rate')
+    .select(`${base}, cost, markup`)
+    .eq('account_id', accountId).eq('active', true)
+    .order('kind').order('code')
+
+  if (!priv.error) return { rates: (priv.data ?? []) as Rate[], seesCost: true }
+
+  const plain = await db.schema('hopper').from('fence_rate')
+    .select(base)
+    .eq('account_id', accountId).eq('active', true)
+    .order('kind').order('code')
+
+  return { rates: (plain.data ?? []) as Rate[], seesCost: false }
+}
+
+/** A figure with no verified date has never been checked against an invoice. */
+export function rateAge(verified_on: string | null): number | null {
+  if (!verified_on) return null
+  return Math.floor((Date.now() - new Date(verified_on).getTime()) / 86_400_000)
+}

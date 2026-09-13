@@ -8709,3 +8709,32 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   .ck__body{min-height:0}
   .ck__list li{break-inside:avoid}
 }
+
+/* ---- the rate book ---- */
+.fjhead--rate{grid-template-columns:104px minmax(0,2fr) 64px 92px 76px 96px 84px}
+.fjhead--sell{grid-template-columns:104px minmax(0,2fr) 64px 96px 84px}
+.fjrow__go--rate{grid-template-columns:104px minmax(0,2fr) 64px 92px 76px 96px 84px; cursor:default}
+.fjrow__go--sell{grid-template-columns:104px minmax(0,2fr) 64px 96px 84px; cursor:default}
+.fjrow__go--rate:hover,.fjrow__go--sell:hover{background:transparent}
+.fjcode{font-family:var(--mono); font-size:12.5px; font-weight:700; letter-spacing:.02em}
+.fjnum{font-family:var(--mono); font-size:13px; font-variant-numeric:tabular-nums}
+.fjnote{
+  display:flex; gap:11px; align-items:flex-start; padding:12px 14px; background:var(--warmbg);
+  border:1px solid var(--warmrule); border-left:3px solid var(--warmedge); color:var(--warmink);
+  font-size:13.5px; max-width:74ch;
+}
+.fjnote .fjmark{color:var(--warmedge)}
+@media (max-width:760px){
+  .fjhead--rate,.fjhead--sell{display:none}
+  .fjrow__go--rate,.fjrow__go--sell{grid-template-columns:1fr; gap:0; padding:13px 14px}
+  .fjrow__go--rate .rcell,.fjrow__go--sell .rcell{
+    display:flex; justify-content:space-between; gap:12px; align-items:baseline;
+    padding:6px 0; border-top:1px solid var(--rule-soft);
+  }
+  .fjrow__go--rate .rcell--lead,.fjrow__go--sell .rcell--lead{display:block; border-top:0; padding-top:0}
+  .fjrow__go--rate .rcell__lab,.fjrow__go--sell .rcell__lab{
+    display:block; font-family:var(--mono); font-size:9.5px; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--ink-3);
+  }
+  .fjrow__go--rate .rcell__val,.fjrow__go--sell .rcell__val{text-align:right}
+}

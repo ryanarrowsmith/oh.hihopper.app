@@ -186,3 +186,24 @@ a crew builds from it.
 
 Fence Builder's copy is in the dictionary in full; the other modules join as
 they are touched.
+
+## 0116–0117 — the lists the admin panel manages, and half an answer corrected
+
+The approved admin panel has seven sections and the schema supported three.
+**0116** adds the other four — `fence_spec`, `fence_gate_type`,
+`fence_glossary`, `fence_crew` — plus `fence_settings`, which is where the
+margin floor, the burdened crew rate, the labor markup and the default waste
+finally live rather than being figures in a mockup.
+
+**0117 is the interesting half.** 0116 revoked `crew_rate` as a cost input and
+stopped, which was half an answer: `fence_rate.markup` is revoked precisely
+because a markup plus a sell price gives you the cost, and
+`fence_settings.labor_markup` is that same number for labor. Leaving it readable
+handed straight back what revoking the crew rate had just taken away.
+
+`margin_floor` and `waste_pct` stay readable on purpose. The floor is the entire
+reason sales sees margin, and waste is a quantity rule rather than a price.
+
+Both migrations follow the 0110 lesson without being reminded: the schema's
+DEFAULT ACL grants `authenticated` `arwd` on every new table, so a column that
+must not be read is revoked at the table and then re-granted by name.
