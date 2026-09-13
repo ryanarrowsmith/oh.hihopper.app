@@ -8628,3 +8628,84 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   .fjsec,.fjtask,.fjrow{break-inside:avoid}
   .fjsec{border-color:#000}
 }
+
+/* ==========================================================================
+   THE CREW TICKET (`ck`)
+   A phone in a yard, in gloves. Big targets, one column, no chrome, no money.
+   ========================================================================== */
+.ck{
+  max-width:520px; margin:0 auto; padding:0 0 40px; background:var(--paper);
+  min-height:100vh;
+}
+.ck__h{background:var(--ink); color:var(--paper); padding:16px 16px 14px}
+.ck__h b{display:block; font-size:19px; font-weight:800; letter-spacing:-.02em}
+.ck__meta{
+  display:block; margin-top:4px; font-family:var(--mono); font-size:10.5px;
+  letter-spacing:.08em; text-transform:uppercase; opacity:.8;
+}
+.ck__pin{
+  display:flex; gap:9px; align-items:flex-start; padding:12px 16px; background:var(--warmbg);
+  border-bottom:1px solid var(--warmrule); color:var(--warmink); font-size:14px;
+}
+.ck__pin svg{width:16px; height:16px; flex:0 0 16px; margin-top:1px}
+.ck__tabs{display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid var(--rule)}
+.ck__tab{
+  background:var(--sunken); border:0; border-bottom:3px solid transparent; padding:14px 4px;
+  font-size:11.5px; font-weight:700; color:var(--ink-3); line-height:1.2; min-height:52px;
+}
+.ck__tab[aria-selected="true"]{background:var(--surface); color:var(--ink); border-bottom-color:var(--ink)}
+.ck__body{padding:14px 16px; background:var(--surface); min-height:50vh}
+.ck__sow{font-size:15.5px; line-height:1.55}
+.ck__warn{
+  display:flex; gap:9px; align-items:flex-start; margin-top:14px; padding:11px 12px;
+  background:var(--warmbg); border:1px solid var(--warmrule); color:var(--warmink); font-size:14px;
+}
+.ck__warn svg{width:16px; height:16px; flex:0 0 16px; margin-top:1px}
+.ck__list{list-style:none; margin:0; padding:0}
+.ck__list li{
+  display:flex; align-items:center; gap:12px; padding:12px 0;
+  border-bottom:1px solid var(--rule-soft); min-height:52px;
+}
+.ck__list li:last-child{border-bottom:0}
+.ck__tick{
+  flex:0 0 40px; width:40px; height:40px; display:grid; place-items:center;
+  background:transparent; border:0; margin-left:-8px;
+}
+.ck__tick span{
+  width:24px; height:24px; border:2px solid var(--canvas-3); display:block; background:var(--surface);
+}
+.ck__tick[aria-pressed="true"] span{
+  background:var(--good); border-color:var(--good);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 8.4l3.2 3.2L13 4.8'/%3E%3C/svg%3E");
+  background-size:18px 18px; background-position:center; background-repeat:no-repeat;
+}
+.ck__n{flex:1 1 auto; font-size:15px; min-width:0}
+.ck__q{
+  font-family:var(--mono); font-size:14px; font-variant-numeric:tabular-nums; color:var(--ink-2);
+  white-space:nowrap;
+}
+.ck__list--plain li{padding-left:2px}
+.ck__none{color:var(--ink-3)}
+.ck__shots{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px}
+.ck__shot{
+  aspect-ratio:3/4; background:var(--canvas-2); border:1px dashed var(--canvas-3);
+  display:grid; place-items:center; color:var(--canvas-ink); font-size:26px; font-weight:300;
+}
+.ck__hint{font-size:13px; color:var(--ink-3); margin:8px 0 14px}
+.ck__btn{
+  display:block; width:calc(100% - 32px); margin:14px 16px 0; min-height:52px;
+  background:var(--surface); border:1px solid var(--rule); font-size:15px; font-weight:700;
+  color:var(--ink);
+}
+.ck__foot{
+  padding:16px; font-size:12.5px; color:var(--ink-3); text-align:center;
+}
+.ck--gone{padding:64px 20px; text-align:center}
+.ck--gone h1{font-size:22px; font-weight:800; margin-bottom:10px}
+.ck--gone p{color:var(--ink-2); max-width:36ch; margin:0 auto}
+
+@media print{
+  .ck__tabs,.ck__btn{display:none}
+  .ck__body{min-height:0}
+  .ck__list li{break-inside:avoid}
+}
