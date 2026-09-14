@@ -38,8 +38,15 @@ export async function loadMeasure(accountId: string, jobId: string) {
   const h = () => db.schema('hopper')
 
   const [job, runs, legs, gates, specs, types, settings] = await Promise.all([
+    /* WHAT WAS SIGNED COMES WITH THE JOB. The survey screen asks four things of
+       these two columns -- whether anything has been signed at all, when, what
+       the figure was, and therefore whether there is a price to confirm -- and
+       without them it read every signed job as unsigned and stayed permanently
+       shut. One line, and the column list stays on ONE line: a select built by
+       concatenation comes back as GenericStringError[] and takes the types with
+       it. */
     h().from('fence_job')
-      .select('id, ref, name, customer, site_address, lat, lon, pin_note, cls, spec_code, stage, complete')
+      .select('id, ref, name, customer, site_address, lat, lon, pin_note, cls, spec_code, stage, complete, sold_price, sold_on')
       .eq('account_id', accountId).eq('id', jobId).maybeSingle(),
     h().from('fence_run')
       .select('id, label, points, plan_ft, grade_pct, closed_loop, measured_by, sort')
