@@ -20,9 +20,26 @@ export type MapJob = {
   ref: string; name: string | null; site_address: string | null
 }
 
-export function renderQuoteMap(
+/**
+ * THE BYTES ARE MADE HERE, NOT HANDED BACK LAZILY.
+ *
+ * `new ImageResponse(...)` returns instantly and rasterizes while the body is
+ * being read, so anything that goes wrong in the drawing -- a font that will
+ * not load, an aerial tile that will not fetch -- throws OUTSIDE whatever
+ * try/catch wrapped the call and reaches a browser as a bare 500 inside an
+ * <img>. Reading the buffer here puts the failure back where it can be caught
+ * and named, which is the difference between a broken image and a sentence.
+ */
+export async function renderQuoteMap(
   job: MapJob, runs: MapRun[], asOf: string | null, cache: string,
-): ImageResponse {
+): Promise<Response> {
+  const img = build(job, runs, asOf)
+  return new Response(await img.arrayBuffer(), {
+    headers: { 'Content-Type': 'image/png', 'Cache-Control': cache },
+  })
+}
+
+function build(job: MapJob, runs: MapRun[], asOf: string | null): ImageResponse {
   const all = runs.flatMap((r) => r.points)
   const view = viewFit(all, W, PLAN)
   const sw = toLngLat(view, 0, PLAN), ne = toLngLat(view, W, 0)
@@ -95,9 +112,6 @@ export function renderQuoteMap(
         </div>
       </div>
     ),
-    {
-      width: W, height: H,
-      headers: { 'Cache-Control': cache },
-    },
+    { width: W, height: H },
   )
 }
