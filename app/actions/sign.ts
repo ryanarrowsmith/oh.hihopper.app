@@ -51,6 +51,14 @@ export async function signEstimate(
     return { ok: false, message: 'This estimate is already signed.' }
   }
 
+  /* SIGNING A FIRM REVISION IS A SHORTER ACT. Everything from step 2 down —
+     the sale, the seal, the task plan, the stage — already happened when the
+     estimate was signed, and running them again would re-seal a sealed
+     estimate, re-open tasks somebody has been ticking, and drag a job that has
+     reached scheduling back to survey. What a firm signature changes is the
+     PRICE and nothing else. */
+  const revising = !!q.firm
+
   const db = supabaseService()
   const now = new Date()
   const signedAt = now.toISOString()
@@ -78,6 +86,28 @@ export async function signEstimate(
   }
   await db.schema('hopper').from('fence_quote_link')
     .update({ signed_at: signedAt }).eq('id', q.linkId)
+
+  if (revising) {
+    // The price moves; the option it belongs to, the seal and the plan do not.
+    await db.schema('hopper').from('fence_job')
+      .update({ sold_price: q.option.price })
+      .eq('account_id', q.accountId).eq('id', q.jobId)
+    await tellThem(db, q, { name, at: signedAt, origin, tasks: 0 })
+    await db.schema('beebee').rpc('audit', {
+      p_app: 'hopper',
+      p_action: 'hopper.fence.signed',
+      p_summary: `${name} signed the firm price on ${q.job.ref} at ${money(q.option.price)}`
+        + `, up from ${money(q.firm!.before)} at the estimate`,
+      p_account: q.accountId,
+      p_subject_type: 'fence reference',
+      p_subject_id: q.jobId,
+      p_payload: { name: q.job.ref, signed_by: name, price: q.option.price, firm: true },
+    })
+    revalidatePath(`/fence/${q.jobId}`)
+    revalidatePath(`/fence/${q.jobId}/survey`)
+    revalidatePath('/fence')
+    return { ok: true, message: 'Signed. Thank you — this is the price we will build to.' }
+  }
 
   /* 2 — the sale. The option they signed becomes the sold one and every other
      option on the job stops being sold, which is what the partial unique index

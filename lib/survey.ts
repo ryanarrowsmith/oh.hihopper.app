@@ -55,6 +55,22 @@ export type Survey = {
   note: string | null
   outcome: 'absorb' | 'review' | null
   closed_at: string | null
+  /** When the findings went to sales. Nothing closes before this — Ryan, 14
+   *  Sep: they hear the results before anybody decides about the cost. */
+  results_sent_at: string | null
+}
+
+/** A price that moved after the survey, and the link it went out on. */
+export type Revision = {
+  id: string
+  reason: string
+  note: string | null
+  sold_before: number | null
+  sold_after: number | null
+  held_price: boolean
+  opened_at: string
+  link: { token: string; expires_on: string | null; revoked: boolean
+          signed_at: string | null; mailed_at: string | null; mailed_to: string | null } | null
 }
 
 /** One condition's line: a quantity somebody typed times the book's own figure. */
@@ -115,7 +131,7 @@ export async function loadSurvey(accountId: string, jobId: string) {
 
   const [survey, walked, cat, book, quoted, found] = await Promise.all([
     h().from('fence_survey')
-      .select('id, locate_ticket, dig_from, locate_expires, access, ask_for, utilities, note, outcome, closed_at')
+      .select('id, locate_ticket, dig_from, locate_expires, access, ask_for, utilities, note, outcome, closed_at, results_sent_at')
       .eq('account_id', accountId).eq('job_id', jobId).maybeSingle(),
     h().from('fence_survey_run')
       .select('run_id, walked_ft, grade_pct, measured_by, note')
@@ -148,7 +164,23 @@ export async function loadSurvey(accountId: string, jobId: string) {
   const walkedRows = ((walked.data ?? []) as any[]) as Walked[]
   const runs = ((measure.runs ?? []) as RunRow[])
 
+  /* The revision, if the price has already gone back out, and the link it went
+     on — so the screen can say whether the customer has seen it and signed. */
+  const rev = await h().from('fence_revision')
+    .select('id, reason, note, sold_before, sold_after, held_price, opened_at')
+    .eq('account_id', accountId).eq('job_id', jobId)
+    .order('opened_at', { ascending: false }).limit(1).maybeSingle()
+  const revLink = rev.data
+    ? (await h().from('fence_quote_link')
+        .select('token, expires_on, revoked, signed_at, mailed_at, mailed_to')
+        .eq('account_id', accountId).eq('revision_id', (rev.data as any).id)
+        .eq('revoked', false).order('issued_at', { ascending: false }).limit(1).maybeSingle()).data
+    : null
+
   return {
+    revision: rev.data
+      ? { ...(rev.data as any), link: (revLink as any) ?? null } as Revision
+      : null,
     measure,
     survey: (survey.data as Survey | null) ?? null,
     walked: walkedRows,

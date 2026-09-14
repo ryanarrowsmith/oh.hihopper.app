@@ -44,7 +44,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
   return (
     <main className="est__page">
       <div className="est__bar noprint">
-        <span>{q.job.ref} &middot; estimate for{' '}
+        <span>{q.job.ref} &middot; {q.firm ? 'firm price' : 'estimate'} for{' '}
           {q.contact?.company ?? q.job.customer ?? q.job.name}</span>
         <PrintIt label="Print or save as PDF" />
       </div>
@@ -62,17 +62,22 @@ export default async function Page({ params }: { params: Promise<{ token: string
         issuedOn={q.issuedOn}
         goodThrough={q.goodThrough}
         mapSrc={hasMap ? `/e/${token}/map` : null}
+        firm={q.firm}
       >
         {q.signedAt ? (
           <section className="est__sec est__accept est__accept--done">
             <h2>Signed</h2>
             <p className="est__signed">
-              <b>{q.signedName}</b> signed this estimate on {day(q.signedAt)} at{' '}
-              {money(q.option.price)}.
+              <b>{q.signedName}</b> signed this {q.firm ? 'price' : 'estimate'} on{' '}
+              {day(q.signedAt)} at {money(q.option.price)}.
             </p>
             <p>
-              We have it. Somebody will be in touch to book the site survey, and the firm
-              price follows that. Nothing is built until you have agreed to it in writing.
+              {q.firm
+                ? <>We have it. This is the figure we build to, and the work goes on the
+                    schedule from here.</>
+                : <>We have it. Somebody will be in touch to book the site survey, and the
+                    firm price follows that. Nothing is built until you have agreed to it in
+                    writing.</>}
             </p>
           </section>
         ) : (

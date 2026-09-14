@@ -7,7 +7,7 @@ import { loadSurvey, conditionTotals } from '@/lib/survey'
 import ActionForm from '@/components/ActionForm'
 import SurveyRuns from '@/components/SurveyRuns'
 import SurveyConditions from '@/components/SurveyConditions'
-import { saveAccess, closeSurvey } from '@/app/actions/survey'
+import { saveAccess, closeSurvey, sendResults } from '@/app/actions/survey'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,7 +56,11 @@ export default async function Survey({ params }: { params: { id: string } }) {
   const sealed = new Set(((seals ?? []) as any[]).map((s) => s.section))
   const stand = howToDraw('survey', stance.jobRole, sealed as Set<any>, rights.mayManage)
   const closed = !!read.survey?.closed_at
-  const mayEdit = stand === 'edit' && !closed
+  const signedPrice = (read.measure.job as any)?.sold_price
+  /* READABLE BEFORE IT IS SIGNED, AND NOTHING TO ENTER. Ryan, 14 Sep. A survey
+     confirms a price somebody agreed to, so until there is one there is nothing
+     here to confirm — but the PM can still look at the line and the list. */
+  const mayEdit = stand === 'edit' && !closed && signedPrice != null
 
   const where = place
     ? [place.line1, [place.city, place.region].filter(Boolean).join(', '), place.postcode]
@@ -120,8 +124,9 @@ export default async function Survey({ params }: { params: { id: string } }) {
         </div>
       ) : (
         <p className="note" style={{ marginTop: 16 }}>
-          <b>Nothing has been signed on this job yet.</b> A survey confirms a price somebody
-          agreed to. <Link href={`/fence/${job.id}/estimate`}>The estimate</Link> comes first.
+          <b>Nothing has been signed on this job yet,</b> so there is nothing here to fill in
+          — a survey confirms a price somebody agreed to. Everything below is readable, and
+          opens once <Link href={`/fence/${job.id}/estimate`}>the estimate</Link> is signed.
         </p>
       )}
 
@@ -296,7 +301,58 @@ export default async function Survey({ params }: { params: { id: string } }) {
           </p>
         )}
 
-        {mayEdit && signed != null && (
+        {/* TWO STEPS, IN THIS ORDER. Ryan, 14 Sep: sales hear the results before
+            anybody decides about the cost — they are the one who has to speak
+            to the customer, and being told what was settled without them is not
+            the same as being asked. The server refuses to close a survey whose
+            results have not gone, so the rule survives a busy Friday rather
+            than living in this markup. */}
+        {read.survey?.results_sent_at ? (
+          <p className="svnote">
+            <b>Sales have the results.</b> Sent{' '}
+            {day(read.survey.results_sent_at)} — the decision below is theirs to argue with
+            before it is made.
+          </p>
+        ) : mayEdit && (
+          <div className="svstep">
+            <div className="svstep__t">
+              <b>Sales have not seen this yet</b>
+              <span>
+                They take the call if the price moves, so they read the numbers before the
+                cost is settled. Nothing goes to the customer from here.
+              </span>
+            </div>
+            <ActionForm action={sendResults} label="Send the results to sales"
+                        busy="Sending…" className="svstep__f">
+              <input type="hidden" name="job_id" value={job.id} />
+            </ActionForm>
+          </div>
+        )}
+
+        {read.revision && (
+          <p className="svnote">
+            {read.revision.held_price ? (
+              <>
+                <b>The price was held.</b> {money(Number(read.revision.sold_before ?? 0))} stands,
+                and the difference came out of the margin.
+              </>
+            ) : (
+              <>
+                <b>The firm price went out at {money(Number(read.revision.sold_after ?? 0))}.</b>{' '}
+                {read.revision.link?.signed_at
+                  ? `Signed ${day(read.revision.link.signed_at)}.`
+                  : read.revision.link?.mailed_at
+                    ? `Mailed ${day(read.revision.link.mailed_at)}`
+                      + `${read.revision.link.mailed_to ? ` to ${read.revision.link.mailed_to}` : ''}`
+                      + ', waiting on a signature.'
+                    : 'Waiting on a signature.'}
+              </>
+            )}
+            {read.revision.note && <> &ldquo;{read.revision.note}&rdquo;</>}
+          </p>
+        )}
+
+        {mayEdit && signed != null && read.survey?.results_sent_at && (
           <ActionForm action={closeSurvey} label="Close the survey" busy="Closing…">
             <input type="hidden" name="job_id" value={job.id} />
             <div className="svfork">
@@ -315,9 +371,9 @@ export default async function Survey({ params }: { params: { id: string } }) {
                 <span className="svfork__b">
                   <b>The customer reviews it</b>
                   <span>
-                    Sales takes {firm == null ? 'the revised figure' : money(firm)} back to them
-                    with the reasons spelled out. Nothing is mailed from here — closing tells
-                    sales, and they write.
+                    {firm == null ? 'The revised figure' : money(firm)} goes to them for
+                    signature as a FIRM price, with everything the survey found listed under
+                    what they signed. Sales are copied on the same letter.
                   </span>
                 </span>
               </label>

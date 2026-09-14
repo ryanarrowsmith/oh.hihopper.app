@@ -9560,6 +9560,13 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   font-size:11pt; vertical-align:top}
 .est__price td small{display:block; font-size:9.5pt; color:var(--est-ink-3); margin-top:2px}
 .est__num{font-variant-numeric:tabular-nums; white-space:nowrap}
+/* The signed figure on a firm revision: a subtotal the reader can find again on
+   the estimate they already have, ruled off so what the survey added sits
+   plainly underneath it rather than folded into a line above. */
+.est__price tr.est__sub td{border-top:2px solid var(--est-rule); border-bottom:0;
+  padding-top:13px; font-weight:700}
+.est__price tr.est__sub td:last-child{font-variant-numeric:tabular-nums}
+.est__price tr.est__sub + tr td{padding-top:11px}
 .est__price tr.est__tot td{border-bottom:0; border-top:3px solid var(--est-ink);
   padding-top:14px; font-family:var(--est-sq); font-size:15pt; font-weight:700;
   letter-spacing:-.01em}
@@ -9838,3 +9845,15 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   .svcond__x{display:none}
   .svfoot > b{width:100%}
 }
+
+/* Sales hear before anybody decides. The step sits above the fork and the fork
+   is not drawn until it is done, because an order that only exists in prose is
+   an order somebody skips on a Friday. */
+.svstep{display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin-top:14px;
+  padding:14px 16px; border:1px solid var(--warmrule); border-left:3px solid var(--warmedge);
+  background:var(--warmbg)}
+.svstep__t{flex:1 1 320px}
+.svstep__t b{display:block; font-size:15px}
+.svstep__t span{display:block; font-size:12.5px; color:var(--ink-2); margin-top:3px}
+.svstep__f{flex:0 0 auto}
+.svstep__f .formgrid__go{margin:0}

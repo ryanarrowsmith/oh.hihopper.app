@@ -36,6 +36,18 @@ export type EstimateFor = {
   goodThrough: string | null
   /** Where the aerial comes from, or null when the line was walked with a wheel. */
   mapSrc: string | null
+  /* THE SAME DOCUMENT, AFTER THE SURVEY.
+     When this is set the sheet stops being an estimate and becomes a price:
+     the customer signed a figure, somebody walked the site, and what they found
+     is listed line by line UNDER the signed roll-up rather than folded into it.
+     Folding it in would have quietly changed the fence line's own amount, which
+     is precisely the move this whole flow exists to prevent. */
+  firm?: {
+    before: number
+    after: number
+    note: string | null
+    extras: { what: string; detail: string; amount: number }[]
+  } | null
   /** The signing block, or the record of it. Given by whoever is rendering. */
   children?: React.ReactNode
 }
@@ -87,24 +99,33 @@ export default function EstimateDoc(p: EstimateFor) {
         <Mast sub={<>
           {day(p.issuedOn)}
           {p.goodThrough ? <> &middot; good through {day(p.goodThrough)}</> : null}
-          <br />Estimated &mdash; not a final price
+          <br />{p.firm ? <>Firm &mdash; confirmed by the survey</> : <>Estimated &mdash; not a final price</>}
         </>} />
 
         <h1>{title} &mdash;<br />{line1}</h1>
         <p className="est__lede">
-          Here is what we think this comes to, worked out from the aerial measure and what
-          material costs today &mdash; along with what it does not include.
+          {p.firm
+            ? <>We have walked the site and measured the line on the ground. Here is the
+                price, what changed from the estimate you signed, and why.</>
+            : <>Here is what we think this comes to, worked out from the aerial measure and
+                what material costs today &mdash; along with what it does not include.</>}
         </p>
 
         <div className="est__band">
-          <b>Estimate</b>
+          <b>{p.firm ? 'Firm price' : 'Estimate'}</b>
           <p>
-            This is an estimate, not a final price. It is based on the information we have
-            right now. We confirm it after a site survey, when somebody walks the line,
-            measures it on the ground and sees what is actually in the way. If that changes
-            the number, you will see the change and agree to it before anybody builds
-            anything.
+            {p.firm
+              ? <>This is a firm price, not an estimate. Somebody has walked the line,
+                  measured it on the ground and seen what is actually in the way. Everything
+                  that changed is listed below with what it costs. Nothing else changes
+                  without your agreement.</>
+              : <>This is an estimate, not a final price. It is based on the information we
+                  have right now. We confirm it after a site survey, when somebody walks the
+                  line, measures it on the ground and sees what is actually in the way. If
+                  that changes the number, you will see the change and agree to it before
+                  anybody builds anything.</>}
           </p>
+          {p.firm?.note && <p><b>{p.firm.note}</b></p>}
         </div>
 
         <div className="est__facts">
@@ -156,7 +177,7 @@ export default function EstimateDoc(p: EstimateFor) {
         </section>
 
         <section className="est__sec">
-          <h2>What we estimate it at</h2>
+          <h2>{p.firm ? 'What it comes to' : 'What we estimate it at'}</h2>
           <table className="est__price">
             <thead><tr><th>Item</th><th>Quantity</th><th>Amount</th></tr></thead>
             <tbody>
@@ -167,25 +188,55 @@ export default function EstimateDoc(p: EstimateFor) {
                   <td className="est__num">{money(l.amount)}</td>
                 </tr>
               ))}
-              <tr className="est__tot">
-                <td>Estimated total</td><td />
-                <td className="est__num">{money(p.option.price)}</td>
-              </tr>
+              {p.firm ? (
+                <>
+                  <tr className="est__sub">
+                    <td>Estimated at signing</td><td />
+                    <td className="est__num">{money(p.firm.before)}</td>
+                  </tr>
+                  {p.firm.extras.map((e, i) => (
+                    <tr key={`x${i}`}>
+                      <td>{e.what}<small>{e.detail}</small></td>
+                      <td className="est__num" />
+                      <td className="est__num">{money(e.amount)}</td>
+                    </tr>
+                  ))}
+                  <tr className="est__tot">
+                    <td>Firm total</td><td />
+                    <td className="est__num">{money(p.firm.after)}</td>
+                  </tr>
+                </>
+              ) : (
+                <tr className="est__tot">
+                  <td>Estimated total</td><td />
+                  <td className="est__num">{money(p.option.price)}</td>
+                </tr>
+              )}
             </tbody>
           </table>
           <p className="est__after">
-            {p.frozen.per_foot != null && (
+            {p.frozen.per_foot != null && !p.firm && (
               <span><b>{money(p.frozen.per_foot)}</b> a foot, estimated</span>
             )}
             {p.goodThrough && <span><b>Good through</b> {day(p.goodThrough)}</span>}
             <span><b>Tax</b> not included</span>
           </p>
           <p className="est__note">
-            <b>Confirmed after the survey.</b> The length above was measured on an aerial
-            photograph, which is accurate to the line we can see. Grade, rock, an old footing
-            or a fence line that does not run where the picture suggests all move the number,
-            and the only way to know is to stand on it. The survey is how the estimate
-            becomes a price.
+            {p.firm ? (
+              <>
+                <b>This is the price.</b> The line above was measured on the ground, not on a
+                photograph, and everything the survey found is listed with what it costs.
+                Signing here agrees to the figure, and it is the figure we build to.
+              </>
+            ) : (
+              <>
+                <b>Confirmed after the survey.</b> The length above was measured on an aerial
+                photograph, which is accurate to the line we can see. Grade, rock, an old
+                footing or a fence line that does not run where the picture suggests all move
+                the number, and the only way to know is to stand on it. The survey is how the
+                estimate becomes a price.
+              </>
+            )}
           </p>
         </section>
       </section>
