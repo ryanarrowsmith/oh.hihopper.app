@@ -296,6 +296,38 @@ export default function FenceDraw({
     setActive(runs.length)
     setPicked(null)
   }
+  /* REMOVING A RUN, not just emptying it. Ryan, 14 Sep: "Separate run" is one
+     press, and an extra empty run is the likeliest thing on this screen to be
+     pressed by accident -- but "Clear this run" only empties it, so the stray
+     chip stayed on the strip forever saying "nothing drawn".
+     A run carrying a line asks once before it goes, because a line is somebody's
+     tracing and nothing here undoes across the two-second save. An empty one
+     goes on the first press, which is the case this exists for.
+     The last run is never removed: the screen needs somewhere to draw. */
+  const [askDrop, setAskDrop] = useState<number | null>(null)
+  const removeRun = (i: number) => {
+    if ((runs[i]?.points.length ?? 0) > 0 && askDrop !== i) { setAskDrop(i); return }
+    setAskDrop(null)
+    set((old) => {
+      const left = old.filter((_, ri) => ri !== i)
+      if (!left.length) {
+        return [{ label: 'Run 1', points: [], closed: false, grade: null, typed: null }]
+      }
+      // The labels are this screen's own numbering rather than anybody's name
+      // for a run, so they close up instead of leaving a hole where Run 2 was.
+      return left.map((r, ri) => ({
+        ...r, label: /^Run \d+$/.test(r.label) ? `Run ${ri + 1}` : r.label,
+      }))
+    })
+    setActive((a) => (a >= i && a > 0 ? a - 1 : a))
+    setPicked(null)
+  }
+  // An unanswered "Remove?" is not a standing offer.
+  useEffect(() => {
+    if (askDrop === null) return
+    const t = setTimeout(() => setAskDrop(null), 5000)
+    return () => clearTimeout(t)
+  }, [askDrop])
   const loop = () => set((old) => old.map((r, ri) =>
     ri !== active ? r : { ...r, closed: !r.closed }))
   const typed = (v: string) => {
@@ -495,11 +527,25 @@ export default function FenceDraw({
           the estimate is built on. */}
       <div className="fxruns">
         {runs.map((r, i) => (
-          <button key={i} type="button" className={`fxrunchip${i === active ? ' is-on' : ''}`}
-                  onClick={() => { setActive(i); setPicked(null) }}>
-            <b>{r.label}</b>
-            <span>{runFt(r) > 0 ? ft(runFt(r)) : 'nothing drawn'}</span>
-          </button>
+          /* Two buttons, not one: a chip you press to work on a run cannot also
+             be a chip you press to get rid of it, and a button inside a button
+             is not a thing the browser will build. */
+          <span key={i} className={`fxrunchip${i === active ? ' is-on' : ''}`}>
+            <button type="button" className="fxrunchip__pick"
+                    onClick={() => { setActive(i); setPicked(null); setAskDrop(null) }}>
+              <b>{r.label}</b>
+              <span>{runFt(r) > 0 ? ft(runFt(r)) : 'nothing drawn'}</span>
+            </button>
+            {mayEdit && runs.length > 1 && (
+              <button type="button"
+                      className={`fxrunchip__x${askDrop === i ? ' is-asking' : ''}`}
+                      aria-label={askDrop === i ? `Remove ${r.label}?` : `Remove ${r.label}`}
+                      title={askDrop === i ? `Remove ${r.label}?` : `Remove ${r.label}`}
+                      onClick={() => removeRun(i)}>
+                {askDrop === i ? 'Remove?' : <Cross />}
+              </button>
+            )}
+          </span>
         ))}
       </div>
 
