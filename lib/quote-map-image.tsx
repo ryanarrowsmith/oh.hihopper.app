@@ -32,18 +32,24 @@ export type MapJob = {
  */
 export async function renderQuoteMap(
   job: MapJob, runs: MapRun[], asOf: string | null, cache: string,
+  /** Draw without the aerial layer. The one thing that differs between a
+   *  machine with no Mapbox token -- where this has always rendered -- and the
+   *  deployment where it has never rendered at all, so it is worth being able
+   *  to ask the question in production rather than guessing at it again. */
+  bare = false,
 ): Promise<Response> {
-  const img = build(job, runs, asOf)
+  const img = build(job, runs, asOf, bare)
   return new Response(await img.arrayBuffer(), {
     headers: { 'Content-Type': 'image/png', 'Cache-Control': cache },
   })
 }
 
-function build(job: MapJob, runs: MapRun[], asOf: string | null): ImageResponse {
+function build(job: MapJob, runs: MapRun[], asOf: string | null,
+               bare: boolean): ImageResponse {
   const all = runs.flatMap((r) => r.points)
   const view = viewFit(all, W, PLAN)
   const sw = toLngLat(view, 0, PLAN), ne = toLngLat(view, W, 0)
-  const aerial = aerialBoxUrl({
+  const aerial = bare ? null : aerialBoxUrl({
     west: sw[0], south: sw[1], east: ne[0], north: ne[1],
     // Half size from Mapbox at @2x is the same pixels, and one request rather
     // than the largest the API will give us.
@@ -53,6 +59,21 @@ function build(job: MapJob, runs: MapRun[], asOf: string | null): ImageResponse 
   const feet = runs.reduce((s, r) => s + lineFeet(r.points, r.closed), 0)
   const art = quoteMapArt(runs, view)
   const today = new Date().toISOString().slice(0, 10)
+
+  /* ONE CHILD PER BOX, AND EVERY BOX SAYS display.
+     Satori -- what next/og draws with -- refuses a <div> that has more than one
+     child and no explicit display, and adjacent expressions in JSX are separate
+     children even when they are all text. `{job.ref}{suffix}` is two. That is
+     what has been throwing this route in production: it raises while the
+     response body is being piped, so it arrived as "failed to pipe response"
+     with the real reason two frames down. So every line below is composed in
+     JavaScript and handed over as a single string. */
+  const title = `${job.ref}${job.name ? ` · ${job.name}` : ''}`
+  const under = `${Math.round(feet).toLocaleString('en-US')} ft`
+    + ` · ${runs.length} run${runs.length === 1 ? '' : 's'}`
+    + (job.site_address ? ` · ${job.site_address}` : '')
+  const stamp = `${asOf ? `Priced ${asOf}` : `Measured ${today}`} · aerial`
+  const scale = `${art.scale.feet} ft`
 
   return new ImageResponse(
     (
@@ -83,7 +104,7 @@ function build(job: MapJob, runs: MapRun[], asOf: string | null): ImageResponse 
           }}>
             <div style={{ display: 'flex', width: art.scale.px, height: 5,
                           background: '#231F20' }} />
-            {art.scale.feet} ft
+            <div style={{ display: 'flex' }}>{scale}</div>
           </div>
         </div>
         {/* The caption is the half that makes this evidence rather than a
@@ -91,23 +112,17 @@ function build(job: MapJob, runs: MapRun[], asOf: string | null): ImageResponse 
         <div style={{ display: 'flex', alignItems: 'center', width: W, height: BAR,
                       background: '#231F20', color: '#FBF9F5', padding: '0 28px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-            <div style={{ fontSize: 26, fontWeight: 700 }}>
-              {job.ref}{job.name ? ` · ${job.name}` : ''}
-            </div>
-            <div style={{ fontSize: 17, color: '#B9B2A6', marginTop: 4 }}>
-              {Math.round(feet).toLocaleString('en-US')} ft ·{' '}
-              {runs.length} run{runs.length === 1 ? '' : 's'}
-              {job.site_address ? ` · ${job.site_address}` : ''}
-            </div>
+            <div style={{ display: 'flex', fontSize: 26, fontWeight: 700 }}>{title}</div>
+            <div style={{ display: 'flex', fontSize: 17, color: '#B9B2A6',
+                          marginTop: 4 }}>{under}</div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
             <div style={{ display: 'flex', fontSize: 15, fontWeight: 700, color: '#231F20',
                           background: '#F2A93B', padding: '4px 10px' }}>
               PRELIMINARY
             </div>
-            <div style={{ fontSize: 15, color: '#B9B2A6', marginTop: 6 }}>
-              {asOf ? `Priced ${asOf}` : `Measured ${today}`} · aerial
-            </div>
+            <div style={{ display: 'flex', fontSize: 15, color: '#B9B2A6',
+                          marginTop: 6 }}>{stamp}</div>
           </div>
         </div>
       </div>

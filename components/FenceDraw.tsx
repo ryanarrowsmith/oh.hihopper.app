@@ -45,7 +45,10 @@ type Run = {
 }
 type Saved = 'clean' | 'dirty' | 'saving' | 'failed'
 
-const SPANS = [60, 120, 250, 500, 1000]
+/* MORE RUNGS, NOT A SLIDER. Ryan's call, 14 Sep: it was hard to get the frame
+   you wanted because five steps doubled every time -- 250 to 500 is a different
+   property. Eleven steps move about 40% each, which is a press you can aim. */
+const SPANS = [40, 60, 80, 120, 175, 250, 350, 500, 700, 1000, 1500]
 const TAP = 8          // px of travel that still counts as a tap, not a drag
 
 const ft = (n: number) =>
@@ -63,10 +66,26 @@ export default function FenceDraw({
     initial.length ? initial
       : [{ label: 'Run 1', points: [], closed: false, grade: null, typed: null }])
   const [active, setActive] = useState(0)
-  const [mode, setMode] = useState<'draw' | 'move'>('draw')
+  /* IT OPENS IN MOVE. Ryan's call, 14 Sep: the first thing anybody does is get
+     the property in the frame, and a surface that drops a point when you meant
+     to pan is a surface you have to undo before you can start. Drawing is a
+     button you press when you are ready. */
+  const [mode, setMode] = useState<'draw' | 'move'>('move')
   const [span, setSpan] = useState(250)
   const [at, setAt] = useState<LngLat>(centre)
   const [picked, setPicked] = useState<number | null>(null)
+  /* NO SNAP BACK AT THE END OF A PAN. Ryan's call, 14 Sep -- it jerked, and you
+     could not tell where you were going to land.
+     The old shape committed the new centre on release and dropped the offset in
+     the same breath, so the aerial sprang back to where it started and stayed
+     there until the new tile arrived, then jumped again. Two pieces fix it: the
+     picture that is actually ON SCREEN is tracked separately from the one being
+     asked for, and the offset it needs is HELD until the new one has loaded.
+     The ink does not hold anything -- it is drawn against the live view, so it
+     is already correct the instant the centre moves. */
+  const [shown, setShown] = useState<string | null>(null)
+  const [hold, setHold] = useState<{ dx: number; dy: number }>({ dx: 0, dy: 0 })
+
   const [state, setState] = useState<Saved>('clean')
   const [why, setWhy] = useState<string | null>(null)
 
@@ -99,6 +118,19 @@ export default function FenceDraw({
     })
     return `/api/aerial?${q}`
   }, [view, size])
+
+  // Load the next aerial off-screen and only swap when it is ready, so there is
+  // never a frame with nothing in it.
+  useEffect(() => {
+    if (!src) return
+    if (src === shown) return
+    let gone = false
+    const im = new Image()
+    im.onload = () => { if (!gone) { setShown(src); setHold({ dx: 0, dy: 0 }) } }
+    im.onerror = () => { if (!gone) { setShown(src); setHold({ dx: 0, dy: 0 }) } }
+    im.src = src
+    return () => { gone = true }
+  }, [src, shown])
 
   const set = (fn: (r: Run[]) => Run[]) => {
     setRuns((old) => fn(old))
@@ -163,6 +195,9 @@ export default function FenceDraw({
 
     if (d.kind === 'pan' && d.moved) {
       const mid = toLngLat(view, view.w / 2 - nudge.dx, view.h / 2 - nudge.dy)
+      // The centre moves now; the picture keeps the offset it is already drawn
+      // at until the tile for the new centre has loaded.
+      setHold({ dx: hold.dx + nudge.dx, dy: hold.dy + nudge.dy })
       setNudge({ dx: 0, dy: 0 })
       setAt(mid)
       return
@@ -266,10 +301,11 @@ export default function FenceDraw({
           onPointerUp={onUp}
           onPointerCancel={onUp}
         >
-          {src && (
+          {(shown ?? src) && (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img className="fxaerial" src={src} alt="Aerial of the site"
-                 style={{ transform: `translate(${nudge.dx}px, ${nudge.dy}px)` }} />
+            <img className="fxaerial" src={(shown ?? src) as string} alt="Aerial of the site"
+                 style={{ transform:
+                   `translate(${nudge.dx + hold.dx}px, ${nudge.dy + hold.dy}px)` }} />
           )}
 
           {view && size && (

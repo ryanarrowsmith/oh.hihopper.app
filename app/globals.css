@@ -9665,3 +9665,5 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   font-size:13px; font-weight:600; color:var(--ink-1); text-decoration:none}
 .fjfile i{font-style:normal; font-family:var(--mono); font-size:10.5px; color:var(--ink-3)}
 .fjfile:hover{border-color:var(--ink-3)}
+.fxsub2{margin:16px 0 8px; font-size:11.5px; font-weight:800; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--ink-3)}

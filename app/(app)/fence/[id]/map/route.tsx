@@ -74,10 +74,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
      old shape was a 500 page inside an <img>, which reaches somebody as a
      gray icon and no way to find out why. The reason goes in the body. */
   try {
-    return renderQuoteMap(job as any, runs, asOf, 'private, max-age=300')
+    return await renderQuoteMap(job as any, runs, asOf, 'private, max-age=300',
+      url.searchParams.get('bare') === '1')
   } catch (e) {
     const why = e instanceof Error ? e.message : String(e)
-    console.error('[quote map]', params.id, why)
+    console.error('QUOTEMAP-CAUGHT', params.id, why)
     return new NextResponse(`The quote map could not be drawn: ${why}`, { status: 500 })
   }
 }

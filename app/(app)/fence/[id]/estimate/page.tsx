@@ -11,7 +11,7 @@ import FenceGates from '@/components/FenceGates'
 import ActionForm from '@/components/ActionForm'
 import Choice from '@/components/Choice'
 import QuoteLink from '@/components/QuoteLink'
-import { RecordRow } from '@/components/RowEdit'
+import { RecordRow, RowForm } from '@/components/RowEdit'
 import { setJobSpec, putOnQuote, releaseOption, acceptOption,
          sendForSignature, revokeQuoteLink, setJobContact } from '@/app/actions/fence'
 import { headers } from 'next/headers'
@@ -173,9 +173,15 @@ export default async function Estimate({ params }: { params: { id: string } }) {
               {forWhom?.company && <i>{forWhom.company}</i>}
             </p>
           }>
-            {contacts.length > 0 && (
-              <ActionForm action={setJobContact} label="Use this one" busy="Saving…">
-                <input type="hidden" name="job_id" value={params.id} />
+            {/* ONE FORM, AND IT SHUTS WHEN IT SAVES. Two stacked forms each with
+                their own button was the mess: two ways to do one thing, both
+                open, both reporting. The picker and the new-contact fields are
+                one act now -- type a name and it adds them, leave it empty and
+                it uses whoever is picked -- and RowForm closes the drawer on a
+                save, which is the house rule everywhere else. */}
+            <RowForm action={setJobContact} label="Put them on the estimate">
+              <input type="hidden" name="job_id" value={params.id} />
+              {contacts.length > 0 && (
                 <div><label htmlFor="fc-pick">Somebody already in the book</label>
                   <select className="field" id="fc-pick" name="contact_id"
                           defaultValue={forWhom?.id ?? ''}>
@@ -187,13 +193,12 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                       </option>
                     ))}
                   </select></div>
-              </ActionForm>
-            )}
-            <ActionForm action={setJobContact} label="Add them and use them" busy="Saving…">
-              <input type="hidden" name="job_id" value={params.id} />
+              )}
+
+              <h4 className="fxsub2">Or somebody new</h4>
               <div className="formrow">
                 <div><label htmlFor="fc-name">Name</label>
-                  <input className="field" id="fc-name" name="full_name" required /></div>
+                  <input className="field" id="fc-name" name="full_name" /></div>
                 <div><label htmlFor="fc-title">Title</label>
                   <input className="field" id="fc-title" name="title"
                          placeholder="Operations" /></div>
@@ -208,11 +213,10 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                          defaultValue={(jobRow as any)?.customer ?? ''} /></div>
               </div>
               <p className="fxhint">
-                Anybody in Fence Builder can add a contact, and every job after this one can
-                pick them off the list. An address already in the book is the same person:
-                typing them again corrects the one that is there.
+                An address already in the book is the same person: typing them again corrects
+                the one that is there.
               </p>
-            </ActionForm>
+            </RowForm>
           </RecordRow>
         ) : (
           <p className="fjplace">
@@ -257,8 +261,8 @@ export default async function Estimate({ params }: { params: { id: string } }) {
             {/* The one blurb that survived. Every other section explained its own
                 title; this explains a control that is not obvious, which is a
                 different thing. */}
-            <p>Tap to drop a point, drag one to move it. Switch to <b>Move the map</b> to pan —
-              one finger cannot mean two things.</p>
+            <p>It opens on <b>Move the map</b> — get the property in the frame first. Press
+              <b> Draw</b> and a tap drops a point; drag one to move it.</p>
           </div></div>
           <FenceDraw
             jobId={m.job.id}
