@@ -11,7 +11,7 @@ import { loadRates, rateAge, RATE_KINDS, SECTIONS, ROLE_WORD, type JobRole } fro
 import { setCompany } from '@/app/actions/fence'
 import { LANG_NAME } from '@/lib/i18n'
 import {
-  setFencePerson, dropFencePerson, setRate, setSpec, setGateType,
+  setFencePerson, dropFencePerson, setRate, setSpec, setGateType, setSiteCondition,
   setTerm, setCrew, setChargeCode, setChargeRule, setTarget, setFenceSettings, setPlanStep,
 } from '@/app/actions/fence'
 
@@ -31,7 +31,7 @@ export const dynamic = 'force-dynamic'
  * lines further down.
  */
 
-const KEYS = ['people', 'plan', 'rates', 'specs', 'glossary', 'billing', 'crews',
+const KEYS = ['people', 'plan', 'rates', 'specs', 'conditions', 'glossary', 'billing', 'crews',
               'pricing', 'company'] as const
 type Key = (typeof KEYS)[number]
 
@@ -40,6 +40,7 @@ const TITLE: Record<Key, string> = {
   plan: 'Task plan',
   rates: 'Rate book',
   specs: 'Specs and gates',
+  conditions: 'Site conditions',
   glossary: 'Glossary',
   billing: 'Charge codes and billing',
   crews: 'Crews',
@@ -156,6 +157,7 @@ export default async function FenceAdmin(
       {s === 'plan' && <Plan steps={a.plan} may={may} />}
       {s === 'rates' && book && <RateBook rates={book.rates} seesCost={book.seesCost} may={may} />}
       {s === 'specs' && <Specs specs={a.specs} gates={a.gates} may={may} />}
+      {s === 'conditions' && <Conditions rows={a.conditions} may={may} />}
       {s === 'glossary' && <Glossary terms={a.glossary} may={may} />}
       {s === 'billing' && <Billing codes={a.codes} rules={a.rules} targets={a.targets} may={may} />}
       {s === 'crews' && <Crews crews={a.crews} people={a.people} may={may} />}
@@ -536,6 +538,132 @@ function RateBook({ rates, seesCost, may }: {
 }
 
 // ------------------------------------------------------------ specs and gates
+/* ----------------------------------------------------------- site conditions */
+/**
+ * What a site can turn out to have, and what each one costs.
+ *
+ * A fixed list rather than a free text box on the survey, because free text is
+ * how a $2,400 demolition becomes a sentence nobody prices. A condition carries
+ * no price of its own: it names a RATE BOOK line and gets multiplied by a
+ * quantity, so removal is edited in the rate book beside fabric and concrete
+ * and there is no second place a figure can live.
+ */
+function Conditions({ rows, may }: {
+  rows: Awaited<ReturnType<typeof loadFenceAdmin>>['conditions']; may: boolean
+}) {
+  const Fields = ({ r }: { r?: (typeof rows)[number] }) => (
+    <>
+      <div className="formrow">
+        <div><label htmlFor={`cc-${r?.id ?? 'new'}`}>Code</label>
+          <input className="field" id={`cc-${r?.id ?? 'new'}`} name="code" required
+                 defaultValue={r?.code} placeholder="DEMO-CL4" /></div>
+        <div><label htmlFor={`co-${r?.id ?? 'new'}`}>Order</label>
+          <input className="field" id={`co-${r?.id ?? 'new'}`} name="sort" inputMode="numeric"
+                 defaultValue={r?.sort ?? ''} placeholder="10" /></div>
+      </div>
+      <div className="formrow" style={{ marginTop: 12 }}>
+        <div><label htmlFor={`cn-${r?.id ?? 'new'}`}>Name, in English</label>
+          <input className="field" id={`cn-${r?.id ?? 'new'}`} name="name_en" required
+                 defaultValue={r?.name_en} /></div>
+        <div><label htmlFor={`ce-${r?.id ?? 'new'}`}>In Spanish</label>
+          <input className="field" id={`ce-${r?.id ?? 'new'}`} name="name_es"
+                 defaultValue={r?.name_es ?? ''} /></div>
+      </div>
+      <div className="formrow" style={{ marginTop: 12 }}>
+        <div><label htmlFor={`cb-${r?.id ?? 'new'}`}>What it means, in English</label>
+          <input className="field" id={`cb-${r?.id ?? 'new'}`} name="blurb_en"
+                 defaultValue={r?.blurb_en ?? ''}
+                 placeholder="When somebody standing on site should tick it" /></div>
+        <div><label htmlFor={`cs-${r?.id ?? 'new'}`}>In Spanish</label>
+          <input className="field" id={`cs-${r?.id ?? 'new'}`} name="blurb_es"
+                 defaultValue={r?.blurb_es ?? ''} /></div>
+      </div>
+      <div className="formrow" style={{ marginTop: 12 }}>
+        <div><label htmlFor={`cr-${r?.id ?? 'new'}`}>Rate code</label>
+          <input className="field" id={`cr-${r?.id ?? 'new'}`} name="rate_code"
+                 defaultValue={r?.rate_code ?? ''} placeholder="What it prices from" /></div>
+        <div><label htmlFor={`cg-${r?.id ?? 'new'}`}>Charge code</label>
+          <input className="field" id={`cg-${r?.id ?? 'new'}`} name="charge_code"
+                 defaultValue={r?.charge_code ?? ''} placeholder="What it bills under" /></div>
+      </div>
+      <p className="fxhint">
+        Two different books, the same pair a gate carries. The rate code is what it PRICES
+        from — and the unit comes off that line, so feet and each and load are defined once.
+        A condition whose rate code names nothing measures and does not price, and the survey
+        says so by name rather than adding nought.
+      </p>
+      <div style={{ marginTop: 12 }}>
+        <Toggle name="wants_qty" label="Asks for a quantity" defaultOn={r ? r.wants_qty : true}
+                say="On for anything measured — feet of fence to pull out, posts in rock" />
+      </div>
+      <div style={{ marginTop: 10 }}>
+        <Toggle name="at_estimate" label="Sales may tick it on the estimate"
+                defaultOn={r ? r.at_estimate : false}
+                say="On for what is visible on an aerial or said on the phone. Nobody guesses at rock from a photograph" />
+      </div>
+      <div style={{ marginTop: 10 }}>
+        <Toggle name="active" label="Offered on a survey" defaultOn={r ? r.active : true}
+                say="Off hides it from new surveys and leaves it on the jobs that already found it" />
+      </div>
+    </>
+  )
+
+  return (
+    <EditableSection
+      title="Site conditions"
+      blurb={`${rows.length} of them. What the aerial could not see — an existing fence, rock at post depth, a slope that has to be stepped. Each one prices through a rate book line and bills under a charge code.`}
+      addLabel="Adding a condition"
+      addForm={may ? <RowForm action={setSiteCondition} label="Add it" busy="Adding…"><Fields /></RowForm> : undefined}
+    >
+      {rows.length === 0 ? <p className="empty">No site conditions yet.</p> : (
+        <div className="rlist rlist--cols"
+             style={{ ['--cols' as any]: '150px minmax(0,1.8fr) 130px 130px 110px' }}>
+          <div className="rhead">
+            <span>Code</span><span>Condition</span><span>Prices from</span>
+            <span>Bills under</span><span>Raised at</span>
+          </div>
+          {rows.map((r) => (
+            <Row key={r.id} may={may} label={`Edit ${r.code}`} face={
+              <>
+                <span className="rcell rcell--lead">
+                  <span className="fjacode">{r.code}</span>
+                </span>
+                <span className="rcell">
+                  <span className="rcell__lab">Condition</span>
+                  <span className="rcell__val">
+                    {r.name_en}
+                    {!r.active && <FenceMark kind="absent">Retired</FenceMark>}
+                    {r.blurb_en && <span className="fjsub">{r.blurb_en}</span>}
+                  </span>
+                </span>
+                <span className="rcell">
+                  <span className="rcell__lab">Prices from</span>
+                  <span className="rcell__val fjamono">
+                    {r.rate_code ?? <FenceMark kind="warn">Not priced</FenceMark>}
+                  </span>
+                </span>
+                <span className="rcell">
+                  <span className="rcell__lab">Bills under</span>
+                  <span className="rcell__val fjamono">{r.charge_code ?? '—'}</span>
+                </span>
+                <span className="rcell">
+                  <span className="rcell__lab">Raised at</span>
+                  <span className="rcell__val">{r.at_estimate ? 'Estimate or survey' : 'Survey'}</span>
+                </span>
+              </>
+            }>
+              <RowForm action={setSiteCondition}>
+                <input type="hidden" name="id" value={r.id} />
+                <Fields r={r} />
+              </RowForm>
+            </Row>
+          ))}
+        </div>
+      )}
+    </EditableSection>
+  )
+}
+
 function Specs({ specs, gates, may }: {
   specs: Awaited<ReturnType<typeof loadFenceAdmin>>['specs']
   gates: Awaited<ReturnType<typeof loadFenceAdmin>>['gates']; may: boolean

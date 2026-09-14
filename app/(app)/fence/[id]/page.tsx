@@ -47,6 +47,7 @@ export const dynamic = 'force-dynamic'
  *  heading with nothing to open yet rather than a dead one. */
 const HAS_SCREEN: Partial<Record<Section, string>> = {
   estimate: 'estimate',
+  survey: 'survey',
   sow: 'sow',
   billing: 'billing',
 }

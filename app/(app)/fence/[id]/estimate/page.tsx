@@ -4,10 +4,12 @@ import { currentSession } from '@/lib/tenant'
 import { supabaseServer } from '@/lib/supabase/server'
 import { fenceStance, howToDraw, loadRates, loadRights } from '@/lib/fence'
 import { loadMeasure, loadRecipe } from '@/lib/takeoff'
+import { loadQuoteConditions } from '@/lib/survey'
 import { priceIt } from '@/lib/price'
 import { FenceMark } from '@/components/FenceMark'
 import FenceDraw from '@/components/FenceDraw'
 import FenceGates from '@/components/FenceGates'
+import SurveyConditions from '@/components/SurveyConditions'
 import ActionForm from '@/components/ActionForm'
 import Choice from '@/components/Choice'
 import QuoteLink from '@/components/QuoteLink'
@@ -71,6 +73,8 @@ export default async function Estimate({ params }: { params: { id: string } }) {
   /* What has gone out to be signed, and what came back. One live link at a
      time by construction -- issuing a new one revokes the old -- so this reads
      the newest and lets the rest be history. */
+  const quote = await loadQuoteConditions(session.accountId, params.id)
+
   const [{ data: links }, { data: signatures }, { data: people }, h] = await Promise.all([
     db.schema('hopper').from('fence_quote_link')
       .select('id, token, option_id, issued_at, expires_on, revoked, signed_at,'
@@ -347,6 +351,27 @@ export default async function Estimate({ params }: { params: { id: string } }) {
             so {unpriced === 1 ? 'it measures' : 'they measure'} but does not price.{' '}
             <Link href="/admin/fence?s=rates">The rate book</Link>.
           </p>
+        )}
+
+        {/* WHAT IS ALREADY STANDING THERE. Ryan, 14 Sep: yes, sales may tick an
+            existing fence — it is usually visible on the aerial and the
+            customer mentions it on the phone, so the FACT is knowable even when
+            the footage is a guess. Only the conditions marked `at_estimate` in
+            Admin appear here: nobody guesses at rock from a photograph, and a
+            condition sales cannot honestly know belongs to the survey alone.
+            The survey confirms all of this, in its own table, beside rather
+            than over what was quoted. */}
+        {quote.conditions.length > 0 && (
+          <>
+            <h3 className="fxsub">What is already there</h3>
+            <SurveyConditions
+              jobId={m.job.id} where="quote"
+              conditions={quote.conditions} found={quote.quoted} mayEdit={mayEdit} />
+            <p className="fxhint">
+              A rough footage is fine here. The survey measures it and the difference is what
+              moves the price.
+            </p>
+          </>
         )}
       </section>
 

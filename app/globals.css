@@ -9694,3 +9694,147 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 .fjfile:hover{border-color:var(--ink-3)}
 .fxsub2{margin:16px 0 8px; font-size:11.5px; font-weight:800; letter-spacing:.06em;
   text-transform:uppercase; color:var(--ink-3)}
+
+/* ==========================================================================
+   THE SITE SURVEY — /fence/[id]/survey
+   Every block on this screen is a DIFFERENCE: drawn against walked, quoted
+   against found, signed against firm. So the old figure is never styled away,
+   only quieted, and the delta beside it is what the eye lands on.
+   ========================================================================== */
+.svwhen{margin-top:14px; padding-top:13px; border-top:1px solid var(--rule);
+  font-family:var(--mono); font-size:11.5px; color:var(--ink-3)}
+
+.svthesis{margin-top:18px; border:1px solid var(--warmrule);
+  border-left:3px solid var(--warmedge); background:var(--warmbg); padding:14px 16px}
+.svthesis b{display:block; font-size:15.5px; margin-bottom:3px}
+.svthesis p{font-size:13.5px; color:var(--ink-2); margin:0}
+
+/* A quiet aside that is not an error and not a success — the two states the
+   `note` classes already cover. Steel, because red is never an accent. */
+.svnote{margin-top:14px; border-left:3px solid var(--steel); background:var(--steelwash);
+  padding:11px 14px; font-size:13px; color:var(--ink-2)}
+.svnote b{color:var(--ink)}
+
+.svsplit{display:grid; grid-template-columns:minmax(0,1fr); gap:14px}
+@media (min-width:1000px){ .svsplit{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr)} }
+.svshot{border:1px solid var(--rule); background:var(--sunken); overflow:hidden;
+  align-self:start}
+.svshot img{display:block; width:100%; height:auto}
+
+/* ------------------------------------------------------------- the runs */
+.svruns{background:var(--surface); border:1px solid var(--rule); padding:16px}
+.svtable{width:100%; border-collapse:collapse; font-size:14px}
+.svtable th{text-align:left; font-family:var(--mono); font-size:10.5px; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--ink-3); font-weight:400;
+  padding:0 10px 8px 0; border-bottom:1px solid var(--rule); white-space:nowrap}
+.svtable td{padding:11px 10px 11px 0; border-bottom:1px solid var(--rule-soft);
+  vertical-align:middle}
+.svtable tr:last-child td{border-bottom:0}
+.svnum{font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+.svwas{color:var(--ink-3)}
+.svfall{display:block; font-family:var(--mono); font-size:10.5px; color:var(--steel-ink);
+  margin-top:3px}
+.svdelta{font-family:var(--mono); font-size:12.5px; margin-left:7px}
+.svdelta--up{color:var(--bad)}
+.svdelta--down{color:var(--good)}
+.field--n{max-width:112px; font-family:var(--mono); text-align:right}
+
+.svfoot{display:flex; flex-wrap:wrap; align-items:baseline; gap:10px 16px; margin-top:14px;
+  padding-top:13px; border-top:2px solid var(--ink)}
+.svfoot > b{font-size:26px; font-weight:800; letter-spacing:-.03em}
+.svfoot > span{font-size:13px; color:var(--ink-3)}
+.svfoot .sp{margin-left:auto}
+.svfoot .btn{align-self:center}
+.svquiet{font-size:12.5px; color:var(--ink-3)}
+
+/* -------------------------------------------------------- the conditions */
+.svcond{list-style:none; margin:0; padding:0; border:1px solid var(--rule);
+  background:var(--surface)}
+.svcond li{padding:12px 14px; border-bottom:1px solid var(--rule-soft)}
+.svcond li:last-child{border-bottom:0}
+.svcond li.is-on{background:var(--warmbg)}
+.svcond__t{display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center;
+  gap:12px}
+.svcond__n b{display:block; font-size:14.5px}
+.svcond__n span{display:block; font-size:12.5px; color:var(--ink-3); margin-top:2px}
+.svcode{font-family:var(--mono); font-size:10.5px; letter-spacing:.04em; color:var(--ink-3);
+  border:1px solid var(--rule); padding:3px 7px; white-space:nowrap}
+.svcond li.is-on .svcode{color:var(--ink); border-color:var(--canvas-3);
+  background:var(--surface)}
+
+/* What it costs, shown where the quantity is typed. */
+.svcond__m{display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;
+  margin:12px 0 2px 54px; padding:12px 14px;
+  background:var(--surface); border:1px solid var(--canvas-3)}
+.svcond__f{display:grid; gap:5px}
+.svcond__f span{font-family:var(--mono); font-size:10px; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--ink-3)}
+.svcond__x{font-family:var(--mono); font-size:16px; color:var(--ink-3); padding-bottom:9px}
+.svcond__r{padding-bottom:6px; font-size:13px}
+.svcond__r b{font-family:var(--mono); font-size:14px}
+.svcond__r span{display:block; font-size:11.5px; color:var(--ink-3); margin-top:2px}
+.svcond__gap{padding-bottom:9px; font-size:13px; font-weight:700; color:var(--bad)}
+.svcond__l{margin-left:auto; text-align:right; padding-bottom:4px}
+.svcond__l b{display:block; font-family:var(--mono); font-size:18px; font-weight:800}
+.svcond__l span{font-size:11.5px; color:var(--ink-3)}
+.svcond__d{flex:1 1 100%}
+.svcond__d .field{width:100%}
+
+/* ------------------------------------------------------------ read-only */
+.svfacts{display:grid; gap:0; margin:0; border:1px solid var(--rule);
+  background:var(--surface); grid-template-columns:minmax(0,1fr)}
+@media (min-width:720px){ .svfacts{grid-template-columns:repeat(3,minmax(0,1fr))} }
+.svfacts > div{padding:13px 15px; border-bottom:1px solid var(--rule-soft)}
+.svfacts dt{font-family:var(--mono); font-size:10.5px; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--ink-3)}
+.svfacts dd{margin:5px 0 0; font-size:14px}
+
+/* -------------------------------------------------------- the verdict */
+.svverdict{display:grid; grid-template-columns:minmax(0,1fr); border:1px solid var(--rule)}
+@media (min-width:720px){ .svverdict{grid-template-columns:repeat(3,minmax(0,1fr))} }
+.svverdict > div{padding:16px 18px; background:var(--surface);
+  border-bottom:1px solid var(--rule)}
+.svverdict > div:last-child{border-bottom:0}
+@media (min-width:720px){
+  .svverdict > div{border-bottom:0; border-right:1px solid var(--rule)}
+  .svverdict > div:last-child{border-right:0}
+}
+.svverdict h3{font-family:var(--mono); font-size:10.5px; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--ink-3); font-weight:400; margin:0}
+.svverdict b{display:block; font-size:25px; font-weight:800; margin-top:8px;
+  letter-spacing:-.03em}
+.svverdict p{font-size:12.5px; color:var(--ink-3); margin:5px 0 0}
+.svverdict .svnow{background:var(--sunken)}
+.svverdict .svnow b{color:var(--steel-ink)}
+
+/* The one decision on the screen that is not a measurement. */
+.svfork{display:grid; gap:10px; margin-top:4px; grid-template-columns:minmax(0,1fr)}
+@media (min-width:720px){ .svfork{grid-template-columns:repeat(2,minmax(0,1fr))} }
+.svfork__c{display:block; position:relative; cursor:pointer}
+.svfork__c input{position:absolute; opacity:0; width:0; height:0}
+.svfork__b{display:block; height:100%; padding:14px 16px;
+  background:var(--surface); border:1px solid var(--rule)}
+.svfork__b b{display:block; font-size:15px; margin-bottom:5px}
+.svfork__b span{display:block; font-size:12.5px; color:var(--ink-3)}
+.svfork__c input:checked ~ .svfork__b{border-color:var(--ink); background:var(--warmbg);
+  box-shadow:inset 3px 0 0 var(--amber)}
+.svfork__c input:checked ~ .svfork__b span{color:var(--ink-2)}
+.svfork__c input:focus-visible ~ .svfork__b{box-shadow:var(--focus)}
+
+@media (max-width:640px){
+  /* A thumb misses a small target, and this screen is filled in standing in a
+     yard. Same floor as the drawing surface. */
+  .svruns .btn, .svcond .field, .svtable .field{min-height:44px}
+  .svtable, .svtable tbody, .svtable tr, .svtable td{display:block; width:100%}
+  .svtable thead{display:none}
+  .svtable tr{border:1px solid var(--rule); padding:12px; margin-bottom:10px}
+  .svtable td{border:0; padding:6px 0; display:grid;
+    grid-template-columns:11ch minmax(0,1fr); gap:10px; align-items:center}
+  .svtable td::before{content:attr(data-l); font-family:var(--mono); font-size:10.5px;
+    letter-spacing:.05em; text-transform:uppercase; color:var(--ink-3)}
+  .field--n{max-width:none}
+  .svcond__m{margin-left:0; flex-direction:column; align-items:stretch}
+  .svcond__l{margin-left:0; text-align:left}
+  .svcond__x{display:none}
+  .svfoot > b{width:100%}
+}

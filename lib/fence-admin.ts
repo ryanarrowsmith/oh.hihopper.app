@@ -44,6 +44,17 @@ export type GateType = {
 }
 
 /** Which charge code a class of work rolls up into. See 0133. */
+/** What a site can turn out to have. It prices through a rate book line and
+ *  bills under a charge code — two different questions, two columns. */
+export type SiteCondition = {
+  id: string; code: string
+  name_en: string; name_es: string | null
+  blurb_en: string | null; blurb_es: string | null
+  rate_code: string | null; charge_code: string | null
+  wants_qty: boolean; at_estimate: boolean
+  sort: number; active: boolean
+}
+
 export type ChargeRule = {
   id: string; cls: string; takes: 'fence' | 'gate'; charge_code: string
   note: string | null; active: boolean
@@ -111,8 +122,8 @@ export async function loadFenceAdmin(accountId: string) {
   const db = supabaseServer()
   const h = () => db.schema('hopper')
 
-  const [fp, roster, specs, gates, terms, crews, codes, rules, targets, sows, plan, settings,
-         rights] = await Promise.all([
+  const [fp, roster, specs, gates, terms, crews, codes, rules, conditions, targets, sows, plan,
+         settings, rights] = await Promise.all([
       h().from('fence_person').select('id, person_id, job_role').eq('account_id', accountId),
       h().from('person').select('id, full_name, email, role_title, lang, active')
         .eq('account_id', accountId).order('full_name'),
@@ -131,6 +142,9 @@ export async function loadFenceAdmin(accountId: string) {
         .eq('account_id', accountId).order('sort').order('code'),
       h().from('fence_charge_rule').select('id, cls, takes, charge_code, note, active')
         .eq('account_id', accountId).order('cls').order('takes'),
+      h().from('fence_condition')
+        .select('id, code, name_en, name_es, blurb_en, blurb_es, rate_code, charge_code, wants_qty, at_estimate, sort, active')
+        .eq('account_id', accountId).order('sort').order('code'),
       h().from('fence_billing_target').select('id, name, to_email, instructions, active')
         .eq('account_id', accountId).order('name'),
       // Only enough of the scope of work to answer "is this word in use".
@@ -183,6 +197,7 @@ export async function loadFenceAdmin(accountId: string) {
     crews: crewRows,
     codes: (codes.data ?? []) as ChargeCode[],
     rules: (rules.data ?? []) as ChargeRule[],
+    conditions: (conditions.data ?? []) as SiteCondition[],
     targets: (targets.data ?? []) as Target[],
     plan: (plan.data ?? []) as PlanStep[],
     settings, rights,

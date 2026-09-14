@@ -11,6 +11,8 @@ import { loadMeasure, loadRecipe } from '@/lib/takeoff'
 import { priceIt } from '@/lib/price'
 import { loadRates, loadRights, loadJob } from '@/lib/fence'
 import { geocode, whyNoPin } from '@/lib/mapbox'
+import { terrainKey } from '@/lib/terrain'
+import { readFall } from '@/lib/terrain-read'
 import { buildSheet as buildSheetFrom, mergeSheet, whatBlocks } from '@/lib/handoff'
 import { loadBilling } from '@/lib/billing'
 import { tellMentioned } from '@/lib/notify'
@@ -228,6 +230,32 @@ export async function setGateType(_p: Result | null, form: FormData): Promise<Re
  * gates, so temporary has no gate rule and its gates bill inside the fence line.
  * Retiring a rule is how you say that.
  */
+/**
+ * One row in the site-conditions list.
+ *
+ * `rate_code` is what it prices through and `charge_code` is what it bills
+ * under — the same pair a gate type carries, because pricing a thing and
+ * billing it are different questions. Neither is required: a condition worth
+ * recording before anybody has decided what it costs measures and does not
+ * price, and the screen says so by name rather than adding nought.
+ */
+export async function setSiteCondition(_p: Result | null, form: FormData): Promise<Result> {
+  const code = str(form, 'code').toUpperCase()
+  if (!code) return { ok: false, message: 'A condition needs a code.' }
+  if (!str(form, 'name_en')) return { ok: false, message: 'A condition needs a name.' }
+  return put('fence_condition', nul(form, 'id'), {
+    code,
+    name_en: str(form, 'name_en'), name_es: nul(form, 'name_es'),
+    blurb_en: nul(form, 'blurb_en'), blurb_es: nul(form, 'blurb_es'),
+    rate_code: nul(form, 'rate_code')?.toUpperCase() ?? null,
+    charge_code: nul(form, 'charge_code')?.toUpperCase() ?? null,
+    wants_qty: on(form, 'wants_qty'),
+    at_estimate: on(form, 'at_estimate'),
+    sort: num(form, 'sort') ?? 0,
+    active: on(form, 'active'),
+  }, { thing: 'site conditions', name: code })
+}
+
 export async function setChargeRule(_p: Result | null, form: FormData): Promise<Result> {
   const cls = str(form, 'cls')
   const takes = str(form, 'takes')
@@ -406,6 +434,45 @@ export async function saveRuns(_p: Result | null, form: FormData): Promise<Resul
       sort: Number.isFinite(Number(r.sort)) ? Number(r.sort) : i,
     })
   }
+
+  /* WHAT THE GROUND DOES, read before the write so the two go in together.
+     The line autosaves two seconds after the last tap, so asking Mapbox on
+     every save would be a handful of tile requests per drawn corner. Two guards
+     between them make it roughly one reading a minute while somebody is
+     drawing, and none at all afterwards: the fingerprint, so an unchanged shape
+     is never re-read, and a minute's throttle, so a shape that keeps changing
+     is not chased.
+     A reading that fails leaves the old figures alone rather than clearing
+     them — "we could not look" must never arrive looking like level ground. */
+  const was = await db.schema('hopper').from('fence_run')
+    .select('id, terrain_key, terrain_at')
+    .eq('account_id', account).eq('job_id', job)
+  const seen = new Map(((was.data ?? []) as any[]).map((r) => [r.id, r]))
+  // Post spacing, so a steep stretch can be reported as panels rather than feet.
+  // Ten is the fallback the takeoff already uses when a job has no spec yet.
+  const chosen = await db.schema('hopper').from('fence_job')
+    .select('spec_code').eq('account_id', account).eq('id', job).maybeSingle()
+  const spec = chosen.data?.spec_code
+    ? await db.schema('hopper').from('fence_spec').select('spacing_ft')
+        .eq('account_id', account).eq('code', chosen.data.spec_code).maybeSingle()
+    : null
+  const spacing = Number(spec?.data?.spacing_ft ?? 10) || 10
+
+  const minuteAgo = Date.now() - 60_000
+  await Promise.all(rows.map(async (r) => {
+    const pts = (r.points ?? []) as [number, number][]
+    if (pts.length < 2) return
+    const key = terrainKey(pts, r.closed_loop)
+    const old = seen.get(r.id)
+    if (old?.terrain_key === key) return
+    if (old?.terrain_at && Date.parse(old.terrain_at) > minuteAgo) return
+    const fall = await readFall(pts, r.closed_loop, spacing)
+    if (!fall) return
+    Object.assign(r, {
+      fall_ft: fall.fallFt, steepest: fall.steepest,
+      terrain_key: key, terrain_at: new Date().toISOString(),
+    })
+  }))
 
   if (rows.length) {
     const { data, error } = await db.schema('hopper').from('fence_run')
