@@ -50,8 +50,13 @@ export default async function Page({ searchParams }: {
             {showingComplete ? 'Show open' : 'Show complete'}
           </Link>
         )}
+        {/* A new estimate is what this button is for nine times out of ten, so it
+            is the one wearing amber. A work order is present and not competing:
+            same row, plain button. `btn--primary` was neither — it is not a class
+            this stylesheet defines, so the one button meant to lead has been
+            rendering as an ordinary one since the day it was written. */}
         <Link className="btn" href={'/fence/new?from=survey' as any}>New work order</Link>
-        <Link className="btn btn--primary" href={'/fence/new' as any}>New estimate</Link>
+        <Link className="btn btn--amber" href={'/fence/new' as any}>New estimate</Link>
       </div></div>
 
       {/* "Nothing here" and "I could not ask" are different answers, and only one

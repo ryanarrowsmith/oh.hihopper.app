@@ -778,6 +778,12 @@ a.bub{text-decoration:none}
 .btn:hover{border-color:var(--ink-3); background:var(--sunken)}
 .btn--amber{background:var(--amber); border-color:var(--amber); color:#231F20}
 .btn--amber:hover{background:#E39B29; border-color:#E39B29}
+/* A third rung, under the plain button: a control that belongs in the row but
+   should not be competing with the two that do something. It was already being
+   asked for by name and never existed, so it rendered as an ordinary button and
+   there was no difference between "show complete" and "open a job". */
+.btn--quiet{background:transparent; border-color:transparent; color:var(--ink-3)}
+.btn--quiet:hover{background:var(--surface); border-color:var(--rule); color:var(--ink)}
 /* The one destructive button in the product. Outlined rather than filled: a
    red slab reads as the thing to press, and this is the thing not to. */
 .btn--danger{color:var(--bad); border-color:var(--bad)}

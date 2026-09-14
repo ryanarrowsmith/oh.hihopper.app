@@ -85,8 +85,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </p>
       </div>
       <div className="fjact">
+        {/* What this person actually is on this job. Saying "reading only" while
+            every section below is marked Yours · edit is the header disagreeing
+            with the page: an administrator holds no fence job and may still edit
+            everything, which is the same gap howToDraw had. */}
         <span className="fjwho">
-          {jobRole ? ROLE_WORD[jobRole] : 'Reading only'}
+          {jobRole ? ROLE_WORD[jobRole] : rights.mayManage ? 'Administrator' : 'Reading only'}
         </span>
       </div></div>
 
