@@ -1521,6 +1521,29 @@ export async function recordHandoff(_p: Result | null, form: FormData): Promise<
   const note = nul(form, 'note')
   const how = str(form, 'how') === 'mailed' ? 'mailed' : 'copied'
 
+  /* THE LETTER GOES FIRST, AND THAT ORDER IS THE POINT.
+     `fence_handoff` is append-only, so a row claiming `how = 'mailed'` can never
+     be corrected afterwards. Queue first and the record can only ever overstate
+     by a transient database error; record first and every failed queue leaves a
+     permanent lie in the job's history.
+
+     The address and the sheet are read by the function, not passed to it. A
+     definer that mails whatever text a caller hands it to whatever address a
+     caller hands it is a spam relay wearing our return address — so the caller
+     names the job, and Beebee looks up where that account's handoffs go. */
+  let queued: number | null = null
+  if (how === 'mailed') {
+    const { data: outbox, error: mailErr } = await db.schema('hopper')
+      .rpc('fence_handoff_mail', { job, note })
+    if (mailErr) {
+      return {
+        ok: false,
+        message: `Nothing was sent and nothing was recorded. ${refused(mailErr.message, 'billing handoff')}`,
+      }
+    }
+    queued = typeof outbox === 'number' ? outbox : null
+  }
+
   const { data, error } = await db.schema('hopper').from('fence_handoff').insert({
     account_id: account, job_id: job,
     target_id: b.target?.id ?? null,
@@ -1531,6 +1554,7 @@ export async function recordHandoff(_p: Result | null, form: FormData): Promise<
     // Frozen, for the same reason an option freezes its takeoff: the location's
     // number can be corrected next week, and what accounting was told cannot.
     sheet: {
+      queued_as: queued,
       sold_option: b.sold?.id ?? null,
       sold_price: sheet.sold,
       total: sheet.total,
@@ -1562,14 +1586,18 @@ export async function recordHandoff(_p: Result | null, form: FormData): Promise<
 
   await logAudit(db, {
     account_id: account, kind: 'fence', object: loaded.job.ref, object_id: job,
-    summary: `Handed ${loaded.job.ref} to accounting under Navusoft ${navusoft}`
+    summary: `${how === 'mailed' ? 'Sent' : 'Handed'} ${loaded.job.ref} to accounting`
+      + ` under Navusoft ${navusoft}`
       + ` — ${sheet.lines.length} lines, $${sheet.total.toLocaleString('en-US')}`,
-    payload: { navusoft_account: navusoft, total: sheet.total, how },
+    payload: { navusoft_account: navusoft, total: sheet.total, how, queued_as: queued },
   })
   revalidatePath(`/fence/${job}/billing`); revalidatePath(`/fence/${job}`); revalidatePath('/fence')
   return {
     ok: true,
-    message: `Recorded against Navusoft ${navusoft}. It is in the job's record now, and a second`
-      + ' send is a second entry rather than an overwrite.',
+    message: how === 'mailed'
+      ? `Sent to ${b.target?.to_email ?? 'accounting'} and recorded against Navusoft ${navusoft}.`
+        + ' It goes out within the minute; a second send is a second entry rather than an overwrite.'
+      : `Recorded against Navusoft ${navusoft}. It is in the job's record now, and a second`
+        + ' send is a second entry rather than an overwrite.',
   }
 }

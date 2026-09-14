@@ -294,10 +294,10 @@ export default async function Record({ params }: { params: Promise<{ id: string 
           <div className="fxrec__notes">
             {b.handoffs.map((h) => (
               <p key={h.id}>
-                <b>Sent {day(h.sent_at)}</b>
+                <b>{h.how === 'mailed' ? 'Emailed' : 'Sent by hand'} {day(h.sent_at)}</b>
                 {h.sent_by_name ? ` by ${h.sent_by_name}` : ''}
                 {h.navusoft_account ? ` under Navusoft ${h.navusoft_account}` : ''}
-                {h.to_email ? ` to ${h.to_email}` : ''}
+                {h.how === 'mailed' && h.to_email ? ` to ${h.to_email}` : ''}
                 {h.note ? ` — ${h.note}` : ''}
               </p>
             ))}

@@ -421,10 +421,14 @@ export default async function Billing({ params }: { params: Promise<{ id: string
         <div className="sec__h"><div className="sec__t">
           <h2><b className="fxn">5</b>Send it to accounting</h2>
           <p>
-            {b.target
-              ? `${b.target.name} is the target. Hopper lays the message out; you send it, and
-                 then record that you did.`
-              : `No billing target is set up, so there is nobody to send to yet.`}
+            {b.target?.to_email
+              ? `${b.target.name} is the target, at ${b.target.to_email}. The whole sheet goes in the
+                 letter — accounting has no Hopper account, so a link in place of the figures would
+                 be a door they cannot open.`
+              : b.target
+                ? `${b.target.name} is the target but has no address on it, so there is nowhere to
+                   send. The message is below to take by hand.`
+                : `No billing target is set up, so there is nobody to send to yet.`}
           </p>
         </div></div>
 
@@ -438,22 +442,52 @@ export default async function Billing({ params }: { params: Promise<{ id: string
 
         {message && written ? (
           <>
-            <HandoffMessage subject={message.subject} body={message.body}
-                            to={b.target?.to_email ?? null} />
-            {mayEdit && blocked.length === 0 && (
+            {/* The letter Hopper sends. Primary, because it is the one that
+                reaches somebody without anybody remembering to. */}
+            {mayEdit && blocked.length === 0 && b.target?.to_email && (
               <div className="fxquote">
-                <ActionForm action={recordHandoff} label="Record the handoff" busy="Recording…">
+                <ActionForm action={recordHandoff} label="Send it to accounting"
+                            busy="Sending…">
                   <input type="hidden" name="job_id" value={job.id} />
-                  <input type="hidden" name="how" value="copied" />
+                  <input type="hidden" name="how" value="mailed" />
                   <div className="formrow">
                     <div><label htmlFor="hn">Anything accounting should know</label>
                       <input className="field" id="hn" name="note"
                              placeholder="Two gates went in on the north drive, not one" /></div>
                   </div>
                   <p className="fxhint">
+                    Goes to <b>{b.target.to_email}</b> with the whole sheet in it, and lands in the
+                    job&rsquo;s record against Navusoft {navusoft ?? '—'}. Replies come back to you
+                    rather than to support. A second send is a second entry rather than an
+                    overwrite, which is how accounting losing the first one stays visible.
+                  </p>
+                </ActionForm>
+              </div>
+            )}
+
+            <h3 className="fxsub">Or take it by hand</h3>
+            <p className="fxhint">
+              Mail an app writes gets eaten by corporate filters, and the person waiting never
+              learns there was anything to wait for. So the same message is here to send with your
+              own hands — and recording it is then a separate act, because a button that claimed to
+              send and only wrote a row would be the worst of the three.
+            </p>
+            <HandoffMessage subject={message.subject} body={message.body}
+                            to={b.target?.to_email ?? null} />
+            {mayEdit && blocked.length === 0 && (
+              <div className="fxquote">
+                <ActionForm action={recordHandoff} label="Record that I sent it"
+                            busy="Recording…">
+                  <input type="hidden" name="job_id" value={job.id} />
+                  <input type="hidden" name="how" value="copied" />
+                  <div className="formrow">
+                    <div><label htmlFor="hn2">What you told them</label>
+                      <input className="field" id="hn2" name="note"
+                             placeholder="Sent from Outlook, two gates noted" /></div>
+                  </div>
+                  <p className="fxhint">
                     Writes down the sheet exactly as it stands, against Navusoft{' '}
-                    {navusoft ?? '—'}. A second send is a second entry rather than an overwrite,
-                    which is how accounting losing the first one stays visible.
+                    {navusoft ?? '—'}. Nothing is mailed by this button.
                   </p>
                 </ActionForm>
               </div>
@@ -482,9 +516,10 @@ export default async function Billing({ params }: { params: Promise<{ id: string
                   <span className="fxopt__n">
                     <b>{day(x.sent_at)}</b>
                     <small>
-                      {x.sent_by_name ? `${x.sent_by_name}` : 'Somebody'}
+                      {x.how === 'mailed' ? 'Emailed by ' : 'Taken by hand by '}
+                      {x.sent_by_name ? `${x.sent_by_name}` : 'somebody'}
                       {x.navusoft_account ? ` · Navusoft ${x.navusoft_account}` : ''}
-                      {x.to_email ? ` · ${x.to_email}` : ''}
+                      {x.how === 'mailed' && x.to_email ? ` · ${x.to_email}` : ''}
                       {x.note ? ` · ${x.note}` : ''}
                     </small>
                   </span>
