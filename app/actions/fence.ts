@@ -390,7 +390,12 @@ export async function saveRuns(_p: Result | null, form: FormData): Promise<Resul
       // geometry rather than rejected.
       points: clean.length >= 2 ? clean : null,
       plan_ft: Number.isFinite(Number(r.plan_ft)) ? Number(r.plan_ft) : 0,
-      grade_pct: grade !== null && Number.isFinite(grade) && Math.abs(grade) <= 60 ? grade : null,
+      /* A GRADE NOBODY TYPED IS LEVEL GROUND. The column says so itself --
+         NOT NULL DEFAULT 0 -- and takeoff, the crew ticket and the estimate
+         all coalesce a missing grade to 0 before using it. Sending null was
+         the app disagreeing with its own schema, and the disagreement
+         surfaced as a constraint violation on an ordinary save. */
+      grade_pct: grade !== null && Number.isFinite(grade) && Math.abs(grade) <= 60 ? grade : 0,
       closed_loop: !!r.closed,
       // The screen says how the length was arrived at; the column's check
       // constraint says which words are allowed, and anything else is dropped

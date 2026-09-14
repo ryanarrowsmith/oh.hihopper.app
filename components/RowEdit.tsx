@@ -1,13 +1,9 @@
 'use client'
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import type { Result } from '@/app/actions/admin'
 import { Pencil, Plus } from './Icons'
-
-/* A drawer tells whatever form is inside it how to close. The form is the only
-   thing that knows whether the save worked, and the drawer is the only thing
-   that can shut -- so one passes the handle to the other. */
-const Drawer = createContext<{ close: () => void }>({ close: () => {} })
+import { Drawer } from './Drawer'
 
 /** Nothing inside a shut drawer should be reachable by tab. The drawer is
  *  clipped, not removed, so the browser needs telling. */
@@ -38,7 +34,7 @@ export function RowForm({
   children: React.ReactNode; label?: string; busy?: string
   danger?: React.ReactNode
 }) {
-  const { close } = useContext(Drawer)
+  const close = useContext(Drawer)?.close ?? (() => {})
   const [state, run] = useFormState(action, null)
   useEffect(() => { if (state?.ok) close() }, [state, close])
   return (
@@ -61,7 +57,7 @@ export function RowDanger({
   action: (prev: Result | null, form: FormData) => Promise<Result>
   label: string; children: React.ReactNode
 }) {
-  const { close } = useContext(Drawer)
+  const close = useContext(Drawer)?.close ?? (() => {})
   const [state, run] = useFormState(action, null)
   useEffect(() => { if (state?.ok) close() }, [state, close])
   return (

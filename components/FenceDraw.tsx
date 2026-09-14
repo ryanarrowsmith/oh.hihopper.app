@@ -63,6 +63,40 @@ const PAD = 1.8
 const ft = (n: number) =>
   n >= 1000 ? `${Math.round(n).toLocaleString('en-US')} ft` : `${Math.round(n)} ft`
 
+/* WHERE IT OPENS.
+   Ryan, 14 Sep, on 2032 Utica Square: the geocoder pins the BUILDING, and 250
+   feet of frame is all building -- there is nowhere to draw a fence around the
+   property because the property is off the edges.
+   Opening wide is the safe mistake now that framing is its own step: zooming IN
+   from too much ground is one press against a picture you can read, while
+   guessing which way the lot runs from too little is a blind drag. So a fresh
+   job opens at 500 feet.
+   A job that already carries a line opens on THE LINE rather than on the pin --
+   centred on its box, at the smallest span that still leaves a margin round it,
+   because reopening is for editing what was drawn. */
+const OPEN_FT = 500
+const ROOM = 1.4       // of the drawn box, so the line is never against a wall
+/* A span is feet across the WIDTH, and the window is wider than it is tall --
+   4:3, or 16:9 once there is room for it. So a line running north-south needs
+   the span its HEIGHT implies at the FLATTEST shape the window ever takes, or
+   its two ends hang off the top and bottom on the wider screen. */
+const FLATTEST = 16 / 9
+
+function opening(runs: Run[], pin: LngLat): { at: LngLat; span: number } {
+  const pts = runs.flatMap((r) => r.points)
+  if (!pts.length) return { at: pin, span: OPEN_FT }
+  const lng = pts.map((p) => p[0]), lat = pts.map((p) => p[1])
+  const w = Math.min(...lng), e = Math.max(...lng)
+  const s = Math.min(...lat), n = Math.max(...lat)
+  const at: LngLat = [(w + e) / 2, (s + n) / 2]
+  // Both sides in feet, measured the same way every other length here is.
+  const across = Math.max(
+    lineFeet([[w, at[1]], [e, at[1]]]),
+    lineFeet([[at[0], s], [at[0], n]]) * FLATTEST,
+  ) * ROOM
+  return { at, span: SPANS.find((f) => f >= across) ?? SPANS[SPANS.length - 1] }
+}
+
 export default function FenceDraw({
   jobId, centre, runs: initial, mayEdit,
 }: {
@@ -87,8 +121,9 @@ export default function FenceDraw({
      first time and reopening is for editing the line, not the frame. */
   const [framed, setFramed] = useState(initial.some((r) => r.points.length > 0))
   const mode: 'draw' | 'move' = framed ? 'draw' : 'move'
-  const [span, setSpan] = useState(250)
-  const [at, setAt] = useState<LngLat>(centre)
+  const [open] = useState(() => opening(initial, centre))
+  const [span, setSpan] = useState(open.span)
+  const [at, setAt] = useState<LngLat>(open.at)
   const [picked, setPicked] = useState<number | null>(null)
   /* NO SNAP BACK AT THE END OF A PAN. Ryan's call, 14 Sep -- it jerked, and you
      could not tell where you were going to land.
@@ -413,27 +448,31 @@ export default function FenceDraw({
           changes the line lives anywhere else on the screen. */}
       <div className="fxstrip">
         {!framed ? (
-          <>
-            <button type="button" className="btn btn--amber" onClick={() => setFramed(true)}>
-              <Pen />Use this view
-            </button>
-            <div className="fxzoom" role="group" aria-label="How much ground is in view">
-              <button type="button" aria-label="Closer"
-                      disabled={SPANS.indexOf(span) <= 0}
-                      onClick={() => setSpan(SPANS[Math.max(0, SPANS.indexOf(span) - 1)])}>
-                <Minus /></button>
-              <b>{ft(span)} across</b>
-              <button type="button" aria-label="Wider"
-                      disabled={SPANS.indexOf(span) >= SPANS.length - 1}
-                      onClick={() => setSpan(SPANS[Math.min(SPANS.length - 1, SPANS.indexOf(span) + 1)])}>
-                <Plus /></button>
-            </div>
-          </>
+          <button type="button" className="btn btn--amber" onClick={() => setFramed(true)}>
+            <Pen />Use this view
+          </button>
         ) : (
           <button type="button" className="btn btn--quiet" onClick={() => setFramed(false)}>
-            <Hand />Change the view
+            <Hand />Move the map
           </button>
         )}
+
+        {/* ZOOM BELONGS TO BOTH STEPS. Freezing the view was about a DRAG
+            meaning one thing, and a button press was never ambiguous -- taking
+            the zoom away with the panning left somebody framed too close with
+            no way out but to go back and start again. The points are held as
+            ground, not pixels, so they redraw correctly at any span. */}
+        <div className="fxzoom" role="group" aria-label="How much ground is in view">
+          <button type="button" aria-label="Zoom in"
+                  disabled={SPANS.indexOf(span) <= 0}
+                  onClick={() => setSpan(SPANS[Math.max(0, SPANS.indexOf(span) - 1)])}>
+            <Minus /></button>
+          <b>{ft(span)} across</b>
+          <button type="button" aria-label="Zoom out"
+                  disabled={SPANS.indexOf(span) >= SPANS.length - 1}
+                  onClick={() => setSpan(SPANS[Math.min(SPANS.length - 1, SPANS.indexOf(span) + 1)])}>
+            <Plus /></button>
+        </div>
 
         {mayEdit && framed && (
           <div className="fxacts">
