@@ -82,10 +82,17 @@ export default async function Schedule({ params }: { params: { id: string } }) {
       </div></div>
 
       <div className="svthesis">
-        <b>Everything above this is settled.</b>
+        <b>{surveyed
+          ? 'Everything above this is settled.'
+          : 'The survey has not closed yet.'}</b>
         <p>
-          The line is measured, the price is signed and the scope is written. What is left is
-          a date the law allows, a crew who can work that date, and a ticket in their hands.
+          {surveyed
+            ? <>The line is measured, the price is signed and the scope is written. What is
+                left is a date the law allows, a crew who can work that date, and a ticket in
+                their hands.</>
+            : <>A date can be pencilled in from here, but the survey is what confirms the
+                price and records the locate — so this screen is working from the aerial
+                measure until it closes.</>}
         </p>
       </div>
 
@@ -103,36 +110,41 @@ export default async function Schedule({ params }: { params: { id: string } }) {
             and the back of it, and the survey already recorded both.</p>
         </div></div>
 
-        {!read.survey ? (
+        {/* THE DURATION IS NOT THE LOCATE'S BUSINESS. It comes off the labor
+            the job was priced with, so it is known before anybody rings 811 —
+            and hiding it behind a missing locate meant the one derived figure on
+            the screen only appeared once it was no longer the question. */}
+        <div className="scdates">
+          <div className="fxfact"><b>Clear to dig</b>
+            <span>{day(read.survey?.dig_from ?? null) ?? '—'}</span>
+            <small>
+              {read.survey?.locate_ticket
+                ? `Ticket ${read.survey.locate_ticket} · two working days, and it is the law`
+                : 'No locate recorded yet'}
+            </small></div>
+          <div className="fxfact"><b>Locate expires</b>
+            <span>{day(read.survey?.locate_expires ?? null) ?? '—'}</span>
+            <small>Past this the ticket is dead and needs calling again</small></div>
+          <div className="fxfact"><b>How long it takes</b>
+            <span>{read.suggested ? `${read.suggested} day${read.suggested === 1 ? '' : 's'}` : '—'}</span>
+            <small>
+              {read.hours > 0
+                ? `${Math.round(read.hours * 10) / 10} crew-hours off the takeoff, `
+                  + `a crew of ${read.crew?.size ?? 3}, eight-hour days`
+                : 'No labor priced on this job yet'}
+            </small></div>
+          <div className="fxfact"><b>Days left in the window</b>
+            <span>{w.room ?? '—'}</span>
+            <small>Working days between the two dates above</small></div>
+        </div>
+
+        {!read.survey?.dig_from && (
           <p className="note">
-            No locate has been recorded on this job.{' '}
-            <Link href={`/fence/${job.id}/survey`}>The survey</Link> is where the ticket number
+            <b>No locate has been recorded on this job.</b> The dates can be pencilled in
+            anyway, but nothing digs until 811 has been called —{' '}
+            <Link href={`/fence/${job.id}/survey`}>the survey</Link> is where the ticket number
             and its dates are entered.
           </p>
-        ) : (
-          <div className="scdates">
-            <div className="fxfact"><b>Clear to dig</b>
-              <span>{day(read.survey.dig_from) ?? '—'}</span>
-              <small>
-                {read.survey.locate_ticket
-                  ? `Ticket ${read.survey.locate_ticket} · two working days, and it is the law`
-                  : 'No ticket number recorded'}
-              </small></div>
-            <div className="fxfact"><b>Locate expires</b>
-              <span>{day(read.survey.locate_expires) ?? '—'}</span>
-              <small>Past this the ticket is dead and needs calling again</small></div>
-            <div className="fxfact"><b>How long it takes</b>
-              <span>{read.suggested ? `${read.suggested} day${read.suggested === 1 ? '' : 's'}` : '—'}</span>
-              <small>
-                {read.hours > 0
-                  ? `${Math.round(read.hours * 10) / 10} crew-hours off the takeoff, `
-                    + `a crew of ${read.crew?.size ?? 3}, eight-hour days`
-                  : 'No labor priced on this job yet'}
-              </small></div>
-            <div className="fxfact"><b>Days left in the window</b>
-              <span>{w.room ?? '—'}</span>
-              <small>Working days between the two dates above</small></div>
-          </div>
         )}
 
         {mayEdit ? (

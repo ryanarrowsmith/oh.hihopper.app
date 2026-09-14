@@ -78,7 +78,11 @@ export default function CloseoutRuns({
                   <input className="field field--num" inputMode="decimal"
                          aria-label={`Built length of ${r.label}, feet`}
                          value={r.built ?? ''}
-                         placeholder={String(Math.round(r.walked ?? r.drawn))}
+                         // The figure it is expected to match, so a run built
+                         // as sold is one glance rather than one sum. Nothing
+                         // to match means nothing to suggest.
+                         placeholder={(r.walked ?? r.drawn) > 0
+                           ? String(Math.round(r.walked ?? r.drawn)) : ''}
                          onChange={(e) => set(i, {
                            built: e.target.value.trim() === '' ? null : Number(e.target.value),
                          })} />
@@ -97,14 +101,19 @@ export default function CloseoutRuns({
             </tr>
           ))}
         </tbody>
+        {/* Each total under the column it totals. The first version put the
+            built figure under "Run", which is the kind of mistake that is
+            invisible until somebody reads the wrong number out loud. */}
         <tfoot><tr>
-          <td><b>{any ? ft(built) : '—'}</b></td>
+          <td>Whole job</td>
           <td className="fxnum">{ft(rows.reduce((s, r) => s + r.drawn, 0))}</td>
           <td className="fxnum">{ft(sold)}</td>
-          <td className="fxnum" colSpan={2}>
+          <td className="fxnum">{any ? ft(built) : '—'}</td>
+          <td>
             {any && short !== 0 && (
               <b className={short < 0 ? 'cominus' : undefined}>
-                {short > 0 ? '+' : '−'}{ft(Math.abs(short))}
+                {short > 0 ? '+' : '−'}{ft(Math.abs(short))}{' '}
+                {short < 0 ? 'short of what was sold' : 'more than was sold'}
               </b>
             )}
           </td>
@@ -119,9 +128,6 @@ export default function CloseoutRuns({
             : 'Not saved yet'}
           {state !== 'saving' && state !== 'clean' && (
             <button type="button" className="lnk" onClick={save}>Save now</button>
-          )}
-          {state === 'clean' && (
-            <button type="button" className="lnk" onClick={save}>Save</button>
           )}
         </p>
       )}

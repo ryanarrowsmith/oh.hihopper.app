@@ -110,20 +110,43 @@ export async function loadSchedule(accountId: string, jobId: string) {
     .eq('account_id', accountId).eq('active', true).order('sort')
   const conditions = new Map(((cat.data ?? []) as any[]).map((c) => [c.id, c]))
 
-  const groupOf = (code: string): string => {
-    if (/GATE|GT-/i.test(code)) return 'Gates'
-    if (/POST|CONC|FTG/i.test(code)) return 'Posts and concrete'
-    if (/LAB|CREW|HR/i.test(code)) return 'Labor'
-    return 'Fabric and rail'
+  /* THE BOOK ALREADY GROUPS ITSELF. `fence_rate.grp` is how the rate book is
+     organised on the admin screen, so the load list uses it rather than a
+     regular expression over rate codes — which is what the first version did,
+     and which filed the auger truck under "fabric and rail".
+
+     LABOR IS NOT LOADED ON A TRUCK. Every `kind = 'labor'` line comes off: the
+     crew is the labor, and a list of things to bring that includes eight hours
+     of installation is a list nobody finishes reading.
+
+     ONE ROW PER THING. The recipe counts concrete against line posts and again
+     against corner posts, which is right for a price and wrong for a yard —
+     somebody loading a truck wants "39 bags", not two rows of the same bag. So
+     the lines merge by rate code and the reasons join. */
+  const merged = new Map<string, { name: string; grp: string; uom: string
+                                   qty: number; why: string[] }>()
+  for (const l of priced.lines) {
+    const rate = rateBook.get(l.code)
+    if (rate?.kind === 'labor') continue
+    const had = merged.get(l.code)
+    const why = l.note ?? l.per.replace(/_/g, ' ')
+    if (had) {
+      had.qty += l.qty
+      if (!had.why.includes(why)) had.why.push(why)
+      continue
+    }
+    merged.set(l.code, {
+      name: l.name, grp: rate?.grp ?? 'Everything else',
+      uom: l.uom ?? rate?.uom ?? '', qty: l.qty, why: [why],
+    })
   }
-  const load: LoadLine[] = priced.lines
-    .filter((l) => !/^LAB|CREW/i.test(l.code))
-    .map((l) => ({
-      group: groupOf(l.code),
-      name: l.name,
-      qty: `${Math.round(l.qty).toLocaleString('en-US')}${l.uom ? ` ${l.uom}` : ''}`,
-      from: l.note ?? l.per.replace(/_/g, ' '),
-    }))
+
+  const load: LoadLine[] = [...merged.values()].map((m) => ({
+    group: m.grp,
+    name: m.name,
+    qty: `${Math.round(m.qty).toLocaleString('en-US')}${m.uom ? ` ${m.uom}` : ''}`,
+    from: m.why.join(' · '),
+  }))
   for (const f of ((found.data ?? []) as any[])) {
     const c = conditions.get(f.condition_id)
     if (!c) continue
@@ -134,6 +157,17 @@ export async function loadSchedule(accountId: string, jobId: string) {
       from: f.detail || 'found at the survey',
     })
   }
+  /* Read in the order a truck is loaded: what the fence is made of, then what
+     holds it up, then what it is dug with — and the survey's own group last,
+     because that is the one worth checking twice. */
+  const ORDER = ['Fabric', 'Rail', 'Hardware', 'Posts', 'Concrete', 'Gates',
+                 'Security line', 'Detection', 'Temporary fence', 'Rental',
+                 'Equipment', 'Because of what the survey found']
+  const rank = (g: string) => {
+    const i = ORDER.indexOf(g)
+    return i === -1 ? ORDER.length - 1 : i
+  }
+  load.sort((a, b) => rank(a.group) - rank(b.group))
 
   const live = ((links.data ?? []) as any[]).find((l) => !l.revoked) ?? null
 
