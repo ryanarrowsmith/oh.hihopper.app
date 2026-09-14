@@ -8900,6 +8900,63 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 .fxvert__dot{fill:var(--paper); stroke:var(--ink); stroke-width:2}
 .fxvert.is-picked .fxvert__dot{fill:var(--amber); stroke:var(--ink)}
 .fxvert{cursor:grab; touch-action:none}
+
+/* ------------------------------------------------------------ sides and gates
+   A side is one leg of the line, between two corners. It is only drawn over the
+   line when somebody is working on the sides, or when it DIFFERS from the rest
+   of the job -- a side that is the same fence as its neighbours has nothing to
+   say and drawing it says something.
+   The hit line is 22px wide and invisible, the same bargain the vertex handles
+   make: a side you cannot hit with a thumb is a side you cannot price. */
+.fxleg__grab{stroke:transparent; stroke-width:22; stroke-linecap:round;
+  cursor:pointer; touch-action:none}
+.fxleg__mark{fill:none; stroke:var(--amber); stroke-width:3; stroke-linecap:round;
+  opacity:.55; pointer-events:none}
+.fxleg.is-other .fxleg__mark{stroke:var(--steel); opacity:.9; stroke-width:4}
+.fxleg.is-on .fxleg__mark{stroke:var(--amber); opacity:1; stroke-width:5}
+/* A gate reads as a break ACROSS the line, which is what an opening looks like
+   from above and what a customer recognises without a key. */
+.fxgatemk line{stroke:var(--paper); stroke-width:4.5; stroke-linecap:round}
+.fxgatemk circle{fill:var(--ink); stroke:var(--paper); stroke-width:2}
+
+/* The panel opens beside the side it is about, over the picture, because the
+   answer to "which side is this" is the highlighted line next to it. Position
+   comes from the drawing in pixels; everything else is here. */
+.fxpop{
+  position:absolute; z-index:3; display:flex; flex-direction:column; gap:12px;
+  max-height:min(300px,70%); overflow:auto; padding:12px;
+  background:var(--surface); border:1px solid var(--ink-3);
+  box-shadow:0 10px 30px rgba(35,31,32,.22)}
+.fxpop__h{display:flex; align-items:baseline; gap:8px}
+.fxpop__h b{font-size:14px}
+.fxpop__h span{font-family:var(--mono); font-size:11.5px; color:var(--ink-3)}
+.fxpop__h button{
+  margin-left:auto; display:grid; place-items:center; width:26px; height:26px;
+  background:none; border:0; color:var(--ink-3); cursor:pointer}
+.fxpop__h button svg{width:13px; height:13px}
+.fxpop__set{border:0; padding:0; margin:0; display:grid; gap:6px}
+.fxpop__set legend{
+  padding:0; font-size:11px; font-weight:800; letter-spacing:.04em;
+  text-transform:uppercase; color:var(--ink-3)}
+.fxopt{display:flex; align-items:flex-start; gap:8px; padding:6px 7px; cursor:pointer;
+  border:1px solid transparent}
+.fxopt:hover{background:var(--sunken)}
+.fxopt:has(input:checked){border-color:var(--rule); background:var(--sunken);
+  box-shadow:inset 2px 0 0 var(--amber)}
+.fxopt input{margin-top:2px}
+.fxopt b{display:block; font-size:12.5px}
+.fxopt small{display:block; font-size:11px; color:var(--ink-3)}
+.fxpop__gate{display:grid; grid-template-columns:1fr auto; gap:4px 8px; align-items:center;
+  padding:7px 0; border-bottom:1px solid var(--rule)}
+.fxpop__gate b{font-size:12.5px}
+.fxpop__gate input[type=range]{grid-column:1/-1; width:100%; accent-color:var(--amber)}
+.fxpop__gate .lnk{font-size:11.5px}
+.fxpop__add{display:flex; flex-wrap:wrap; gap:6px}
+.fxpop__add .btn{padding:7px 10px; font-size:12px}
+.fxpop__none, .fxpop__hint{font-size:11.5px; color:var(--ink-3); margin:0}
+.fxpop__name{display:grid; gap:5px}
+.fxpop__name span{font-size:11px; font-weight:800; letter-spacing:.04em;
+  text-transform:uppercase; color:var(--ink-3)}
 .fxscale{
   position:absolute; left:10px; bottom:10px; display:flex; align-items:center; gap:7px;
   padding:4px 8px; background:rgba(251,249,245,.92); border:1px solid var(--rule);

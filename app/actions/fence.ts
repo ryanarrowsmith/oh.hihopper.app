@@ -8,7 +8,7 @@ import { currentSession } from '@/lib/tenant'
 import { logAudit } from '@/lib/audit'
 import type { Result } from '@/app/actions/admin'
 import { loadMeasure, loadRecipe } from '@/lib/takeoff'
-import { priceIt } from '@/lib/price'
+import { priceJob, sidesOf } from '@/lib/price'
 import { loadRates, loadRights, loadJob } from '@/lib/fence'
 import { geocode, whyNoPin } from '@/lib/mapbox'
 import { terrainKey } from '@/lib/terrain'
@@ -385,9 +385,11 @@ export async function saveRuns(_p: Result | null, form: FormData): Promise<Resul
   const job = str(form, 'job_id')
   if (!job) return { ok: false, message: 'No job.' }
 
+  type InLeg = { id?: string | null; sort?: number; label?: string | null
+                 spec_code?: string | null }
   type In = { id?: string | null; label?: string; points?: unknown; closed?: boolean
               grade?: number | null; plan_ft?: number; sort?: number
-              measured_by?: string | null }
+              measured_by?: string | null; legs?: InLeg[] }
   let sent: In[]
   try { sent = JSON.parse(str(form, 'runs')) } catch { return { ok: false, message: 'The line did not arrive in one piece. Nothing was saved.' } }
   if (!Array.isArray(sent)) return { ok: false, message: 'The line did not arrive in one piece. Nothing was saved.' }
@@ -395,6 +397,12 @@ export async function saveRuns(_p: Result | null, form: FormData): Promise<Resul
 
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   const rows = []
+  /* THE LEGS COME WITH THE GEOMETRY, in the same post, because they describe it.
+     A leg is a segment of a run's polyline -- same count, same order -- so
+     writing the two apart would leave a window where they disagree, and the
+     thing that disagrees is WHICH SIDE OF A PROPERTY IS EIGHT FEET TALL. */
+  const legRows: { id: string; account_id: string; job_id: string; run_id: string
+                   sort: number; label: string | null; spec_code: string | null }[] = []
   for (const [i, r] of sent.entries()) {
     if (!r.id || !uuid.test(r.id)) return { ok: false, message: 'A run arrived without a usable id.' }
     const pts = Array.isArray(r.points) ? r.points : []
@@ -433,6 +441,22 @@ export async function saveRuns(_p: Result | null, form: FormData): Promise<Resul
         : clean.length >= 2 ? 'aerial' : null,
       sort: Number.isFinite(Number(r.sort)) ? Number(r.sort) : i,
     })
+
+    /* A leg past the end of the line is a leg that no longer exists: somebody
+       removed a point and the browser has not caught up. Bounded by the segment
+       count rather than trusted, so a stale save cannot leave an override
+       hanging off nothing. */
+    const want = clean.length >= 2 ? (r.closed ? clean.length : clean.length - 1) : 0
+    for (const l of (Array.isArray(r.legs) ? r.legs : [])) {
+      const at = Number(l.sort)
+      if (!Number.isInteger(at) || at < 0 || at >= want) continue
+      if (!l.id || !uuid.test(l.id)) continue
+      legRows.push({
+        id: l.id, account_id: account, job_id: job, run_id: r.id, sort: at,
+        label: l.label ? String(l.label).slice(0, 40) : null,
+        spec_code: l.spec_code ? String(l.spec_code).toUpperCase().slice(0, 40) : null,
+      })
+    }
   }
 
   /* WHAT THE GROUND DOES, read before the write so the two go in together.
@@ -489,6 +513,38 @@ export async function saveRuns(_p: Result | null, form: FormData): Promise<Resul
   const gone = db.schema('hopper').from('fence_run')
     .delete().eq('account_id', account).eq('job_id', job)
   await (keep.length ? gone.not('id', 'in', `(${keep.join(',')})`) : gone)
+
+  // After the runs, because a leg points at one.
+  if (legRows.length) {
+    const { error } = await db.schema('hopper').from('fence_leg')
+      .upsert(legRows, { onConflict: 'id' })
+    if (error) return { ok: false, message: refused(error.message, 'measure') }
+  }
+  const keepLegs = legRows.map((l) => l.id)
+  const legsGone = db.schema('hopper').from('fence_leg')
+    .delete().eq('account_id', account).eq('job_id', job)
+  await (keepLegs.length ? legsGone.not('id', 'in', `(${keepLegs.join(',')})`) : legsGone)
+
+  /* WHERE THE GATES HANG, in the same breath for the same reason. A gate is
+     pinned to a leg and a fraction along it, so moving a point moves the gate
+     with the side it is on rather than leaving it in the neighbour's yard.
+     A gate whose leg is gone comes back UNPLACED rather than deleted: a gate is
+     still a gate somebody is paying for. */
+  type InPlace = { id?: string | null; leg_id?: string | null; at_pct?: number | null }
+  let places: InPlace[] = []
+  try { places = JSON.parse(str(form, 'places') || '[]') } catch { places = [] }
+  if (Array.isArray(places) && places.length && places.length <= 99) {
+    const legIds = new Set(keepLegs)
+    for (const g of places) {
+      if (!g.id || !uuid.test(g.id)) continue
+      const on = g.leg_id && legIds.has(g.leg_id) ? g.leg_id : null
+      const at = on && Number.isFinite(Number(g.at_pct))
+        ? Math.min(0.999, Math.max(0.001, Number(g.at_pct))) : null
+      await db.schema('hopper').from('fence_gate')
+        .update({ leg_id: on, at_pct: at })
+        .eq('account_id', account).eq('job_id', job).eq('id', g.id)
+    }
+  }
 
   await logAudit(db, {
     account_id: account, kind: 'fence', object_id: job,
@@ -565,21 +621,54 @@ export async function setGates(_p: Result | null, form: FormData): Promise<Resul
     .select('code').eq('account_id', account).in('code', codes.length ? codes : ['-'])
   const ok = new Set(((known ?? []) as any[]).map((t) => t.code))
 
-  const rows = sent
-    .filter((g) => g.type_code && ok.has(g.type_code) && Number(g.qty) > 0)
-    .map((g) => ({
-      account_id: account, job_id: job,
-      type_code: g.type_code as string,
-      qty: Math.min(99, Math.max(1, Math.round(Number(g.qty)))),
-    }))
+  const want = new Map<string, number>()
+  for (const g of sent) {
+    if (!g.type_code || !ok.has(g.type_code) || !(Number(g.qty) > 0)) continue
+    const n = Math.min(99, Math.max(1, Math.round(Number(g.qty))))
+    want.set(g.type_code, (want.get(g.type_code) ?? 0) + n)
+  }
 
-  // Whole-set again: the screen holds every gate on the job, so what is gone from
-  // it is gone. There is no transaction across two REST calls, so the NEW rows go
-  // in before the old ones come out -- a failed insert then loses nothing, where
-  // delete-then-insert would have emptied the list and stopped.
+  /* ONE ROW PER GATE, AND A GATE THAT HAS BEEN PLACED STAYS PUT.
+     This used to delete every gate on the job and insert the new counts, which
+     was fine while a gate was only a number. It is not fine now that a gate
+     carries WHICH SIDE it hangs on: somebody nudges the count from two to three
+     and the two already placed on the drawing come back unplaced, in the middle
+     of a conversation with a customer about where their gates go.
+     So the set is reconciled per type instead -- keep what is there, placed ones
+     first, insert what is short, delete what is over and take the unplaced ones
+     off first. A legacy row carrying a qty above one cannot be placed (one
+     position, two gates), so a type holding one is rebuilt as single rows;
+     nothing is lost, because such a row has no placement to lose. */
   const before = await db.schema('hopper').from('fence_gate')
-    .select('id').eq('account_id', account).eq('job_id', job)
-  const old = ((before.data ?? []) as any[]).map((g) => g.id)
+    .select('id, type_code, qty, leg_id').eq('account_id', account).eq('job_id', job)
+  const byType = new Map<string, { id: string; qty: number; leg_id: string | null }[]>()
+  for (const g of ((before.data ?? []) as any[])) {
+    byType.set(g.type_code, [...(byType.get(g.type_code) ?? []),
+      { id: g.id, qty: Number(g.qty), leg_id: g.leg_id ?? null }])
+  }
+
+  const rows: { account_id: string; job_id: string; type_code: string; qty: number }[] = []
+  const old: string[] = []
+  const types: string[] = []
+  for (const t of want.keys()) types.push(t)
+  for (const t of byType.keys()) if (!types.includes(t)) types.push(t)
+
+  for (const type of types) {
+    const n = want.get(type) ?? 0
+    const mine = (byType.get(type) ?? [])
+      // Placed first, so a cut takes the unplaced ones.
+      .sort((x, y) => (x.leg_id ? 0 : 1) - (y.leg_id ? 0 : 1))
+    const lumpy = mine.some((g) => g.qty !== 1)
+    const keep = lumpy ? 0 : Math.min(n, mine.length)
+    for (let i = keep; i < mine.length; i++) old.push(mine[i].id)
+    for (let i = keep; i < n; i++) {
+      rows.push({ account_id: account, job_id: job, type_code: type, qty: 1 })
+    }
+  }
+
+  // There is no transaction across two REST calls, so the NEW rows go in before
+  // the old ones come out -- a failed insert then loses nothing, where
+  // delete-then-insert would have emptied the list and stopped.
 
   if (rows.length) {
     const { data, error } = await db.schema('hopper').from('fence_gate')
@@ -599,15 +688,16 @@ export async function setGates(_p: Result | null, form: FormData): Promise<Resul
         + 'Reload and remove the duplicates.' }
     }
   } else if (!rows.length) {
-    // Nothing before, nothing now. Saying "saved" would be a lie about a write
-    // that never happened, and a refusal would be a lie about a failure.
-    return { ok: true, message: 'No gates on this job.' }
+    // Nothing added and nothing taken away. Saying "saved" would be a lie about
+    // a write that never happened, and a refusal a lie about a failure.
+    return { ok: true, message: want.size ? 'No change to the gates.' : 'No gates on this job.' }
   }
 
   await logAudit(db, {
     account_id: account, kind: 'fence', object_id: job,
-    summary: rows.length
-      ? `Set the gates: ${rows.reduce((s, r) => s + r.qty, 0)} in ${rows.length} kind${rows.length === 1 ? '' : 's'}`
+    summary: want.size
+      ? `Set the gates: ${[...want.values()].reduce((s, n) => s + n, 0)} in `
+        + `${want.size} kind${want.size === 1 ? '' : 's'}`
       : 'Removed every gate',
   })
   revalidatePath(`/fence/${job}`); revalidatePath(`/fence/${job}/estimate`)
@@ -646,10 +736,14 @@ export async function putOnQuote(_p: Result | null, form: FormData): Promise<Res
   }
   if (!m.spec) return { ok: false, message: 'Choose a fence type first — the price comes off the spec.' }
 
-  const priced = priceIt({
-    takeoff: m.sums, gates: m.gates, spec: m.spec, recipe,
+  /* PRICED THE SAME WAY THE SCREEN PRICED IT. priceJob picks between the legs
+     and the whole job by one rule, in one place, so the figure frozen here is
+     the figure the estimator was looking at when they pressed the button. */
+  const priced = priceJob({
+    takeoff: m.sums, legs: m.legs, gates: m.gates, spec: m.spec, recipe,
     rates: book.rates, wastePct: m.wastePct, seesCost: rights.mayReadCosts,
   })
+  const sides = priced.byLeg ? sidesOf(priced.legs) : []
   if (priced.sell <= 0) {
     return { ok: false, message: 'The book priced this at nothing. Fix the gaps before quoting it.' }
   }
@@ -693,6 +787,13 @@ export async function putOnQuote(_p: Result | null, form: FormData): Promise<Res
       })),
       sell: priced.sell,
       per_foot: priced.perFoot,
+      /* WHAT DIFFERS, FROZEN WITH THE REST. Empty on a job where every side is
+         the same fence, which is most of them -- and the customer's document
+         only names sides when this is not. */
+      sides: sides.map((x) => ({
+        spec: x.spec, spec_name: x.specName, label: x.label,
+        fence_ft: Math.round(x.fenceFt * 10) / 10, amount: x.amount,
+      })),
       gaps: priced.gaps,
       below_floor: belowFloor,
     },

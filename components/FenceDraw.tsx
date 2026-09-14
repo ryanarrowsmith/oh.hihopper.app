@@ -4,6 +4,7 @@ import {
   viewAround, toPixel, toLngLat, feetPerPixel, lineFeet, corners,
   type LngLat, type View,
 } from '@/lib/geo'
+import { segmentsOf, middle, sideName } from '@/lib/legs'
 import { saveRuns } from '@/app/actions/fence'
 
 /**
@@ -43,6 +44,20 @@ type Run = {
    *  exist, and is the only way to record a run on a keyboard. */
   typed: number | null
 }
+/* A LEG IS ONE SIDE. Ryan, 14 Sep: "run" is what the trade calls one leg of a
+   fence, so the thing this screen draws could not go on being called that. A run
+   is now the whole tracing -- one continuous line, which may be the whole
+   perimeter -- and a LEG is one straight side of it, between two corners.
+   The rows mirror the run's own segments, in order, written by the same save, so
+   a leg keeps its id when a point moves and an override cannot slide onto the
+   wrong side of a property. */
+type LegIn = { id: string; runId: string; sort: number
+               label: string | null; specCode: string | null }
+type GateIn = { id: string; typeCode: string | null; name: string
+                widthFt: number | null; legId: string | null; atPct: number | null }
+type SpecIn = { code: string; name: string
+                heightFt: number | null; spacingFt: number | null }
+type Placed = Record<string, { legId: string | null; atPct: number | null }>
 type Saved = 'clean' | 'dirty' | 'saving' | 'failed'
 
 /* MORE RUNGS, NOT A SLIDER. Ryan's call, 14 Sep: it was hard to get the frame
@@ -98,11 +113,17 @@ function opening(runs: Run[], pin: LngLat): { at: LngLat; span: number } {
 }
 
 export default function FenceDraw({
-  jobId, centre, runs: initial, mayEdit, measuring = false,
+  jobId, centre, runs: initial, legs: initialLegs = [], gates: initialGates = [],
+  specs = [], jobSpec = null, mayEdit, measuring = false,
 }: {
   jobId: string
   centre: LngLat
   runs: Run[]
+  legs?: LegIn[]
+  gates?: GateIn[]
+  specs?: SpecIn[]
+  /** What the job is built of, so a side only has to say when it differs. */
+  jobSpec?: SpecIn | null
   mayEdit: boolean
   /* THE ESTIMATE IS NOT A MEASUREMENT. Ryan, 14 Sep: the sales person is not
      going out with a wheel -- they are working off the photograph -- so a field
@@ -148,8 +169,56 @@ export default function FenceDraw({
   const [shown, setShown] = useState<string | null>(null)
   const [hold, setHold] = useState<{ dx: number; dy: number }>({ dx: 0, dy: 0 })
 
+  /* THE THIRD STEP: SIDES AND GATES. Framing is about the picture, drawing is
+     about the line, and this is about what the line is made of -- which side is
+     taller and where the gates hang. It is its own step for the same reason the
+     other two are: a tap that might add a point and might open a panel is a tap
+     that does the wrong one. */
+  const [editing, setEditing] = useState(false)
+  const [legs, setLegs] = useState<LegIn[]>(initialLegs)
+  const [legPick, setLegPick] = useState<string | null>(null)
+  const [place, setPlace] = useState<Placed>(() => {
+    const out: Placed = {}
+    for (const g of initialGates) out[g.id] = { legId: g.legId, atPct: g.atPct }
+    return out
+  })
+
   const [state, setState] = useState<Saved>('clean')
   const [why, setWhy] = useState<string | null>(null)
+
+  /* A RUN GETS ITS ID BEFORE IT IS SAVED, not during. A leg hangs off a run, so
+     a run with no id has no legs and there is nothing to override. Minted in an
+     effect rather than in the first render because this component renders on the
+     server too, and an id made there is a different id from the one the browser
+     would make. */
+  useEffect(() => {
+    setRuns((old) => old.some((r) => !r.id)
+      ? old.map((r) => (r.id ? r : { ...r, id: crypto.randomUUID() })) : old)
+  }, [])
+
+  /* THE LEGS FOLLOW THE GEOMETRY. One row per segment, in order: add a point and
+     the new side appears, take one away and the row for it goes. Only the ID is
+     kept here -- every length is worked out from the points, because two copies
+     of a length is two answers to one question. */
+  useEffect(() => {
+    setLegs((old) => {
+      const out: LegIn[] = []
+      let fresh = false
+      for (const r of runs) {
+        if (!r.id) continue
+        const n = r.points.length >= 2
+          ? (r.closed && r.points.length > 2 ? r.points.length : r.points.length - 1) : 0
+        for (let i = 0; i < n; i++) {
+          const had = old.find((l) => l.runId === r.id && l.sort === i)
+          if (had) { out.push(had); continue }
+          out.push({ id: crypto.randomUUID(), runId: r.id, sort: i,
+                     label: null, specCode: null })
+          fresh = true
+        }
+      }
+      return fresh || out.length !== old.length ? out : old
+    })
+  }, [runs])
 
   // The box, as actually painted.
   const box = useRef<HTMLDivElement>(null)
@@ -282,6 +351,9 @@ export default function FenceDraw({
     setNudge({ dx: 0, dy: 0 })
 
     if (d.kind === 'tap' && !d.moved && framed) {
+      // In sides mode the surface adds nothing. A tap on open ground is how you
+      // put the panel away, which is the gesture everybody tries first.
+      if (editing) { setLegPick(null); return }
       const [x, y] = local(e)
       const p = toLngLat(view, x, y)
       set((old) => old.map((r, ri) => ri !== active ? r : { ...r, points: [...r.points, p] }))
@@ -352,6 +424,38 @@ export default function FenceDraw({
       : { ...r, grade: Number.isFinite(n as number) ? (n as number) : null }))
   }
 
+  /* Every side on the job, in drawing order, with the two ends the screen
+     hit-tests against. Named for WHERE IT SITS rather than which way it runs,
+     because that is how somebody standing on the property names it. */
+  const sides = useMemo(() => runs.flatMap((r) => {
+    if (!r.id || r.points.length < 2) return []
+    const c = middle(r.points)
+    return segmentsOf(r.points, r.closed).map(([from, to], i) => {
+      const row = legs.find((l) => l.runId === r.id && l.sort === i)
+      const spec = row?.specCode ? specs.find((x) => x.code === row.specCode) ?? null : null
+      return {
+        key: `${r.id}:${i}`, row, from, to, run: r, sort: i,
+        name: row?.label || `${sideName(middle([from, to]), c)} side`,
+        feet: lineFeet([from, to]),
+        spec, overrides: !!spec && spec.code !== jobSpec?.code,
+      }
+    })
+  }), [runs, legs, specs, jobSpec])
+
+  const onLeg = (legId: string) =>
+    initialGates.filter((g) => (place[g.id]?.legId ?? null) === legId)
+  const loose = initialGates.filter((g) => !(place[g.id]?.legId))
+  const side = legPick ? sides.find((x) => x.row?.id === legPick) ?? null : null
+
+  const setLeg = (id: string, change: Partial<LegIn>) => {
+    setLegs((old) => old.map((l) => (l.id === id ? { ...l, ...change } : l)))
+    setState('dirty')
+  }
+  const putGate = (gateId: string, legId: string | null, atPct = 0.5) => {
+    setPlace((old) => ({ ...old, [gateId]: { legId, atPct: legId ? atPct : null } }))
+    setState('dirty')
+  }
+
   /** What a run measures: what somebody walked, or failing that what was drawn. */
   const runFt = (r: Run) => (r.typed && r.typed > 0 ? r.typed : lineFeet(r.points, r.closed))
   const total = runs.reduce((s, r) => s + runFt(r), 0)
@@ -370,16 +474,20 @@ export default function FenceDraw({
     form.set('runs', JSON.stringify(withIds.map((r, i) => ({
       id: r.id, label: r.label || `Run ${i + 1}`,
       points: r.points, closed: r.closed, grade: r.grade,
+      legs: legs.filter((l) => l.runId === r.id)
+        .map((l) => ({ id: l.id, sort: l.sort, label: l.label, spec_code: l.specCode })),
       plan_ft: Math.round(runFt(r) * 10) / 10,
       // A typed figure is a measurement, and the estimator says which it was
       // rather than letting a number off a photograph pass for one off a wheel.
       measured_by: r.typed && r.typed > 0 ? 'typed' : r.points.length >= 2 ? 'aerial' : null,
       sort: i,
     }))))
+    form.set('places', JSON.stringify(
+      Object.entries(place).map(([id, p]) => ({ id, leg_id: p.legId, at_pct: p.atPct }))))
     const res = await saveRuns(null, form)
     if (res.ok) setState('clean')
     else { setState('failed'); setWhy(res.message) }
-  }, [jobId, runs])
+  }, [jobId, runs, legs, place])
 
   // A drawn line is worth keeping even if somebody closes the tab, but a save on
   // every tap is a write per point. Two seconds after the last change.
@@ -461,11 +569,63 @@ export default function FenceDraw({
                 )
               })}
 
+              {/* THE SIDES, AND THE GATES ON THEM.
+                  A 3px line with a 22px invisible target over it, for the same
+                  reason the vertex handles have one: a side you cannot hit is a
+                  side you cannot price. The gates draw in every mode, because
+                  where a gate sits is something the customer is being shown
+                  rather than something only the estimator works with. */}
+              {sides.map((x) => {
+                const [ax, ay] = toPixel(view, x.from)
+                const [bx, by] = toPixel(view, x.to)
+                const mx = (ax + bx) / 2, my = (ay + by) / 2
+                const on = legPick && x.row?.id === legPick
+                return (
+                  <g key={x.key}
+                     className={`fxleg${on ? ' is-on' : ''}${x.overrides ? ' is-other' : ''}`}>
+                    {editing && (
+                      <line className="fxleg__grab" x1={ax} y1={ay} x2={bx} y2={by}
+                            onPointerDown={(e) => {
+                              if (!mayEdit || !x.row) return
+                              e.stopPropagation()
+                              setLegPick(x.row.id)
+                            }} />
+                    )}
+                    {(editing || x.overrides) && (
+                      <line className="fxleg__mark" x1={ax} y1={ay} x2={bx} y2={by} />
+                    )}
+                    {editing && (() => {
+                      const say = `${x.name} · ${ft(x.feet)}`
+                        + (x.overrides ? ` · ${x.spec?.name ?? ''}` : '')
+                      return <>
+                        <rect className="fxtag__bg" x={mx - say.length * 3.4} y={my + 4}
+                              width={say.length * 6.8} height={17} rx={0} />
+                        <text className="fxtag" x={mx} y={my + 16.5}>{say}</text>
+                      </>
+                    })()}
+                    {onLeg(x.row?.id ?? '').map((g) => {
+                      const t = place[g.id]?.atPct ?? 0.5
+                      const gx = ax + (bx - ax) * t, gy = ay + (by - ay) * t
+                      // A short bar ACROSS the line, which is what an opening
+                      // looks like from above and reads at a glance.
+                      const len = Math.hypot(bx - ax, by - ay) || 1
+                      const nx = -(by - ay) / len * 9, ny = (bx - ax) / len * 9
+                      return (
+                        <g key={g.id} className="fxgatemk">
+                          <line x1={gx - nx} y1={gy - ny} x2={gx + nx} y2={gy + ny} />
+                          <circle cx={gx} cy={gy} r={4.5} />
+                        </g>
+                      )
+                    })}
+                  </g>
+                )
+              })}
+
               {/* Handles last, so they sit over every line and are grabbable
                   where two runs cross. Only the active run's are draggable —
                   dragging a vertex of the run you are not on is always a
                   mistake. */}
-              {cur && cur.points.map((p, i) => {
+              {!editing && cur && cur.points.map((p, i) => {
                 const [x, y] = toPixel(view, p)
                 return (
                   <g key={i} className={`fxvert${picked === i ? ' is-picked' : ''}`}
@@ -485,6 +645,89 @@ export default function FenceDraw({
 
           {!src && <p className="fxnomap">No aerial for this job yet.</p>}
         </div>
+
+        {/* WHAT THIS SIDE IS, in a panel that opens where you pressed.
+            Ryan, 14 Sep: clicking a drawn leg should offer the fence options.
+            It sits over the picture rather than under it because the answer to
+            "which side is this" is the highlighted line three inches away, and a
+            panel below the fold breaks that. */}
+        {side && side.row && view && size && mayEdit && (
+          <div className="fxpop" style={popAt(view, size, side.from, side.to)}>
+            <div className="fxpop__h">
+              <b>{side.name}</b>
+              <span>{ft(side.feet)}</span>
+              <button type="button" aria-label="Done with this side"
+                      onClick={() => setLegPick(null)}><Cross /></button>
+            </div>
+
+            {/* ONLY SAY IT WHEN IT DIFFERS. Ryan's rule, 14 Sep. "Same as the
+                job" is one decision made once instead of four made every time,
+                and it is what keeps the customer's estimate down to one line on
+                the jobs where every side is the same fence. */}
+            <fieldset className="fxpop__set">
+              <legend>What goes on this side</legend>
+              <label className="fxopt">
+                <input type="radio" name="legspec" checked={!side.row.specCode}
+                       onChange={() => setLeg(side!.row!.id, { specCode: null })} />
+                <span><b>Same as the job</b>
+                  <small>{jobSpec?.name ?? 'nothing chosen yet'}</small></span>
+              </label>
+              {specs.map((sp) => (
+                <label className="fxopt" key={sp.code}>
+                  <input type="radio" name="legspec" checked={side!.row!.specCode === sp.code}
+                         onChange={() => setLeg(side!.row!.id, { specCode: sp.code })} />
+                  <span><b>{sp.name}</b>
+                    <small>{[sp.heightFt ? `${sp.heightFt}′ high` : null,
+                             sp.spacingFt ? `${sp.spacingFt}′ spacing` : null]
+                      .filter(Boolean).join(' · ')}</small></span>
+                </label>
+              ))}
+            </fieldset>
+
+            <fieldset className="fxpop__set">
+              <legend>Gates on this side</legend>
+              {onLeg(side.row.id).length === 0 && loose.length === 0 && (
+                <p className="fxpop__none">
+                  No gates on this job yet. They are added under <b>What goes in</b>,
+                  and then they can be dropped on a side here.
+                </p>
+              )}
+              {onLeg(side.row.id).map((g) => (
+                <div className="fxpop__gate" key={g.id}>
+                  <b>{g.name}{g.widthFt ? ` · ${g.widthFt}′` : ''}</b>
+                  <input type="range" min={5} max={95} step={5}
+                         value={Math.round((place[g.id]?.atPct ?? 0.5) * 100)}
+                         aria-label={`How far along ${side!.name} the ${g.name} sits`}
+                         onChange={(e) => putGate(g.id, side!.row!.id,
+                                                  Number(e.target.value) / 100)} />
+                  <button type="button" className="lnk" onClick={() => putGate(g.id, null)}>
+                    Take off</button>
+                </div>
+              ))}
+              {loose.length > 0 && (
+                <div className="fxpop__add">
+                  {loose.map((g) => (
+                    <button type="button" key={g.id} className="btn btn--quiet"
+                            onClick={() => putGate(g.id, side!.row!.id)}>
+                      <Plus />{g.name}</button>
+                  ))}
+                </div>
+              )}
+              <small className="fxpop__hint">
+                A position on an aerial is approximate, and shown to the customer as
+                approximate. The crew sets it on the ground.
+              </small>
+            </fieldset>
+
+            <label className="fxpop__name">
+              <span>Call this side something else</span>
+              <input className="field" value={side.row.label ?? ''}
+                     placeholder={side.name}
+                     onChange={(e) => setLeg(side!.row!.id,
+                       { label: e.target.value.trim() ? e.target.value : null })} />
+            </label>
+          </div>
+        )}
       </div>
 
       {/* One strip, under the plan, holding every drawing control. Nothing that
@@ -495,9 +738,21 @@ export default function FenceDraw({
             <Pen />Use this view
           </button>
         ) : (
-          <button type="button" className="btn btn--quiet" onClick={() => setFramed(false)}>
-            <Hand />Move the map
-          </button>
+          <>
+            <button type="button" className="btn btn--quiet"
+                    onClick={() => { setFramed(false); setEditing(false); setLegPick(null) }}>
+              <Hand />Move the map
+            </button>
+            {mayEdit && (
+              <button type="button"
+                      className={editing ? 'btn btn--amber' : 'btn btn--quiet'}
+                      aria-pressed={editing}
+                      disabled={!sides.length}
+                      onClick={() => { setEditing((v) => !v); setLegPick(null); setPicked(null) }}>
+                {editing ? <><Pen />Back to drawing</> : <><Side />Sides and gates</>}
+              </button>
+            )}
+          </>
         )}
 
         {/* ZOOM BELONGS TO BOTH STEPS. Freezing the view was about a DRAG
@@ -517,7 +772,7 @@ export default function FenceDraw({
             <Plus /></button>
         </div>
 
-        {mayEdit && framed && (
+        {mayEdit && framed && !editing && (
           <div className="fxacts">
             <button type="button" onClick={undo} disabled={!cur?.points.length}>
               <Undo />Undo</button>
@@ -621,3 +876,21 @@ const Cross = () => I('<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>')
 const Loop = () => I('<rect x="3.2" y="3.2" width="9.6" height="9.6" rx="1"/>')
 const Split = () => I('<path d="M3 13L7 7M9 9l4-6"/><circle cx="7" cy="7" r="1.3"/><circle cx="9" cy="9" r="1.3"/>')
 const Bin = () => I('<path d="M3.5 5h9M6 5V3.5h4V5M5 5l.6 8h4.8L11 5"/>')
+const Side = () => I('<path d="M2.5 11.5h11"/><path d="M4.5 11.5V6M8 11.5V4M11.5 11.5V7.5"/>')
+
+/* WHERE THE PANEL OPENS: beside the side it is about, clamped inside the
+   picture. A panel that opens in the middle of the screen makes you look for
+   the line it belongs to, and one that opens off the edge cannot be read at
+   all. Pixels rather than a library, because the whole surface is already
+   drawn in pixels against a view it computed itself. */
+function popAt(view: View, size: { w: number; h: number },
+               from: LngLat, to: LngLat): React.CSSProperties {
+  const [ax, ay] = toPixel(view, from)
+  const [bx, by] = toPixel(view, to)
+  const W = 270, H = 300
+  const x = Math.min(Math.max(8, (ax + bx) / 2 - W / 2), Math.max(8, size.w - W - 8))
+  // Above the line when there is room under the top, below it otherwise.
+  const mid = (ay + by) / 2
+  const y = mid > H + 16 ? mid - H - 12 : Math.min(mid + 16, Math.max(8, size.h - 40))
+  return { left: `${Math.round(x)}px`, top: `${Math.round(y)}px`, width: `${W}px` }
+}

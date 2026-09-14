@@ -327,3 +327,114 @@ export function priceLegs(o: {
     whole: gaps.length === 0 && sell > 0,
   }
 }
+
+/* ==========================================================================
+   WHICH PRICER ANSWERS.
+
+   Two ways to reach the same number, and the job has to pick one on its own so
+   that the screen, the frozen quote and the customer's document cannot disagree
+   about it. The rule is one line long: PRICE BY LEG WHEN THE LEGS ARE THE WHOLE
+   MEASURE, and otherwise price the job whole.
+
+   The escape hatch is not hypothetical. A run recorded as a typed length — a
+   figure off a wheel or a set of plans, with nothing drawn — has no geometry
+   and therefore no legs, and pricing by leg would silently drop it. So the legs
+   have to add up to the plan length before they are allowed to answer, and when
+   they do not the whole-job figure stands and the screen says why.
+
+   With no override anywhere the two agree to the cent, which lib/legs.check.ts
+   proves against fixtures. That is what makes this switch safe rather than a
+   second opinion.
+   ========================================================================== */
+
+export type JobPrice = Priced & {
+  legs: LegPrice[]
+  /** True when the total above came from the legs rather than the whole job. */
+  byLeg: boolean
+}
+
+export function priceJob(o: {
+  takeoff: Takeoff
+  legs: Leg[]
+  gates: GateRow[]
+  spec: Spec | null
+  recipe: Recipe[]
+  rates: Rate[]
+  wastePct: number
+  seesCost: boolean
+}): JobPrice {
+  const drawn = o.legs.reduce((s, l) => s + l.planFt, 0)
+  // Half a foot over a whole property is rounding, not a missing run.
+  const whole = o.legs.length > 0 && Math.abs(drawn - o.takeoff.planFt) <= 0.5
+
+  const byLeg = whole ? priceLegs({
+    legs: o.legs, recipe: o.recipe, rates: o.rates,
+    wastePct: o.wastePct, seesCost: o.seesCost,
+  }) : null
+  if (byLeg) return { ...byLeg, byLeg: true }
+
+  const flat = priceIt({
+    takeoff: o.takeoff, gates: o.gates, spec: o.spec, recipe: o.recipe,
+    rates: o.rates, wastePct: o.wastePct, seesCost: o.seesCost,
+  })
+  /* The legs are still priced, because the table showing what each side is
+     worth is useful even when the total came from somewhere else. What they are
+     not allowed to do is BE the total. */
+  const shown = o.legs.length ? priceLegs({
+    legs: o.legs, recipe: o.recipe, rates: o.rates,
+    wastePct: o.wastePct, seesCost: o.seesCost,
+  }).legs : []
+  return { ...flat, legs: shown, byLeg: false }
+}
+
+/**
+ * The sides worth telling a customer about, grouped by what they are made of.
+ *
+ * Ryan's rule, 14 Sep: the estimate shows per-leg detail ONLY when there is a
+ * change in product or material. A four-sided lot in one fence is one line —
+ * naming four sides that are all the same fence is noise a customer has to read
+ * past. The moment one side is eight feet where the rest are six, the document
+ * owes them both figures.
+ *
+ * So this returns nothing at all unless some leg overrides, and when it does it
+ * returns one entry per SPEC rather than per leg: two sides of the same taller
+ * fence are one line naming both.
+ */
+export type Side = {
+  spec: string | null
+  specName: string | null
+  /** The sides in this group, said the way somebody standing there would. */
+  label: string
+  fenceFt: number
+  amount: number
+}
+
+export function sidesOf(legs: LegPrice[]): Side[] {
+  if (!legs.length || !legs.some((l) => l.overrides)) return []
+  const by = new Map<string, Side & { names: string[] }>()
+  for (const l of legs) {
+    const key = l.specCode ?? ''
+    const had = by.get(key)
+    if (had) {
+      had.names.push(l.label)
+      had.fenceFt = round2(had.fenceFt + l.fenceFt)
+      had.amount = round2(had.amount + l.sell)
+      continue
+    }
+    by.set(key, {
+      spec: l.specCode, specName: l.specName, label: '',
+      names: [l.label], fenceFt: l.fenceFt, amount: l.sell,
+    })
+  }
+  return [...by.values()]
+    .sort((a, b) => b.amount - a.amount)
+    .map(({ names, ...s }) => ({ ...s, label: saidAsList(names) }))
+}
+
+/** "North side", "North and East sides", "North, East and South sides". */
+function saidAsList(names: string[]): string {
+  const bare = names.map((n) => n.replace(/\s+side$/i, ''))
+  const all = bare.length === 1 ? bare[0]
+    : `${bare.slice(0, -1).join(', ')} and ${bare[bare.length - 1]}`
+  return `${all} side${bare.length === 1 ? '' : 's'}`
+}

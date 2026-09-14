@@ -5,7 +5,7 @@ import { supabaseServer } from '@/lib/supabase/server'
 import { fenceStance, howToDraw, loadRates, loadRights } from '@/lib/fence'
 import { loadMeasure, loadRecipe } from '@/lib/takeoff'
 import { loadQuoteConditions } from '@/lib/survey'
-import { priceIt } from '@/lib/price'
+import { priceJob } from '@/lib/price'
 import { FenceMark } from '@/components/FenceMark'
 import FenceDraw from '@/components/FenceDraw'
 import FenceGates from '@/components/FenceGates'
@@ -124,14 +124,17 @@ export default async function Estimate({ params }: { params: { id: string } }) {
 
   const specsHere = m.specs.filter((s) => s.cls === (m.job.cls ?? 'permanent'))
   const gatesHere = m.catalog.filter((g) => g.cls === (m.job.cls ?? 'permanent'))
+  // One row per gate now, so the stepper's figure is a sum rather than a read.
   const have: Record<string, number> = {}
-  for (const g of m.gates) if (g.type_code) have[g.type_code] = g.qty
+  for (const g of m.gates) {
+    if (g.type_code) have[g.type_code] = (have[g.type_code] ?? 0) + g.qty
+  }
 
   const s = m.sums
   const unpriced = m.gates.filter((g) => !g.priced).length
 
-  const priced = priceIt({
-    takeoff: s, gates: m.gates, spec: m.spec, recipe,
+  const priced = priceJob({
+    takeoff: s, legs: m.legs, gates: m.gates, spec: m.spec, recipe,
     rates: book.rates, wastePct: m.wastePct, seesCost: rights.mayReadCosts,
   })
   const thin = priced.margin != null && priced.margin < m.marginFloor
@@ -266,7 +269,9 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                 title; this explains a control that is not obvious, which is a
                 different thing. */}
             <p>Frame the property first — drag it, zoom it, then press <b>Use this view</b>.
-              The picture stops moving after that, and a tap drops a point.</p>
+              The picture stops moving after that, and a tap drops a point. Once the line
+              is down, <b>Sides and gates</b> is where one side gets a different fence and
+              the gates go where they actually hang.</p>
           </div></div>
           <FenceDraw
             jobId={m.job.id}
@@ -282,7 +287,27 @@ export default async function Estimate({ params }: { params: { id: string } }) {
               // the line still changes the figure.
               typed: r.measured_by && r.measured_by !== 'aerial' && Number(r.plan_ft) > 0
                 ? Number(r.plan_ft) : null,
-            }))} />
+            }))}
+            legs={m.legRows.map((l) => ({
+              id: l.id, runId: l.run_id, sort: l.sort,
+              label: l.label, specCode: l.spec_code,
+            }))}
+            gates={m.gates.map((g) => ({
+              id: g.id, typeCode: g.type_code,
+              name: g.qty > 1 ? `${g.name ?? g.type_code ?? 'Gate'} ×${g.qty}`
+                : (g.name ?? g.type_code ?? 'Gate'),
+              widthFt: g.width_ft, legId: g.leg_id, atPct: g.at_pct,
+            }))}
+            specs={specsHere.map((sp) => ({
+              code: sp.code, name: sp.name_en,
+              heightFt: sp.height_ft == null ? null : Number(sp.height_ft),
+              spacingFt: sp.spacing_ft == null ? null : Number(sp.spacing_ft),
+            }))}
+            jobSpec={m.spec ? {
+              code: m.spec.code, name: m.spec.name_en,
+              heightFt: m.spec.height_ft == null ? null : Number(m.spec.height_ft),
+              spacingFt: m.spec.spacing_ft == null ? null : Number(m.spec.spacing_ft),
+            } : null} />
         </section>
       )}
 
@@ -409,22 +434,65 @@ export default async function Estimate({ params }: { params: { id: string } }) {
               <div><b>{m.wastePct}%</b><span>waste</span></div>
             </div>
 
-            <table className="fxtable fxmeasure">
-              <thead><tr><th>Run</th><th>Plan</th><th>With grade</th><th>Corners</th><th>How</th></tr></thead>
-              <tbody>
-                {s.runs.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.label}</td>
-                    <td className="fxnum">{ft(r.planFt)}</td>
-                    <td className="fxnum">{r.slopeFt > r.planFt ? ft(r.slopeFt) : '—'}</td>
-                    <td className="fxnum">{r.corners || '—'}</td>
-                    <td>{r.drawn
-                      ? <FenceMark kind="read">Aerial</FenceMark>
-                      : <FenceMark kind="edit">Measured</FenceMark>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {/* SIDE BY SIDE, because that is the question being asked of this
+                screen. Ryan, 14 Sep: show each length as it is drawn so you can
+                identify the cost per side -- and a side sometimes needs to be
+                taller than the rest, which is only arguable with if each one
+                carries its own figure. The run table this replaces answered a
+                question nobody had: a run is the whole tracing. */}
+            {priced.legs.length > 0 ? (
+              <table className="fxtable fxmeasure">
+                <thead><tr>
+                  <th>Side</th><th>Length</th><th>To build</th><th>What goes in</th>
+                  <th>Gates</th><th>Amount</th>
+                </tr></thead>
+                <tbody>
+                  {priced.legs.map((l) => (
+                    <tr key={l.legId}>
+                      <td>{l.label}</td>
+                      <td className="fxnum">{ft(l.planFt)}</td>
+                      <td className="fxnum">{ft(l.fenceFt)}</td>
+                      <td>
+                        {l.specName ?? <span className="fjnone">not chosen</span>}
+                        {l.overrides && <> <FenceMark kind="edit">Different</FenceMark></>}
+                      </td>
+                      <td>{l.gates.length
+                        ? l.gates.map((g) => `${g.qty} × ${g.name}`).join(', ') : '—'}</td>
+                      <td className="fxnum">{money(l.sell)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <table className="fxtable fxmeasure">
+                <thead><tr><th>Run</th><th>Plan</th><th>With grade</th><th>Corners</th><th>How</th></tr></thead>
+                <tbody>
+                  {s.runs.map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.label}</td>
+                      <td className="fxnum">{ft(r.planFt)}</td>
+                      <td className="fxnum">{r.slopeFt > r.planFt ? ft(r.slopeFt) : '—'}</td>
+                      <td className="fxnum">{r.corners || '—'}</td>
+                      <td>{r.drawn
+                        ? <FenceMark kind="read">Aerial</FenceMark>
+                        : <FenceMark kind="edit">Measured</FenceMark>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {/* A total that did not come from the table above it has to say so.
+                It happens when a run was typed rather than drawn: there is no
+                geometry to cut into sides, so the whole job answers and the
+                sides are shown for what they are worth. */}
+            {priced.legs.length > 0 && !priced.byLeg && (
+              <p className="note">
+                <b>The amounts by side do not add to the total.</b> Part of this line was
+                measured rather than drawn, so the price comes off the job as a whole.
+                Drawing that run makes the two the same figure.
+              </p>
+            )}
 
             {!m.spec ? (
               <p className="note">

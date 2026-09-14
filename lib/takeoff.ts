@@ -1,6 +1,7 @@
 import 'server-only'
 import { supabaseServer } from '@/lib/supabase/server'
 import { takeoff, type RunRow, type GateRow, type Spec } from '@/lib/measure'
+import { legsOf, type Leg, type LegRow } from '@/lib/legs'
 import type { LngLat } from '@/lib/geo'
 
 /* The arithmetic moved to lib/measure.ts, which has no `server-only` and so can
@@ -8,6 +9,7 @@ import type { LngLat } from '@/lib/geo'
    from this file has to learn a new name. */
 export { takeoff, runPlanFeet } from '@/lib/measure'
 export type { RunRow, GateRow, Spec, Takeoff } from '@/lib/measure'
+export type { Leg, LegRow } from '@/lib/legs'
 
 /**
  * The measure, before any money touches it.
@@ -35,12 +37,15 @@ export async function loadMeasure(accountId: string, jobId: string) {
   const db = supabaseServer()
   const h = () => db.schema('hopper')
 
-  const [job, runs, gates, specs, types, settings] = await Promise.all([
+  const [job, runs, legs, gates, specs, types, settings] = await Promise.all([
     h().from('fence_job')
       .select('id, ref, name, customer, site_address, lat, lon, pin_note, cls, spec_code, stage, complete')
       .eq('account_id', accountId).eq('id', jobId).maybeSingle(),
     h().from('fence_run')
       .select('id, label, points, plan_ft, grade_pct, closed_loop, measured_by, sort')
+      .eq('account_id', accountId).eq('job_id', jobId).order('sort'),
+    h().from('fence_leg')
+      .select('id, run_id, sort, label, spec_code')
       .eq('account_id', accountId).eq('job_id', jobId).order('sort'),
     h().from('fence_gate')
       .select('id, type_code, rate_code, qty, leg_id, at_pct')
@@ -80,9 +85,22 @@ export async function loadMeasure(accountId: string, jobId: string) {
     ...r, points: (r.points ?? null) as LngLat[] | null,
   })) as RunRow[]
 
+  /* THE LEGS ARE DERIVED, NOT STORED. fence_leg holds an id, an order and an
+     override; every length, post and gate on a leg is worked out here from the
+     run's own points, so there is never a second copy of a length to disagree
+     with the first. A run with no leg rows still yields legs — unlabelled, on
+     the job's spec — because a side of a fence exists whether or not anybody
+     has said anything about it. */
+  const legRows = ((legs.data ?? []) as any[]) as LegRow[]
+  const legList: Leg[] = runRows.flatMap((r) => legsOf({
+    run: r, legs: legRows, gates: gateRows, jobSpec: spec, specs: specRows,
+  }))
+
   return {
     job: jobRow,
     runs: runRows,
+    legs: legList,
+    legRows,
     gates: gateRows,
     specs: specRows,
     catalog: catalog as (Spec & { width_ft: number | null; rate_code: string | null })[],

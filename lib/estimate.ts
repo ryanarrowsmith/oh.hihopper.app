@@ -33,6 +33,13 @@ export type Frozen = {
   lines: FrozenLine[]
   sell: number
   per_foot: number | null
+  /* WHAT DIFFERS, AND ONLY WHAT DIFFERS. Ryan's rule, 14 Sep: the document shows
+     per-side detail when there is a change in product or material, and not
+     otherwise. Frozen at quote time and absent on a job where every side is the
+     same fence — so an estimate that names sides is an estimate where naming
+     them tells the customer something. */
+  sides?: { spec: string | null; spec_name: string | null
+            label: string; fence_ft: number; amount: number }[]
 }
 
 export type QuoteLine = {
@@ -65,12 +72,36 @@ export function quoteLines(f: Frozen, gateName: (code: string) => string): Quote
   const gateTotal = round2([...gates.values()].reduce((s, g) => s + g.amount, 0))
   const fence = round2(Number(f.sell) - gateTotal)
 
-  const out: QuoteLine[] = [{
-    what: `${f.spec ? specWords(f.spec) : 'Fence'}, installed`,
-    detail: 'Fabric, rail, posts, concrete and labor',
-    qty: `${f.measure.fence_ft.toLocaleString('en-US')} ft`,
-    amount: fence,
-  }]
+  /* ONE LINE PER THING THEY ARE BUYING, which is usually one line. A job where
+     every side is the same fence gets the single installed line it always got.
+     A job where one side is taller gets a line for each, named by where it sits,
+     because "6 ft chain link, 840 ft" over a run that includes 120 ft of 8 ft
+     fence is a document that will be argued with.
+
+     THE REMAINDER RULE SURVIVES THE SPLIT. The sides are shares of the same
+     figure, not a re-price: whatever the gates come to still comes off the top,
+     and the rest is divided between the sides in the proportion they were priced
+     at. The lines add to the quoted price to the cent, as they did when there
+     was one of them. */
+  const sides = (f.sides ?? []).filter((s) => s.amount > 0)
+  const shareOf = sides.reduce((s, x) => s + x.amount, 0)
+  const out: QuoteLine[] = sides.length && shareOf > 0
+    ? sides.map((x, i) => ({
+        what: `${x.spec_name ?? (x.spec ? specWords(x.spec) : 'Fence')}, installed`,
+        detail: `${x.label} — fabric, rail, posts, concrete and labor`,
+        qty: `${Math.round(x.fence_ft).toLocaleString('en-US')} ft`,
+        // The last one carries the rounding, so the column adds up.
+        amount: i === sides.length - 1
+          ? round2(fence - sides.slice(0, -1)
+              .reduce((s, y) => s + round2(fence * (y.amount / shareOf)), 0))
+          : round2(fence * (x.amount / shareOf)),
+      }))
+    : [{
+        what: `${f.spec ? specWords(f.spec) : 'Fence'}, installed`,
+        detail: 'Fabric, rail, posts, concrete and labor',
+        qty: `${f.measure.fence_ft.toLocaleString('en-US')} ft`,
+        amount: fence,
+      }]
 
   for (const [code, g] of [...gates.entries()].sort((a, b) => b[1].amount - a[1].amount)) {
     out.push({
@@ -105,10 +136,22 @@ export function whatWeBuild(f: Frozen, gates: { name: string; n: number }[]): {
     : gates.map((g) => `${g.n === 1 ? 'One' : g.n} ${g.name.toLowerCase()}${g.n === 1 ? '' : 's'}`)
         .join(' and ') + ', hung, swung and latched.'
 
+  /* The same rule as the price table: one bullet unless a side differs, and
+     then one per thing being built. */
+  const sides = (f.sides ?? []).filter((s) => s.fence_ft > 0)
+  const fence = sides.length
+    ? sides.map((s) => ({
+        label: 'Fence',
+        says: `About ${Math.round(s.fence_ft).toLocaleString('en-US')} feet of `
+          + `${s.spec_name ?? (s.spec ? specWords(s.spec) : 'fence')} on the `
+          + `${s.label.toLowerCase()}.`,
+      }))
+    : [{ label: 'Fence',
+         says: `About ${m.fence_ft.toLocaleString('en-US')} feet of `
+           + `${f.spec ? specWords(f.spec) : 'fence'}, run to the line we measured.` }]
+
   return [
-    { label: 'Fence',
-      says: `About ${m.fence_ft.toLocaleString('en-US')} feet of `
-        + `${f.spec ? specWords(f.spec) : 'fence'}, run to the line we measured.` },
+    ...fence,
     { label: 'Posts',
       says: `Around ${posts.toLocaleString('en-US')} posts set in concrete — `
         + `${m.line_posts} line, ${m.terminal_posts} terminal and ${m.corner_posts} corner.` },

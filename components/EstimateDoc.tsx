@@ -170,8 +170,8 @@ export default function EstimateDoc(p: EstimateFor) {
         <section className="est__sec">
           <h2>What we&rsquo;ll build</h2>
           <ul className="est__spec">
-            {build.map((b) => (
-              <li key={b.label}><b>{b.label}</b><span>{b.says}</span></li>
+            {build.map((b, i) => (
+              <li key={i}><b>{b.label}</b><span>{b.says}</span></li>
             ))}
           </ul>
         </section>

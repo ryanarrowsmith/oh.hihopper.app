@@ -194,3 +194,73 @@ ok('and the gap names the leg that caused it',
    priced.legs[1].lines.some((l) => l.gap), true)
 
 console.log(bad ? `\n${bad} LEG CHECKS FAILED` : '\nleg checks all good')
+
+/* ==========================================================================
+   WHICH PRICER ANSWERS, AND WHAT THE CUSTOMER READS.
+
+   Two questions, and both of them are about a number NOT changing. priceJob
+   picks between the legs and the whole job, and on a job with no override the
+   pick must not be visible in the total. quoteLines splits the customer's fence
+   line across sides, and however it splits it, the lines must still add to the
+   figure that was quoted — which is the entire discipline of that function.
+   ========================================================================== */
+import { priceJob, sidesOf } from '@/lib/price'
+import { quoteLines, type Frozen } from '@/lib/estimate'
+
+const all = { takeoff: totalOf(plain), gates: twoGates, spec: spec as any,
+              recipe: recipe as any, rates, wastePct: 4, seesCost: true }
+
+const byLegs = priceJob({ ...all, legs: plain })
+ok('with the legs covering the line, the legs answer', byLegs.byLeg, true)
+ok('and the answer is the legs’ own figure', byLegs.sell, byLeg.sell)
+
+/* A RUN SOMEBODY TYPED HAS NO GEOMETRY. 200 feet off a wheel with nothing drawn
+   is 200 feet the legs know nothing about, so pricing by leg would quietly drop
+   it. The plan length is what catches it. */
+const partly = priceJob({
+  ...all,
+  takeoff: { ...totalOf(plain), planFt: totalOf(plain).planFt + 200 },
+  legs: plain,
+})
+ok('a typed run the legs do not cover sends it back to the whole job',
+   partly.byLeg, false)
+ok('and the sides are still worked out, for the table', partly.legs.length, 4)
+
+// ------------------------------------------------- what the customer is told
+ok('no override, so the document names no sides', sidesOf(byLeg.legs).length, 0)
+
+const sides = sidesOf(priced.legs)
+ok('one side taller makes two things to buy', sides.length, 2)
+console.log('  sides:', sides.map((x) => `${x.label} @ ${x.specName}`).join(' | '))
+ok('and the three plain sides are said as one line',
+   sides.some((x) => /and/.test(x.label)), true)
+
+/* THE REMAINDER RULE SURVIVES THE SPLIT. Whatever the gates come to comes off
+   the top and the rest is divided between the sides — so three lines add to the
+   quoted price exactly as one line did. A cent out here is a customer adding up
+   a column and finding it wrong. */
+const frozen: Frozen = {
+  priced_on: '2026-09-14', spec: 'CL6', cls: 'permanent',
+  measure: { plan_ft: 1158, slope_ft: 1158, opening_ft: 20, fence_ft: 1138,
+             line_posts: 100, terminal_posts: 8, corner_posts: 4, runs: 1 },
+  lines: priced.lines.map((l) => ({
+    code: l.code, name: l.name, uom: l.uom, per: l.per, qty: l.qty,
+    sell: l.sell, extended: l.extended, gap: l.gap, type_code: l.typeCode,
+  })),
+  sell: priced.sell, per_foot: priced.perFoot,
+  sides: sides.map((x) => ({ spec: x.spec, spec_name: x.specName, label: x.label,
+                             fence_ft: x.fenceFt, amount: x.amount })),
+}
+const shown = quoteLines(frozen, (c) => c)
+const adds = Math.round(shown.reduce((s, l) => s + l.amount, 0) * 100) / 100
+ok('the customer’s lines add to the quoted price', adds, priced.sell, 0.01)
+ok('and there is a line for each thing being built',
+   shown.filter((l) => /installed/.test(l.what)).length, 2)
+
+const oneSide = quoteLines({ ...frozen, sides: [] }, (c) => c)
+ok('with nothing different, it is one installed line',
+   oneSide.filter((l) => /installed/.test(l.what)).length, 1)
+ok('and that still adds to the quoted price',
+   Math.round(oneSide.reduce((s, l) => s + l.amount, 0) * 100) / 100, priced.sell, 0.01)
+
+console.log(bad ? `\n${bad} CHECKS FAILED` : '\njob and document checks all good')
