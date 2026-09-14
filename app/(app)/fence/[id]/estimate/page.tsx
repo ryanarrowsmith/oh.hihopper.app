@@ -105,74 +105,52 @@ export default async function Estimate({ params }: { params: { id: string } }) {
           <Link href={`/fence/${m.job.id}`}>{m.job.ref}</Link>
           {m.job.name ? ` — ${m.job.name}` : ''}
           {m.job.customer ? ` · ${m.job.customer}` : ''}
+          {m.job.site_address ? ` · ${m.job.site_address}` : ''}
         </span></p>
       </div>
+        {/* The stamp is the claim: an aerial gets you a quote, not a build. It
+            used to carry two sentences explaining itself to somebody who had
+            already read it. */}
         <div className="fxstamp">
           <FenceMark kind="warn">Preliminary</FenceMark>
-          <small>
-            An aerial gets you a quote. It does not get you a build — which is why the price is
-            finalized at the survey, and why nobody can take this stamp off.
-          </small>
         </div>
       </div>
 
       {stand === 'sealed' && (
         <p className="note" style={{ marginTop: 16 }}>
-          <b>This estimate is sealed.</b> It is readable and it cannot be changed — not by a
-          project manager, not by an administrator. A revision supersedes it and leaves the
-          original standing.
+          <b>Sealed.</b> A revision supersedes it and leaves the original standing.
         </p>
       )}
       {stand === 'read' && !sealed.has('estimate') && (
         <p className="note" style={{ marginTop: 16 }}>
-          The estimate belongs to sales. You can read every figure on it and add a note to the
-          job; the line and the specification are theirs to change.
+          The estimate belongs to sales. Every figure is readable; nothing here opens.
+        </p>
+      )}
+
+      {/* WHERE IT IS came off this page. It was three cards restating the job:
+          the address, whether there is a pin, and a third whose whole content
+          was a sentence about grade — a fact card holding no fact. The address
+          is in the line under the title, the pin is the aerial you are looking
+          at, and the grade is explained by the field that asks for it. What it
+          carried that was not a restatement was this, and only when it is
+          true. */}
+      {!pin && (
+        <p className="note note--err" style={{ marginTop: 16 }}>
+          <b>No pin on this job</b>, so there is nothing to draw on.{' '}
+          <Link href={`/fence/${m.job.id}`}>The job</Link> is where the address is set.
         </p>
       )}
 
       {/* 1 ------------------------------------------------------------------ */}
-      <section className="sec fxstep1">
-        <div className="sec__h"><div className="sec__t">
-          <h2><b className="fxn">1</b>Where it is</h2>
-          <p>Typed once, on the job. It travels from here to the survey, the crew ticket, the
-            scope of work and the service location accounting keys.</p>
-        </div></div>
-        <div className="fxwhere">
-          <div className="fxfact">
-            <b>Site address</b>
-            <span>{m.job.site_address ?? <span className="fjnone">not set</span>}</span>
-          </div>
-          <div className="fxfact">
-            <b>Aerial</b>
-            <span>{pin
-              ? <FenceMark kind="done">Centered on the pin</FenceMark>
-              : <FenceMark kind="warn">No pin on this job</FenceMark>}</span>
-          </div>
-          {/* A mark carries a STATE — a word or two, in a case that shouts.
-              A sentence in one runs out of its card at every width, so this is
-              the sentence it always was. */}
-          <div className="fxfact">
-            <b>Grade</b>
-            <span>Entered per run. An aerial cannot read a slope, so the survey confirms it.</span>
-          </div>
-        </div>
-        {!pin && (
-          <p className="note note--err">
-            There is no map pin on this job, so there is nothing to draw on.{' '}
-            <Link href={`/fence/${m.job.id}`}>The job</Link> is where the address and the pin are
-            set. A parcel is found from the address; it is not guessed from the customer.
-          </p>
-        )}
-      </section>
-
-      {/* 2 ------------------------------------------------------------------ */}
       {pin && (
         <section className="sec">
           <div className="sec__h"><div className="sec__t">
-            <h2><b className="fxn">2</b>Draw the line</h2>
+            <h2><b className="fxn">1</b>Draw the line</h2>
+            {/* The one blurb that survived. Every other section explained its own
+                title; this explains a control that is not obvious, which is a
+                different thing. */}
             <p>Tap to drop a point, drag one to move it. Switch to <b>Move the map</b> to pan —
-              one finger cannot mean two things. Every drawing control is in the strip under the
-              plan.</p>
+              one finger cannot mean two things.</p>
           </div></div>
           <FenceDraw
             jobId={m.job.id}
@@ -192,13 +170,10 @@ export default async function Estimate({ params }: { params: { id: string } }) {
         </section>
       )}
 
-      {/* 3 ------------------------------------------------------------------ */}
+      {/* 2 ------------------------------------------------------------------ */}
       <section className="sec">
         <div className="sec__h"><div className="sec__t">
-          <h2><b className="fxn">3</b>What goes in</h2>
-          <p>Class first, then the material. The class narrows the catalog, the gates, the labor
-            task, the tools on the ticket and the charge codes — so a temporary job cannot be
-            priced off a permanent spec.</p>
+          <h2><b className="fxn">2</b>What goes in</h2>
         </div></div>
 
         {mayEdit ? (
@@ -220,10 +195,7 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                             .filter(Boolean).join(' · '),
                         }))} /></div>
             </div>
-            <p className="fxhint">
-              Changing the class does not clear the spec — saving a spec from another class is
-              refused, with the reason, so nothing silently mismatches.
-            </p>
+
           </ActionForm>
         ) : (
           <div className="fxwhere">
@@ -259,18 +231,17 @@ export default async function Estimate({ params }: { params: { id: string } }) {
         )}
         {unpriced > 0 && (
           <p className="note">
-            {unpriced === 1 ? 'One gate on this job has' : `${unpriced} gates on this job have`}{' '}
-            no line in the rate book, so {unpriced === 1 ? 'it' : 'they'} will measure but not
-            price. <Link href="/admin/fence?s=rates">The rate book</Link> is where that is fixed.
+            {unpriced === 1 ? 'One gate has' : `${unpriced} gates have`} no line in the rate book,
+            so {unpriced === 1 ? 'it measures' : 'they measure'} but does not price.{' '}
+            <Link href="/admin/fence?s=rates">The rate book</Link>.
           </p>
         )}
       </section>
 
-      {/* 4 ------------------------------------------------------------------ */}
+      {/* 3 ------------------------------------------------------------------ */}
       <section className="sec">
         <div className="sec__h"><div className="sec__t">
-          <h2><b className="fxn">4</b>What it comes to</h2>
-          <p>The measure, run by run, with every deduction shown rather than folded in.</p>
+          <h2><b className="fxn">3</b>What it comes to</h2>
         </div></div>
 
         {s.planFt === 0 ? (
@@ -283,25 +254,22 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                 <small>{s.runs.filter((r) => r.drawn).length} drawn
                   {s.runs.some((r) => !r.drawn) && `, ${s.runs.filter((r) => !r.drawn).length} measured`}</small></div>
               <div className="fxtally__r"><b>Grade correction</b>
-                <span>{s.slopeFt > s.planFt ? `+${ft(s.slopeFt - s.planFt)}` : 'none'}</span>
-                <small>A slope is longer than its shadow.</small></div>
+                <span>{s.slopeFt > s.planFt ? `+${ft(s.slopeFt - s.planFt)}` : 'none'}</span></div>
               <div className="fxtally__r"><b>Gate openings</b>
-                <span>{s.openingFt > 0 ? `−${ft(s.openingFt)}` : 'none'}</span>
-                <small>Fence you do not build.</small></div>
+                <span>{s.openingFt > 0 ? `−${ft(s.openingFt)}` : 'none'}</span></div>
               <div className="fxtally__r is-total"><b>Fence to price</b>
-                <span>{ft(s.fenceFt)}</span>
-                <small>{Math.round(s.fenceFt / Math.max(1, s.runs.length))} ft a run on average.</small></div>
+                <span>{ft(s.fenceFt)}</span></div>
             </div>
 
             <div className="fxposts">
-              <div><b>{s.linePosts}</b><span>line posts</span>
-                <small>at {Number(m.spec?.spacing_ft ?? 10)}′ spacing</small></div>
-              <div><b>{s.terminalPosts}</b><span>terminal posts</span>
-                <small>ends and gate posts</small></div>
-              <div><b>{s.cornerPosts}</b><span>corner posts</span>
-                <small>read off the line, at 12° or more</small></div>
-              <div><b>{m.wastePct}%</b><span>waste</span>
-                <small>added to fabric and rail</small></div>
+              {/* "at 10′ spacing" was real data and came off anyway: it is on the
+                  specification line two blocks above this, and cutting it made the
+                  four cards the same height — which is the tell that the row was
+                  carrying something it did not need. */}
+              <div><b>{s.linePosts}</b><span>line posts</span></div>
+              <div><b>{s.terminalPosts}</b><span>terminal posts</span></div>
+              <div><b>{s.cornerPosts}</b><span>corner posts</span></div>
+              <div><b>{m.wastePct}%</b><span>waste</span></div>
             </div>
 
             <table className="fxtable fxmeasure">
@@ -346,14 +314,14 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                         ? <FenceMark kind="warn">Under the {m.marginFloor}% floor</FenceMark>
                         : <FenceMark kind="done">Clears the {m.marginFloor}% floor</FenceMark>}
                       <small>{thin
-                        ? 'A quote under the floor needs a manager to release it before it goes out.'
+                        ? `${Math.round(m.marginFloor - priced.margin)} points under. Needs releasing.`
                         : `${Math.round(priced.margin - m.marginFloor)} points of room.`}</small>
                     </div>
                   )}
                   {priced.margin == null && rights.mayReadCosts && (
                     <div className="fxfloor">
                       <FenceMark kind="warn">No margin</FenceMark>
-                      <small>One line has no cost behind it, so the margin would be a guess.</small>
+                      <small>One line has no cost behind it.</small>
                     </div>
                   )}
                 </div>
@@ -361,9 +329,8 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                 {priced.gaps.length > 0 && (
                   <p className="note note--err">
                     <b>{priced.gaps.length === 1 ? 'One line has' : `${priced.gaps.length} lines have`}{' '}
-                    no price in the book</b> — {priced.gaps.join(', ')}. They are measured below and
-                    counted at nothing, so this total is short.{' '}
-                    <Link href="/admin/fence?s=rates">The rate book</Link> is where that is fixed.
+                    no price in the book</b> — {priced.gaps.join(', ')}, counted at nothing, so this
+                    total is short. <Link href="/admin/fence?s=rates">The rate book</Link>.
                   </p>
                 )}
 
@@ -397,8 +364,8 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                 </table>
 
                 <p className="fxhint">
-                  Every rate here is a placeholder. Nothing prices honestly until On Call&rsquo;s
-                  real cost and sell replace the seeded book.
+                  Every rate here is a placeholder until On Call&rsquo;s real book replaces the
+                  seeded one.
                 </p>
 
                 {mayEdit && (
@@ -412,9 +379,8 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                                  placeholder={`${m.spec.name_en} · ${Math.round(s.fenceFt)} ft`} /></div>
                       </div>
                       <p className="fxhint">
-                        The price is worked out again on the way in, from the book as it stands,
-                        and the whole argument is frozen with it — the measure, the quantities and
-                        every sell line. A year from now this quote still explains itself.
+                        Priced again from the book as it stands, and the whole argument frozen
+                        with it.
                       </p>
                     </ActionForm>
                   </div>
@@ -473,17 +439,15 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                     </ul>
                     {mayEdit && !quotes.some((q) => q.accepted) && (
                       <p className="fxhint">
-                        None of these is marked sold yet. Billing rolls its sheet up out of the
-                        sold quote and nothing else — and the seal at handoff makes the answer
-                        permanent, so this is the last moment anybody can give one.
+                        None marked sold. Billing rolls its sheet up out of the sold quote, and the
+                        seal at handoff makes the answer permanent.
                       </p>
                     )}
                     {quotes.some((q) => q.takeoff?.below_floor && !released.get(q.id))
                       && !rights.mayRelease && (
                       <p className="note">
-                        A quote under the {m.marginFloor}% floor needs somebody who may release it
-                        before it goes to the customer. That is not the estimate&rsquo;s owner —
-                        a salesperson releasing their own thin quote is the floor releasing itself.
+                        Releasing a thin quote is not the estimate&rsquo;s owner&rsquo;s to do — a
+                        salesperson releasing their own is the floor releasing itself.
                       </p>
                     )}
                   </>
@@ -501,11 +465,8 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                       <img src={`/fence/${m.job.id}/map${quotes[0] ? `?option=${quotes[0].id}` : ''}`}
                            alt={`The measured line on ${m.job.ref}`} />
                       <figcaption>
-                        A picture, not a screenshot — the job, the length and the date are burned
-                        into it, and it draws{' '}
-                        {quotes[0] ? 'the line as frozen on the newest quote' : 'the line as it stands'}.
-                        {' '}<a href={`/fence/${m.job.id}/map${quotes[0] ? `?option=${quotes[0].id}` : ''}`}
-                              target="_blank" rel="noreferrer">Open it full size</a> to save or print.
+                        <a href={`/fence/${m.job.id}/map${quotes[0] ? `?option=${quotes[0].id}` : ''}`}
+                           target="_blank" rel="noreferrer">Open it full size</a>
                       </figcaption>
                     </figure>
                   </>
