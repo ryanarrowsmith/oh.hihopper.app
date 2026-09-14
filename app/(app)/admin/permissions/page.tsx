@@ -7,11 +7,18 @@ import LevelPick from '@/components/LevelPick'
 import ModuleLevels from '@/components/ModuleLevels'
 import { savePermissions } from '@/app/actions/admin'
 import {
-  FLAT_MAX, FLAT_OBJECTS, LEVELLED_MODULES, LEVEL_WORD, asLevel, rank, type Level,
+  FLAT_MAX, FLAT_OBJECTS, LEVELLED_MODULES, LEVEL_MARK, LEVEL_WORD,
+  asLevel, rank, type Level,
 } from '@/lib/access'
 import { initialsOf } from '@/lib/wiki-check'
 
 export const dynamic = 'force-dynamic'
+
+/** An access level's own mark, at chip size. */
+const Mark = ({ d }: { d: string }) => (
+  <svg viewBox="0 0 24 24" aria-hidden="true"
+       dangerouslySetInnerHTML={{ __html: d }} />
+)
 
 const LEVEL = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -93,7 +100,10 @@ export default async function Permissions({ searchParams }: {
               <span className="plevels">
                 {(['admin', 'edit', 'read'] as Level[]).filter((l) => count(l)).map((l) => (
                   <span className={`plev plev--${l}`} key={l}>
-                    {LEVEL_WORD[l]} · {count(l)}
+                    {/* The mark, not a hue. These three chips used to differ only
+                        by colour -- and read, edit and administer are exactly the
+                        thing a colour must not be left to say on its own. */}
+                    <Mark d={LEVEL_MARK[l]} />{LEVEL_WORD[l]} · {count(l)}
                   </span>
                 ))}
                 {held.length === 0 && <span className="plev">No access yet</span>}

@@ -39,7 +39,7 @@
      they are -- a white road on a near-white block is a gap, not a street. */
   --mapland:#DFD7C7; --mapblock:#EAE3D5; --maproad:#FFFFFF;
   --maproad-e:#C6BCA7; --mappark:#CBDCB8; --mapwater:#AFCEDD;
-  --mapink:#8A8175; --mappin:#C0492B;
+  --mapink:#8A8175; --mappin:#2D5D7B;
   --focus:0 0 0 3px rgba(45,93,123,.35);
   --shadow:0 1px 2px rgba(35,31,32,.05), 0 8px 24px -12px rgba(35,31,32,.14);
   --lift:0 1px 3px rgba(35,31,32,.07), 0 26px 60px -28px rgba(35,31,32,.34);
@@ -69,7 +69,7 @@
     --canvas-ink:#9A9186;
     --mapland:#141312; --mapblock:#221F1C; --maproad:#454039;
     --maproad-e:#0E0D0C; --mappark:#232E20; --mapwater:#1D3038;
-    --mapink:#7D7466; --mappin:#E0705A;
+    --mapink:#7D7466; --mappin:#7FB3D1;
     --focus:0 0 0 3px rgba(127,179,209,.4);
     --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
     --lift:0 1px 3px rgba(0,0,0,.5), 0 26px 60px -28px rgba(0,0,0,.9);
@@ -95,7 +95,7 @@
   --canvas-ink:#9A9186;
   --mapland:#141312; --mapblock:#221F1C; --maproad:#454039;
   --maproad-e:#0E0D0C; --mappark:#232E20; --mapwater:#1D3038;
-  --mapink:#7D7466; --mappin:#E0705A;
+  --mapink:#7D7466; --mappin:#7FB3D1;
   --focus:0 0 0 3px rgba(127,179,209,.4);
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
   --lift:0 1px 3px rgba(0,0,0,.5), 0 26px 60px -28px rgba(0,0,0,.9);
@@ -807,7 +807,11 @@ a.bub{text-decoration:none}
 .item b{display:block; font-size:14px; font-weight:700; letter-spacing:-.01em}
 .item small{display:block; font-size:12px; color:var(--ink-3); margin-top:2px}
 .when{font-family:var(--mono); font-size:11.5px; color:var(--ink-3); white-space:nowrap; text-align:right}
-.when.is-now{color:var(--bad); font-weight:700}
+/* THE EMPHASIS OR THE MARK, NEVER BOTH. `now` is already a word; a clock beside
+   it says the same thing twice. So it takes the warm chip Hopper uses for a live
+   state and carries no icon -- and it is not red, because nothing has failed. */
+.when.is-now{color:var(--amber-ink); font-weight:700; background:var(--warmbg);
+  border:1px solid var(--warmrule); padding:2px 7px}
 .when.is-soon{color:var(--steel-ink)}
 .tag{
   display:inline-block; font-family:var(--mono); font-size:10px; letter-spacing:.08em;
@@ -1533,8 +1537,10 @@ select.field{appearance:none}
   border:0; padding:6px 4px; cursor:pointer; text-decoration:none;
 }
 .lnk:hover{color:var(--ink); text-decoration:underline}
-.lnk--go{margin-left:auto; color:var(--bad)}
-.lnk--go:hover{color:var(--bad)}
+/* A link, not a warning. Red here was an accent -- nothing has gone wrong at the
+   end of a row -- and Hopper's link colour is Steel. */
+.lnk--go{margin-left:auto; color:var(--steel-ink)}
+.lnk--go:hover{color:var(--steel-ink)}
 
 /* ============ THE ADD DRAWER ============
    The plus in the header opens the new-record form above the list, in the same
@@ -5242,11 +5248,13 @@ a.hx .hxcard:hover, .hx a.hxcard:hover{border-color:var(--canvas-3);
 .ev b{display:block; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .ev span{font-family:var(--mono); font-size:9px; opacity:.8}
 
-/* Where the day has got to. Red because it is the one line on the grid that is
-   not a thing somebody scheduled. */
-.calnowline{position:absolute; left:0; right:0; height:1px; background:var(--bad); z-index:3}
+/* Where the day has got to: the one line on the grid nobody scheduled. It was
+   red for exactly that reason, which is an accent argument rather than an error
+   one -- so amber, which already means "here is the live thing". A line has
+   nowhere to hang a mark, which is why this one keeps a colour at all. */
+.calnowline{position:absolute; left:0; right:0; height:1px; background:var(--amber); z-index:3}
 .calnowline i{position:absolute; left:-4px; top:-3.5px; width:8px; height:8px;
-  border-radius:50%; background:var(--bad)}
+  border-radius:50%; background:var(--amber)}
 
 /* ── month ── */
 .mgrid{display:grid; grid-template-columns:repeat(7,1fr)}
@@ -6402,7 +6410,8 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
   stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round}
 .lvl button.is-on{background:var(--steelwash); color:var(--steel-ink)}
 .lvl button.is-top{background:var(--steel); color:#FBF9F5}
-.lvl--admin button.is-top{background:var(--bad); color:#fff}
+.lvl--admin button.is-top{background:var(--sunken); color:var(--ink);
+  box-shadow:inset 0 2px 0 var(--amber)}
 .lvl--off button{color:var(--canvas-3)}
 /* Inherited: shown at its real strength, and not yours to lower here. */
 .lvl--from{opacity:.72}
@@ -6479,11 +6488,16 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
   text-transform:uppercase; padding:2px 7px; border-radius:var(--r);
   border:1px solid var(--rule); color:var(--ink-3); background:var(--sunken);
   white-space:nowrap}
-.plev--read{color:var(--steel-ink); background:var(--steelwash);
-  border-color:rgba(45,93,123,.3)}
-.plev--edit{color:#8A5A0B; background:var(--warmbg); border-color:var(--warmrule)}
-.plev--admin{color:var(--bad); background:rgba(217,58,43,.09);
-  border-color:rgba(217,58,43,.3)}
+/* An eye, a pencil and a key say read, edit and administer. The three chips used
+   to differ only by hue, which is the case the standing rule was written for --
+   colour never doing the work alone -- so the mark carries it and the top level
+   is marked by weight rather than by a warning colour. */
+.plev{display:inline-flex; align-items:center; gap:5px}
+.plev svg{width:11px; height:11px; flex:none; fill:none; stroke:currentColor;
+  stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round}
+.plev--read, .plev--edit{color:var(--ink-2); background:var(--surface);
+  border-color:var(--rule)}
+.plev--admin{color:var(--ink); background:var(--surface); border-color:var(--ink-3)}
 
 /* ---- the read-only view a person gets of themselves ----
    .mayr, not .mrow: .mrow is already the account-menu row in the top bar, and
@@ -6511,7 +6525,7 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
 .mayr__k b{display:none}
 .mayr__k--read{background:var(--steelwash); color:var(--steel-ink)}
 .mayr__k--edit{background:var(--warmbg); color:#8A5A0B}
-.mayr__k--admin{background:rgba(217,58,43,.12); color:var(--bad)}
+.mayr__k--admin{background:var(--sunken); color:var(--ink)}
 .mayr__n{font-size:13.5px; font-weight:800; letter-spacing:-.01em; color:var(--ink);
   min-width:0}
 .mayr__n small{display:block; font-size:11.5px; font-weight:500; color:var(--ink-3);
@@ -6778,7 +6792,9 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
   padding:14px var(--pad-x);
   background:var(--surface); border-bottom:1px solid var(--rule);
   box-shadow:inset 4px 0 0 var(--steel)}
-.nband--soon{box-shadow:inset 4px 0 0 var(--bad)}
+/* The spine is a rule rather than an object, so there is nowhere to hang a mark.
+   Amber, which already means "here is the live thing" everywhere else. */
+.nband--soon{box-shadow:inset 4px 0 0 var(--amber)}
 .nband__b{min-width:0; flex:1 1 auto}
 .nband__t{margin:0; font-size:15px; font-weight:800; letter-spacing:-.02em; color:var(--ink)}
 .nband__t a{color:inherit; text-decoration:none}
@@ -6803,7 +6819,7 @@ a.wtag:hover{border-color:var(--ink-3); color:var(--ink)}
 .nleft{display:inline-flex; align-items:center; gap:4px; flex:none; cursor:help;
   font-family:var(--mono); font-size:11px; color:var(--ink-3)}
 .nleft svg{width:14px; height:14px; display:block}
-.nleft.is-soon{color:var(--bad)}
+.nleft.is-soon{color:var(--ink-2); font-weight:700}
 .nleft b{font-weight:700}
 
 /* A button that is only a mark. Square, so a row of them is a row. */
