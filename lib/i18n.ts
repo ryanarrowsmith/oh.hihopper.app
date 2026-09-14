@@ -85,6 +85,22 @@ export const STRINGS: Record<string, Pair> = {
   'ticket.noprices':     { en: 'Quantities only. This ticket carries no prices.',
                            es: 'Solo cantidades. Esta boleta no lleva precios.' },
 
+  /* The note a crew sends from the yard. Written plainly on purpose: the
+     reader is holding a phone with a glove on and has something to say. */
+  'ticket.note':         { en: 'Tell the office',    es: 'Avisar a la oficina' },
+  'ticket.note.hint':    { en: 'What you found, what you changed, where you stopped. Add a photograph if it is easier to show than to say.',
+                           es: 'Lo que encontró, lo que cambió, dónde paró. Agregue una foto si es más fácil mostrarlo que decirlo.' },
+  'ticket.note.ph':      { en: 'Rock at eighteen inches on the east line…',
+                           es: 'Piedra a cuarenta y cinco centímetros en la línea este…' },
+  'ticket.note.photo':   { en: 'Add a photograph',   es: 'Agregar una foto' },
+  'ticket.note.send':    { en: 'Send',               es: 'Enviar' },
+  'ticket.note.sending': { en: 'Sending…',           es: 'Enviando…' },
+  'ticket.note.sent':    { en: 'Sent from this ticket', es: 'Enviado desde esta boleta' },
+  'ticket.note.none':    { en: 'Nothing sent from this ticket yet.',
+                           es: 'Todavía no se ha enviado nada desde esta boleta.' },
+  'ticket.note.shot':    { en: 'Photograph',         es: 'Foto' },
+  'ticket.note.shots':   { en: 'photographs',        es: 'fotos' },
+
   /* ------------------------------------------------------ fence: the plan */
   'fence.job.sold':      { en: 'Sold',               es: 'Vendido' },
   'fence.job.measured':  { en: 'Measured on site',   es: 'Medido en sitio' },

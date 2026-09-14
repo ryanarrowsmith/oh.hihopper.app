@@ -27,6 +27,46 @@ export type CrewTicket = {
   materials: { code: string; name_en: string; name_es: string | null; uom: string; qty: number }[]
   tools: { name_en: string; name_es: string | null; qty: number }[]
   tasks: { id: string; en: string; es: string | null; due_on: string | null; done: boolean }[]
+  /* WHAT THIS CREW HAS ALREADY SENT. Their own notes, read back, so a phone in
+     a yard can answer the only question that matters after pressing send —
+     did it go? A note that vanishes into a form is a note somebody types
+     twice, and then doubts the second time too. */
+  sent: {
+    id: string; body: string; at: string
+    who: string | null; shot: boolean; name: string | null
+  }[]
+}
+
+/**
+ * The job behind a ticket token, and nothing else.
+ *
+ * openTicket reads a whole screen's worth; a crew WRITING a note needs four
+ * facts and no materials list. Separate so the write path stays small and so
+ * the one rule that matters — the token resolves the job, the caller never
+ * names it — is stated in one place rather than implied by a big loader.
+ */
+export async function ticketJob(token: string): Promise<
+  { jobId: string; accountId: string; ref: string; crew: string | null; lang: Lang } | null
+> {
+  if (!/^[0-9a-f-]{36}$/i.test(token)) return null
+  const db = supabaseService()
+
+  const { data: link } = await db.schema('hopper')
+    .from('fence_ticket_link')
+    .select('job_id, lang, revoked, expires_on')
+    .eq('token', token).maybeSingle()
+  if (!link || link.revoked) return null
+  if (link.expires_on && link.expires_on < new Date().toISOString().slice(0, 10)) return null
+
+  const { data: job } = await db.schema('hopper').from('fence_job')
+    .select('id, account_id, ref, crew').eq('id', (link as any).job_id).maybeSingle()
+  if (!job) return null
+
+  return {
+    jobId: (job as any).id, accountId: (job as any).account_id,
+    ref: (job as any).ref, crew: (job as any).crew,
+    lang: ((link as any).lang === 'en' ? 'en' : 'es') as Lang,
+  }
 }
 
 /** Null for a token that is unknown, revoked or past its date — all the same
@@ -45,7 +85,8 @@ export async function openTicket(token: string): Promise<CrewTicket | null> {
 
   const jobId = link.job_id
 
-  const [{ data: job }, { data: sow }, { data: runs }, { data: gates }, { data: tasks }] =
+  const [{ data: job }, { data: sow }, { data: runs }, { data: gates }, { data: tasks },
+         { data: sent }] =
     await Promise.all([
       db.schema('hopper').from('fence_job')
         .select('id, ref, name, customer, site_address, pin_note, crew, starts_on, lat, lon, account_id, spec_code, cls')
@@ -59,6 +100,13 @@ export async function openTicket(token: string): Promise<CrewTicket | null> {
       db.schema('hopper').from('fence_task')
         .select('id, en, es, due_on, done')
         .eq('job_id', jobId).eq('section', 'ticket').order('sort'),
+      /* Only what came off a ticket. The office's own notes on this job are
+         not the crew's to read on a phone that anybody holding the link can
+         open — and they would not know what to do with them anyway. */
+      db.schema('hopper').from('fence_note')
+        .select('id, body, created_at, by_crew, file_mime, file_name')
+        .eq('job_id', jobId).not('by_crew', 'is', null)
+        .order('created_at', { ascending: false }).limit(20),
     ])
 
   if (!job) return null
@@ -134,5 +182,14 @@ export async function openTicket(token: string): Promise<CrewTicket | null> {
     materials,
     tools: TOOLS[(job as any).cls ?? 'permanent'] ?? TOOLS.permanent,
     tasks: (tasks ?? []) as CrewTicket['tasks'],
+    sent: ((sent ?? []) as any[]).map((n) => ({
+      id: n.id as string,
+      // What was typed, never the English twin: this is the crew's own step.
+      body: n.body as string,
+      at: n.created_at as string,
+      who: (n.by_crew ?? null) as string | null,
+      shot: String(n.file_mime ?? '').startsWith('image/'),
+      name: (n.file_name ?? null) as string | null,
+    })),
   }
 }

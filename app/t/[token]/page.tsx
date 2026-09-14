@@ -51,7 +51,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
         </p>
       )}
 
-      <CrewTabs ticket={ticket} labels={{
+      <CrewTabs ticket={ticket} token={token} labels={{
         sow: tx('fence.section.sow'),
         materials: tx('ticket.materials'),
         tools: tx('ticket.tools'),
@@ -64,6 +64,16 @@ export default async function Page({ params }: { params: Promise<{ token: string
         shortage: tx('ticket.short'),
         noPrices: tx('ticket.noprices'),
         length: fmtLength(0, lang).replace(/^0[^ ]* /, ''),
+        note: tx('ticket.note'),
+        noteHint: tx('ticket.note.hint'),
+        notePh: tx('ticket.note.ph'),
+        notePhoto: tx('ticket.note.photo'),
+        noteSend: tx('ticket.note.send'),
+        noteSending: tx('ticket.note.sending'),
+        noteSent: tx('ticket.note.sent'),
+        noteNone: tx('ticket.note.none'),
+        noteShot: tx('ticket.note.shot'),
+        noteShots: tx('ticket.note.shots'),
       }} />
 
       <p className="ck__foot">{tx('ticket.noprices')}</p>

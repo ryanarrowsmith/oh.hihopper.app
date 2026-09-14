@@ -2,11 +2,15 @@
 import { SPINE } from '@/lib/sow'
 import { useState } from 'react'
 import type { CrewTicket } from '@/lib/crew'
+import CrewNote from '@/components/CrewNote'
 
 type Labels = {
   sow: string; materials: string; tools: string; closeout: string
   locates: string; photos: string; photosNeed: string; sign: string
   signNeeds: string; shortage: string; noPrices: string; length: string
+  note: string; noteHint: string; notePh: string; notePhoto: string
+  noteSend: string; noteSending: string; noteSent: string; noteNone: string
+  noteShot: string; noteShots: string
 }
 
 /**
@@ -14,11 +18,13 @@ type Labels = {
  * crew opens in the yard before anything else. Ticking is local state here; the
  * write goes back through the token route, so a crew never holds a session.
  */
-export default function CrewTabs({ ticket, labels }: { ticket: CrewTicket; labels: Labels }) {
+export default function CrewTabs({ ticket, token, labels }:
+  { ticket: CrewTicket; token: string; labels: Labels }) {
   const [tab, setTab] = useState<'sow' | 'materials' | 'tools' | 'closeout'>('materials')
   const [ticked, setTicked] = useState<Record<string, boolean>>({})
   const es = ticket.lang === 'es'
   const name = (en: string, esName: string | null) => (es && esName ? esName : en)
+  const shots = ticket.sent.filter((n) => n.shot).length
 
   const TABS = [
     { key: 'sow' as const, label: labels.sow },
@@ -103,10 +109,47 @@ export default function CrewTabs({ ticket, labels }: { ticket: CrewTicket; label
 
         {tab === 'closeout' && (
           <>
-            <div className="ck__shots">
-              {[0, 1, 2].map((i) => <div className="ck__shot" key={i}>+</div>)}
-            </div>
-            <p className="ck__hint">{labels.photosNeed}</p>
+            {/* THE BOX THAT ACTUALLY WRITES SOMETHING DOWN. It stood here as
+                three grey squares with a plus in them until 14 Sep — a picture
+                of a feature. What a crew sends here is what the office reads on
+                the job's log and what accounting reads at the bottom of the
+                billing letter, so it is worth more than the rest of this tab
+                put together and it goes first. */}
+            <CrewNote token={token} labels={{
+              title: labels.note, hint: labels.noteHint, placeholder: labels.notePh,
+              photo: labels.notePhoto, send: labels.noteSend,
+              sending: labels.noteSending, sent: labels.noteSent,
+            }} />
+
+            {/* THE COUNT IS THE REQUIREMENT, SAID ONCE. "Three photographs are
+                required" used to sit under three empty squares and never
+                changed, whatever the crew did — so it was a rule with no way of
+                knowing whether it had been met. Now it counts what this ticket
+                actually sent, and stops nagging once it has three. */}
+            <section className="cksent">
+              <div className="cksent__h">
+                <h3>{labels.noteSent}</h3>
+                <b>{shots} / 3 {labels.noteShots}</b>
+              </div>
+              {ticket.sent.length === 0 ? (
+                <p className="ck__hint">{labels.noteNone}</p>
+              ) : (
+                <ul className="cksent__l">
+                  {ticket.sent.map((n) => (
+                    <li key={n.id}>
+                      <p>{n.body}</p>
+                      <span>
+                        {new Date(n.at).toLocaleDateString(es ? 'es-US' : 'en-US',
+                          { day: 'numeric', month: 'short' })}
+                        {n.shot ? ` · ${labels.noteShot}` : ''}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {shots < 3 && <p className="ck__hint">{labels.photosNeed}</p>}
+            </section>
+
             <ul className="ck__list">
               {ticket.tasks.map((x) => (
                 <li key={x.id}>

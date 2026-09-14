@@ -8735,11 +8735,63 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 }
 .ck__list--plain li{padding-left:2px}
 .ck__none{color:var(--ink-3)}
-.ck__shots{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px}
-.ck__shot{
-  aspect-ratio:3/4; background:var(--canvas-2); border:1px dashed var(--canvas-3);
-  display:grid; place-items:center; color:var(--canvas-ink); font-size:26px; font-weight:300;
+/* The three dashed squares that used to sit at the top of close-out are gone.
+   They were a picture of a feature: a plus sign that did nothing, above a line
+   saying three photographs were required. What replaced them writes a real row
+   on the job's log — see .cknote below. */
+
+/* --------------------------------------------------------------------------
+   THE CREW'S NOTE.
+
+   Everything on this ticket is read until here. The box is big, the controls
+   are thumb-sized, and the send button is the only filled thing on the screen,
+   because a crew in a yard is holding a phone in one hand with a glove on the
+   other and has about four seconds of patience.
+   -------------------------------------------------------------------------- */
+.cknote{margin-bottom:22px}
+.cknote h3{font-size:15px; font-weight:800; margin:0 0 4px}
+.cknote__box{
+  display:block; width:100%; min-height:110px; padding:12px 13px; resize:vertical;
+  background:var(--surface); border:1px solid var(--rule); color:var(--ink);
+  /* 16px or larger, or iOS zooms the whole page the moment it is focused and
+     the crew is then pinching to find the send button. */
+  font:400 16px/1.5 var(--sans);
 }
+.cknote__box:focus{outline:2px solid var(--steel); outline-offset:-1px}
+.cknote__file{position:absolute; width:1px; height:1px; opacity:0; pointer-events:none}
+.cknote__row{display:flex; gap:10px; margin-top:10px; align-items:stretch}
+.cknote__pick{
+  flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:9px;
+  padding:0 13px; min-height:52px; cursor:pointer;
+  background:var(--surface); border:1px solid var(--rule); color:var(--ink-2);
+  font-size:14px; font-weight:600;
+}
+.cknote__pick svg{width:19px; height:19px; flex:none}
+.cknote__pick span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.cknote__send{
+  flex:none; min-height:52px; padding:0 22px; border:1px solid var(--steel);
+  background:var(--steel); color:#fff; font-size:15px; font-weight:800;
+}
+.cknote__send:disabled{opacity:.45}
+.cknote__ok{margin:10px 0 0; font-size:14px; font-weight:700; color:var(--steel)}
+/* The one place red belongs: something went wrong and nothing was saved. */
+.cknote__bad{margin:10px 0 0; font-size:14px; font-weight:700; color:var(--bad)}
+
+/* What this ticket has already sent, so the answer to "did it go?" is on the
+   screen rather than in somebody's memory of pressing a button. */
+.cksent{margin-bottom:22px}
+.cksent__h{display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+  margin-bottom:8px}
+.cksent h3{font-size:13px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--ink-3); margin:0}
+.cksent__h b{flex:none; font-family:var(--mono); font-size:11.5px; font-weight:700;
+  letter-spacing:.04em; color:var(--ink-2); font-variant-numeric:tabular-nums}
+.cksent__l{list-style:none; margin:0; padding:0}
+.cksent__l li{padding:10px 0; border-top:1px solid var(--rule-soft)}
+.cksent__l li:first-child{border-top:0}
+.cksent__l p{margin:0; font-size:14.5px; line-height:1.55; white-space:pre-line}
+.cksent__l span{display:block; margin-top:4px; font-family:var(--mono); font-size:10.5px;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3)}
 .ck__hint{font-size:13px; color:var(--ink-3); margin:8px 0 14px}
 .ck__btn{
   display:block; width:calc(100% - 32px); margin:14px 16px 0; min-height:52px;
