@@ -8870,7 +8870,11 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   color:var(--ink-3); margin:18px 0 9px}
 
 /* ---------------------------------------------------------------- the plan */
-.fxsurface{border:1px solid var(--rule); background:var(--sunken)}
+/* POSITIONED, because the sides panel hangs off it. Without this the panel
+   measured itself against the page rather than the picture and opened above the
+   drawing entirely -- correct pixels, wrong origin, and only visible by opening
+   the screen rather than by building it. */
+.fxsurface{position:relative; border:1px solid var(--rule); background:var(--sunken)}
 .fxbox{
   position:relative; overflow:hidden; width:100%;
   aspect-ratio:4/3; max-height:58vh;

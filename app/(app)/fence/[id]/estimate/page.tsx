@@ -50,6 +50,16 @@ const CLASS_WORD: Record<string, string> = {
 
 const ft = (n: number) => `${Math.round(n).toLocaleString('en-US')} ft`
 
+/* A FIFTH OF A POINT IS NOT ZERO POINTS. Rounding to whole points had a 34.8%
+   margin reading "0 points under the 35% floor", which is a screen arguing with
+   itself: either it clears the floor or it does not, and a figure that says
+   nothing is wrong beside a warning that says something is will be believed
+   over the warning. */
+const points = (n: number) => {
+  const d = Math.abs(n) < 1 ? Math.round(Math.abs(n) * 10) / 10 : Math.round(Math.abs(n))
+  return `${d} point${d === 1 ? '' : 's'}`
+}
+
 export default async function Estimate({ params }: { params: { id: string } }) {
   const session = await currentSession()
   if (!session) redirect('/no-access')
@@ -519,8 +529,8 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                         ? <FenceMark kind="warn">Under the {m.marginFloor}% floor</FenceMark>
                         : <FenceMark kind="done">Clears the {m.marginFloor}% floor</FenceMark>}
                       <small>{thin
-                        ? `${Math.round(m.marginFloor - priced.margin)} points under. Needs releasing.`
-                        : `${Math.round(priced.margin - m.marginFloor)} points of room.`}</small>
+                        ? `${points(m.marginFloor - priced.margin)} under. Needs releasing.`
+                        : `${points(priced.margin - m.marginFloor)} of room.`}</small>
                     </div>
                   )}
                   {priced.margin == null && rights.mayReadCosts && (
