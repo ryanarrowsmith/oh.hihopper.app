@@ -8580,17 +8580,23 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 .fjmark--absent{color:var(--canvas-3)}
 
 /* ---- the plan ---- */
-.fjbar{height:4px; background:var(--canvas-2); position:relative; overflow:hidden}
-.fjbar i{position:absolute; inset:0 auto 0 0; background:var(--steel); display:block}
-.fjprog{font-family:var(--mono); font-size:11.5px; color:var(--ink-2); margin-top:8px}
+/* The job page's progress bar came off: "41% · 9 / 22" was a vanity figure that
+   never told anybody what to do next, and every tab now carries its own count,
+   which does. */
 .fjphase__h{display:flex; align-items:baseline; gap:12px; margin-bottom:10px}
 .fjphase__h h2{font-size:17px; font-weight:800; letter-spacing:-.02em}
 .fjcount{
   margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--ink-3); letter-spacing:.08em;
 }
 .fjsec{border:1px solid var(--rule); background:var(--surface); padding:13px 15px; margin-bottom:10px}
-.fjsec--sealed{background:var(--sunken); box-shadow:inset 3px 0 0 var(--canvas-3)}
-.fjsec--edit{box-shadow:inset 3px 0 0 var(--steel)}
+/* A FINISHED SECTION IS QUIET, NOT HEAVY. This was a sunken card with a grey
+   spine, which made the most finished thing on the page the heaviest object on
+   it. Now the only coloured spine left is amber, so colour on this page means
+   exactly one thing: here is the work. `.fjsec--edit` went with it -- a tab
+   called "Project manager" had already said whose the sections were. */
+.fjsec--sealed .fjsec__h h3{color:var(--ink-3)}
+.fjsec--sealed .fjsec__h h3 .fjsec__go{color:var(--ink-2)}
+.fjsec.is-now{box-shadow:inset 3px 0 0 var(--amber); border-color:var(--warmrule)}
 .fjsec__h{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
 .fjsec__h h3{font-size:14.5px; font-weight:700}
 .fjsec__h .fjmark{margin-left:auto}
@@ -8600,8 +8606,19 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   flex:0 0 16px; width:16px; height:16px; border:1.5px solid var(--canvas-3); margin-top:2px;
   background:var(--surface);
 }
-.fjtask--done .fjtask__box{background:var(--good); border-color:var(--good)}
-.fjtask--done .fjtask__t b{color:var(--ink-3); text-decoration:line-through}
+/* A TICK, NOT A FILLED SQUARE. The shape is the information and the colour only
+   agrees with it -- the rule FenceMark was built on: the eye catches the mark
+   before it reads the word, and two people on a crew who do not separate those
+   hues get the same information as everybody else. A green slab gave them a hue
+   and nothing more. The strikethrough goes too: everything inside a group headed
+   "5 done" is done by definition. */
+.fjtask--done .fjtask__box{background:none; border-color:transparent; position:relative}
+.fjtask--done .fjtask__box::after{
+  content:""; position:absolute; left:5px; top:0;
+  width:5px; height:10px; border:solid var(--good);
+  border-width:0 2px 2px 0; transform:rotate(42deg);
+}
+.fjtask--done .fjtask__t b{color:var(--ink-3); text-decoration:none}
 .fjtask__t b{font-size:14px; font-weight:600; display:block}
 .fjtask__t em{
   font-style:normal; font-family:var(--mono); font-size:10px; letter-spacing:.08em;
@@ -8757,17 +8774,27 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
    tab does. ------------------------------------------------------------------ */
 .fjarail{margin:18px 0 4px}
 .fjachips{display:flex; flex-wrap:wrap; gap:6px; border-bottom:1px solid var(--rule)}
+/* AN UNSELECTED TAB IS A LABEL, NOT AN OBJECT.
+   These were filled with --sunken on a --paper page, which is a row of beige
+   bars; stacked full width on a phone they stopped reading as tabs at all and
+   read as four rows of content you could tap into. The fix was LESS contrast,
+   not more. What is left is type on the page, and the one tab you are on is the
+   only thing wearing a surface. */
 .fjachip{
   display:inline-flex; align-items:center; padding:7px 12px; font-size:12.5px; font-weight:700;
-  letter-spacing:-.01em; color:var(--ink-2); background:var(--sunken); text-decoration:none;
-  border:1px solid var(--rule); border-bottom:1px solid var(--rule); margin-bottom:-1px}
-.fjachip:hover{color:var(--ink); background:var(--surface)}
+  letter-spacing:-.01em; color:var(--ink-3); background:transparent; text-decoration:none;
+  border:1px solid transparent; margin-bottom:-1px}
+.fjachip:hover{color:var(--ink); background:transparent}
+/* A tab with nothing in it because the job never went that way. Dimmed rather
+   than hidden: the job has one shape whoever is looking at it. */
+.fjachip.is-off{opacity:.7}
 /* The live chip joins the paper below it -- same white, and its own bottom
    border painted in that white over the rule the row carries -- so the section
    reads as hanging off the chip you pressed rather than floating under a strip
    of seven. */
 .fjachip.is-on{
-  color:var(--ink); background:var(--surface); border-bottom-color:var(--surface);
+  color:var(--ink); background:var(--surface);
+  border-color:var(--rule); border-bottom-color:var(--surface);
   box-shadow:inset 0 2px 0 var(--amber)}
 .fjastep{display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:11px 2px 2px}
 .fjacount{font-family:var(--mono); font-size:11.5px; color:var(--ink-3)}
@@ -9216,3 +9243,143 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 .fxrec__map img{width:100%; height:auto; display:block; border:1px solid var(--rule)}
 .fxrec__notes{margin-top:4mm}
 .fxrec__notes p{margin:0 0 2mm; font-size:9.5pt; line-height:1.6; color:var(--ink-2)}
+
+
+/* ==========================================================================
+   THE JOB PAGE'S RAIL, THE PLACE LINE, AND THE DONE-WORK DISCLOSURE
+   Added 14 Sep with the owner tabs. Every rule here exists because something
+   else came off: the progress bar, the "Where it is" band of captioned cards,
+   the per-section marks, and four of the five phase headings.
+   ========================================================================== */
+
+/* Where the job is, as one line under the title rather than a band of cards.
+   Facts only -- nothing here explains what an address is for. The estimator
+   refuses to draw without a pin and sends people here, which is why the pencil
+   is on it. */
+.fjplace{
+  margin-top:7px; display:flex; align-items:center; flex-wrap:wrap; gap:5px 10px;
+  font-size:12.5px; color:var(--ink-2); min-width:0;
+}
+.fjplace i{
+  font-style:normal; font-family:var(--mono); font-size:10.5px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+.fjplace i::before{content:"· "; color:var(--canvas-3)}
+/* The address sits in a RecordRow so it opens the same drawer every other
+   editable row in Hopper opens -- but it is a line in a header, not a row in a
+   list, so the row's own chrome comes off. */
+.fjplacerow{margin-top:2px}
+.fjplacerow .rrec{border-bottom:0}
+.fjplacerow .rrec__face{padding:5px 0 5px 0}
+.fjplacerow .rrec.is-open .rrec__face{background:transparent; box-shadow:none}
+.fjplacerow .rrec__form{margin-top:4px}
+.fjplacerow .fjplace{margin-top:0}
+
+/* How far along, on the chip itself. */
+.fjan{
+  margin-left:8px; font-family:var(--mono); font-size:10.5px; font-weight:500;
+  letter-spacing:.06em; color:var(--ink-3);
+}
+.fjachip.is-on .fjan, .fjapick > summary .fjan{color:var(--ink-2)}
+
+/* One dot, and only one: where the work is. A count already says 2 / 2 is
+   finished and 0 / 4 has not started, so those needed no mark of their own. */
+.fjadot{
+  flex:none; width:7px; height:7px; margin-right:7px; border-radius:50%;
+  background:var(--amber); box-shadow:0 0 0 3px rgba(242,169,59,.25);
+}
+
+/* A figure a section carries in its own head -- what it sold for, how many
+   steps are waiting. Data, never a caption. */
+.fjsecn{
+  margin-left:auto; font-family:var(--mono); font-size:10.5px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+
+/* Who you are, at the end of the rail rather than orphaned under the title.
+   The rail is the row about who owns what; this is the row's other half. */
+.fjarail--own{display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap}
+.fjarail--own .fjachips{flex:1 1 auto; min-width:0}
+.fjarail--own .fjwho{flex:none; padding-bottom:9px}
+
+/* Ticked steps, folded under the open ones. A <details>, so no JavaScript and
+   it works before anything hydrates. The triangle is drawn rather than the
+   browser's own marker, which differs on every platform and cannot be
+   coloured. */
+.fjdone{margin-top:8px; border-top:1px solid var(--rule-soft)}
+/* When a section has nothing open, the disclosure sits straight under the head
+   and the rule above it would be a line under a heading. */
+.fjsec__h + .fjdone{border-top:0; margin-top:4px}
+.fjdone > summary{
+  display:flex; align-items:center; gap:7px; padding:8px 0 4px; cursor:pointer;
+  list-style:none; font-family:var(--mono); font-size:10.5px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+.fjdone > summary::-webkit-details-marker{display:none}
+.fjdone > summary::before{
+  content:""; flex:none; width:0; height:0;
+  border-left:4.5px solid currentColor;
+  border-top:3.5px solid transparent; border-bottom:3.5px solid transparent;
+  transition:transform .12s ease;
+}
+.fjdone[open] > summary::before{transform:rotate(90deg)}
+.fjdone > summary:hover{color:var(--ink-2)}
+.fjdone > summary:focus-visible{outline:none; box-shadow:var(--focus)}
+.fjdone .fjtasks{margin-top:0}
+.fjdone .fjtask:first-child{border-top:0}
+
+/* NO SIDEWAYS SCROLL ON A PHONE. EVER.
+
+   A tab strip that scrolls hides its own options behind a gesture nobody is
+   told about, and the thing half off the right edge is the only hint. So under
+   640 the rail stops being a strip and becomes a picker: the tab you are on,
+   and the other three under it.
+
+   Still a <details> holding the same four links with the same four URLs, so the
+   back button works and it is usable before anything hydrates. Exactly one of
+   the two shapes is ever rendered -- display:none takes the other out of the
+   accessibility tree as well as off the screen, so nothing is announced
+   twice. */
+.fjapick{display:none}
+.fjapick > summary{
+  display:flex; align-items:center; gap:0; min-height:44px; padding:9px 12px;
+  cursor:pointer; list-style:none;
+  background:var(--surface); border:1px solid var(--rule); color:var(--ink);
+  font-size:13.5px; font-weight:700; letter-spacing:-.01em;
+  box-shadow:inset 0 2px 0 var(--amber);
+}
+.fjapick > summary::-webkit-details-marker{display:none}
+.fjapick > summary:focus-visible{outline:none; box-shadow:inset 0 2px 0 var(--amber), var(--focus)}
+.fjapick__v{flex:none; width:16px; height:16px; margin-left:auto; color:var(--ink-3);
+  transition:transform .14s ease}
+.fjapick[open] .fjapick__v{transform:rotate(180deg)}
+.fjapick__list{
+  display:flex; flex-direction:column;
+  border:1px solid var(--rule); border-top:0; background:var(--surface);
+}
+.fjapick__o{
+  display:flex; align-items:center; min-height:44px; padding:9px 12px;
+  text-decoration:none; color:var(--ink-2);
+  font-size:13.5px; font-weight:700; letter-spacing:-.01em;
+  border-top:1px solid var(--rule-soft);
+}
+.fjapick__o:first-child{border-top:0}
+/* The one you are already on stays in the list rather than being removed from
+   it -- a list that changes length as you move through it is a list you have to
+   re-read every time. It is simply not a thing to go to. */
+.fjapick__o.is-on{color:var(--ink); background:var(--sunken); cursor:default}
+.fjapick__o.is-off{opacity:.7}
+.fjapick__o:hover{color:var(--ink); background:var(--sunken)}
+
+@media (max-width:640px){
+  .fjarail--own .fjachips{display:none}
+  .fjarail--own .fjapick{display:block; width:100%}
+  /* No rule under it. A rail's bottom border is what a tab strip sits ON; a
+     picker is already a bordered object and the line below became a divider
+     dividing nothing. */
+  .fjarail--own{display:block; border-bottom:0; padding-bottom:0; margin-bottom:12px}
+  /* There is no room for four tabs and a badge on one line of a phone, and
+     wrapped underneath it is an orphan. It says what you are, which is the
+     least load-bearing thing on the screen. */
+  .fjarail--own .fjwho{display:none}
+}

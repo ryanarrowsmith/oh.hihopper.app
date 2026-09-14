@@ -34,14 +34,27 @@ export const SECTIONS: { key: Section; en: string; owner: JobRole }[] = [
   { key: 'billing',  en: 'Billing handoff',  owner: 'billing' },
 ]
 
-/** The five phases the job page groups those sections under. */
-export const PHASES: { title: string; sections: Section[] }[] = [
-  { title: 'Sales',                     sections: ['intake', 'estimate'] },
-  { title: 'Project manager — survey and scope', sections: ['survey', 'schedule', 'sow'] },
-  { title: 'Field crew',                sections: ['ticket'] },
-  { title: 'Close to billing',          sections: ['closeout'] },
-  { title: 'Complete',                  sections: ['billing'] },
-]
+/**
+ * The tabs the job page groups those sections under: one per job, in the order
+ * the work reaches them.
+ *
+ * This replaced five PHASES, and the two lists are not the same. A phase
+ * answered "where is this job". A tab answers "whose desk is it on", which is
+ * the question somebody opening the page is actually asking — and it is the
+ * question the mark on every section was already answering one at a time.
+ *
+ * The one thing it rearranges is close-out. It has been the project manager's
+ * in SECTIONS since 0109 — walking the finished fence, the QA inspection,
+ * getting the customer to say they are happy are not the crew's and not
+ * billing's — but the phase list gave it a band of its own between them. By
+ * owner it sits with the survey and the scope, with the crew's build happening
+ * in the gap. Ryan, 14 Sep: yes, close-out can be the project manager's.
+ */
+export const OWNERS: JobRole[] = ['sales', 'pm', 'field', 'billing']
+
+export function sectionsOwnedBy(role: JobRole): Section[] {
+  return SECTIONS.filter((s) => s.owner === role).map((s) => s.key)
+}
 
 export const ROLE_WORD: Record<JobRole, string> = {
   sales: 'Sales', pm: 'Project manager', field: 'Field crew', billing: 'Billing',

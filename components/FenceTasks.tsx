@@ -63,11 +63,17 @@ export default function FenceTasks({
     })
   }
 
-  return (
-    <>
-      <ul className="fjtasks">
-        {rows.map((t) => (
-          <li key={t.id} className={t.done ? 'fjtask fjtask--done' : 'fjtask'}>
+  /* Open work first, finished work folded underneath.
+     Reordering alone would not have done it -- eight struck-through rows above
+     the one thing left to do is the same list, sorted differently. So the done
+     ones go behind a count you can open, and a section with nothing left in it
+     is that one line. A <details> rather than state, so it needs no JavaScript
+     and survives the optimistic tick re-rendering underneath it. */
+  const open = rows.filter((t) => !t.done)
+  const shut = rows.filter((t) => t.done)
+
+  const Row = (t: Task) => (
+    <li key={t.id} className={t.done ? 'fjtask fjtask--done' : 'fjtask'}>
             {mayEdit ? (
               <button type="button" className="fjtask__box fjtask__box--go" onClick={() => tick(t)}
                       disabled={pending} aria-pressed={t.done}
@@ -103,9 +109,18 @@ export default function FenceTasks({
                 </span>
               )}
             </span>
-          </li>
-        ))}
-      </ul>
+    </li>
+  )
+
+  return (
+    <>
+      {open.length > 0 && <ul className="fjtasks">{open.map(Row)}</ul>}
+      {shut.length > 0 && (
+        <details className="fjdone">
+          <summary>{shut.length} done</summary>
+          <ul className="fjtasks">{shut.map(Row)}</ul>
+        </details>
+      )}
       {say && <p className={bad ? 'note note--err' : 'note note--ok'}>{say}</p>}
     </>
   )
