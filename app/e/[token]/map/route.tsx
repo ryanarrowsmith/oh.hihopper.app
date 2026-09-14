@@ -28,10 +28,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       { status: 409 })
   }
 
-  return renderQuoteMap(
-    { ref: q.job.ref, name: q.job.name, site_address: q.job.site_address },
-    runs,
-    q.frozen.priced_on ?? null,
-    'public, max-age=3600',
-  )
+  try {
+    return renderQuoteMap(
+      { ref: q.job.ref, name: q.job.name, site_address: q.job.site_address },
+      runs,
+      q.frozen.priced_on ?? null,
+      'public, max-age=3600',
+    )
+  } catch (e) {
+    const why = e instanceof Error ? e.message : String(e)
+    console.error('[quote map, token]', why)
+    return new NextResponse(`The quote map could not be drawn: ${why}`, { status: 500 })
+  }
 }

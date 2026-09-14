@@ -101,11 +101,6 @@ export default function FenceTasks({
                       </button>
                     )}
                   </span>
-                  <small>
-                    Kept against the address{hasPlace ? '' : ' — a location record is made for it'},
-                    so every job at this site bills under the same account, and it travels with the
-                    billing handoff.
-                  </small>
                 </span>
               )}
             </span>

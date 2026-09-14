@@ -856,7 +856,7 @@ export async function signSow(_p: Result | null, form: FormData): Promise<Result
   }
 
   const { data, error } = await db.schema('hopper').from('fence_sow')
-    .update({ signed_by: session?.userId ?? null, signed_at: new Date().toISOString() })
+    .update({ signed_by: session?.personId ?? null, signed_at: new Date().toISOString() })
     .eq('account_id', account).eq('id', (sow as any).id).select('id').maybeSingle()
 
   if (error) return { ok: false, message: refused(error.message, 'scope of work') }
@@ -2180,4 +2180,41 @@ export async function setCompany(_p: Result | null, form: FormData): Promise<Res
   })
   revalidatePath('/admin/fence')
   return { ok: true, message: 'Saved. Every estimate from here carries it.' }
+}
+
+/**
+ * A note on the job.
+ *
+ * One stream per job, and anybody who can reach the job may add to it — which
+ * is what the table comment has said since 0109 and what "read and note" means
+ * on a section somebody else owns. A field hand who cannot edit the scope of
+ * work can still say the gate post is in rock.
+ *
+ * The note is TAGGED with the section it was left against, so the log reads as
+ * a history of the job rather than a pile. It defaults to wherever the work is
+ * standing, because that is what somebody is looking at when they type.
+ */
+export async function addNote(_p: Result | null, form: FormData): Promise<Result> {
+  const session = await currentSession()
+  if (!session) return { ok: false, message: 'Not signed in.' }
+  const db = supabaseServer()
+
+  const job = str(form, 'job_id')
+  const body = str(form, 'body').slice(0, 4000)
+  const section = str(form, 'section') || null
+  if (!job) return { ok: false, message: 'No job.' }
+  if (!body) return { ok: false, message: 'Nothing typed, so nothing was saved.' }
+
+  const { data, error } = await db.schema('hopper').from('fence_note')
+    .insert({
+      account_id: session.accountId, job_id: job, section,
+      kind: 'note', body, author_id: session.personId,
+    })
+    .select('id').maybeSingle()
+  if (error || !data) {
+    return { ok: false, message: 'That did not save. This job has to be one you can reach.' }
+  }
+
+  revalidatePath(`/fence/${job}`)
+  return { ok: true, message: 'Added to the log.' }
 }

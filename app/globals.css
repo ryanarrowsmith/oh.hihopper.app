@@ -4355,7 +4355,13 @@ h1 .helpb{font-size:12px}
 
 @media print{
   .noprint, .app > .tbar, .rail, .foot, .crumbs{display:none !important}
-  .pdoc{width:auto; margin:0; padding:0}
+  /* SEVENTY PERCENT ON PAPER. Ryan's call, 14 Sep: the record is a document
+     somebody files, and at full size it is four sheets of air. `zoom` and not
+     `transform: scale()` -- a transform paints small and PAGINATES LARGE, so
+     the page breaks land where the untransformed layout said they were and a
+     section gets cut across a fold. Zoom re-lays the document out, so every
+     break-inside:avoid below still means what it says. */
+  .pdoc{width:auto; margin:0; padding:0; zoom:.7}
   .pdoc__foot{position:fixed; bottom:8mm; left:0; right:0; margin:0}
   :root, :root[data-theme="dark"]{
     --paper:#fff; --surface:#fff; --sunken:#fafafa; --ground:#fff;
@@ -9172,7 +9178,9 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   text-transform:uppercase; color:var(--ink-3)}
 .fjnote__f label{display:block; font-size:11.5px; font-weight:800; letter-spacing:.06em;
   text-transform:uppercase; color:var(--ink-3); margin-bottom:5px}
-.fjnote__f textarea.field{width:100%; min-width:0}
+.fjnote__f{display:block}
+.fjnote__f textarea.field, .fjnote__f .field{display:block; width:100%; min-width:0;
+  box-sizing:border-box}
 .fjnote__f .btn{margin-top:10px}
 @media (max-width:640px){ .fjnote__f .btn{min-height:44px; width:100%} }
 @media (max-width:640px){
@@ -9614,3 +9622,25 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 /* Who the estimate is for. Same rail as the address on the job page, because
    it is the same kind of thing: one line of fact, an editor behind it. */
 .fxfor{margin-top:16px}
+
+/* THE JOB'S LOG. One stream, newest first, under the work rather than beside
+   it: somebody arriving wants to know what is open, and then what happened. */
+.fjlog{margin-top:28px; padding-top:20px; border-top:1px solid var(--rule)}
+.fjlog__h{display:flex; align-items:baseline; gap:10px; margin-bottom:12px}
+.fjlog__h h3{margin:0; font-size:15px; letter-spacing:-.01em}
+.fjlog__h span{font-family:var(--mono); font-size:10.5px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ink-3)}
+.fjlog__f{display:block; margin-bottom:18px}
+.fjlog__f textarea.field, .fjlog__f .field{display:block; width:100%; min-width:0;
+  box-sizing:border-box}
+.fjlog__f .btn{margin-top:10px}
+.fjlog__none{margin:0; font-size:13.5px; color:var(--ink-3)}
+.fjlog__l{list-style:none; margin:0; padding:0}
+.fjlog__l li{padding:12px 0; border-top:1px solid var(--rule-soft)}
+.fjlog__l li:first-child{border-top:0}
+.fjlog__l p{margin:0; font-size:14px; line-height:1.6; white-space:pre-line}
+.fjlog__l span{display:flex; gap:10px; flex-wrap:wrap; align-items:baseline; margin-top:5px}
+.fjlog__l b{font-size:12.5px; font-weight:700; color:var(--ink-2)}
+.fjlog__l i{font-style:normal; font-family:var(--mono); font-size:10.5px;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3)}
+@media (max-width:640px){ .fjlog__f .btn{min-height:44px; width:100%} }

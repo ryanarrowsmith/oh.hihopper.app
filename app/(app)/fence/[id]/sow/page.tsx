@@ -85,7 +85,7 @@ export default async function Sow({ params }: { params: { id: string } }) {
     }}>
       <input type="hidden" name="job_id" value={(job as any).id} />
       <input type="hidden" name="lang" value={lang} />
-      <button className={by === 'claude' ? 'btn btn--amber' : 'btn'} type="submit">
+      <button className={by === 'facts' ? 'btn btn--amber' : 'btn'} type="submit">
         {by === 'claude'
           ? `Write the ${LANG_NAME[lang]} again`
           : has ? `Render the ${LANG_NAME[lang]} again` : `Render the ${LANG_NAME[lang]}`}
@@ -145,12 +145,15 @@ export default async function Sow({ params }: { params: { id: string } }) {
             <h2>The words</h2>
             <p>{sEn.words} words · {sEs.words} palabras</p>
           </div>
+          {/* Render first and in amber: it is the one that cannot invent a
+              figure, and it is what somebody reaches for first. Rewriting in
+              better prose is the second thought, not the first. */}
           {mayEdit && (
             <div className="swdrafts">
-              {ai && <Draft lang="en" has={wordsIn(en) > 0} by="claude" />}
-              {ai && <Draft lang="es" has={wordsIn(es) > 0} by="claude" />}
               <Draft lang="en" has={wordsIn(en) > 0} by="facts" />
               <Draft lang="es" has={wordsIn(es) > 0} by="facts" />
+              {ai && <Draft lang="en" has={wordsIn(en) > 0} by="claude" />}
+              {ai && <Draft lang="es" has={wordsIn(es) > 0} by="claude" />}
             </div>
           )}
         </header>

@@ -10,7 +10,7 @@ import FenceTasks from '@/components/FenceTasks'
 import ActionForm from '@/components/ActionForm'
 import { RecordRow } from '@/components/RowEdit'
 import GrowText from '@/components/GrowText'
-import { handToPm, setJobPlace, noteForBilling } from '@/app/actions/fence'
+import { handToPm, setJobPlace, noteForBilling, addNote } from '@/app/actions/fence'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,7 +75,8 @@ export default async function Page({ params, searchParams }: {
 
   /* What the project manager wants accounting told. Read here so close-out can
      show what was already said rather than an empty box beside a full record. */
-  const [{ data: billNotes }, { data: wentOut }] = await Promise.all([
+  const [{ data: billNotes }, { data: wentOut }, { data: log }, { data: dir }] =
+    await Promise.all([
     supabaseServer().schema('hopper').from('fence_note')
       .select('id, body, created_at, author_id')
       .eq('account_id', session.accountId).eq('job_id', id).eq('section', 'billing')
@@ -84,7 +85,21 @@ export default async function Page({ params, searchParams }: {
     supabaseServer().schema('hopper').from('fence_handoff')
       .select('sent_at').eq('account_id', session.accountId).eq('job_id', id)
       .order('sent_at', { ascending: false }).limit(1),
+    /* THE LOG. One stream per job, newest first — every note anybody has left
+       against any section, plus whatever the crew wrote from a ticket. It is
+       the job's memory: the reason a gate moved, the day the locate came back,
+       what the customer said on the phone. */
+    supabaseServer().schema('hopper').from('fence_note')
+      .select('id, body, section, created_at, author_id, by_crew')
+      .eq('account_id', session.accountId).eq('job_id', id)
+      .order('created_at', { ascending: false }).limit(60),
+    supabaseServer().schema('hopper').from('directory')
+      .select('id, full_name').eq('active', true),
   ])
+  const notes = (log ?? []) as
+    { id: string; body: string; section: Section | null; created_at: string
+      author_id: string | null; by_crew: string | null }[]
+  const wrote = new Map(((dir ?? []) as any[]).map((p) => [p.id, p.full_name as string]))
   const toBilling = (billNotes ?? []) as
     { id: string; body: string; created_at: string; author_id: string | null }[]
   const handedOff = ((wentOut ?? []) as { sent_at: string }[])[0] ?? null
@@ -345,6 +360,51 @@ export default async function Page({ params, searchParams }: {
           </div>
         )
       })}
+
+      {/* THE LOG. Under the work rather than beside it: somebody arriving
+          wants to know what is open, and then what happened. Anybody who can
+          reach the job may add to it, including people who cannot edit a single
+          section — a field hand who cannot touch the scope can still say the
+          gate post is in rock. */}
+      <section className="fjlog">
+        <div className="fjlog__h">
+          <h3>Notes</h3>
+          {notes.length > 0 && (
+            <span>{notes.length === 60 ? 'the last 60' : `${notes.length}`}</span>
+          )}
+        </div>
+
+        <ActionForm action={addNote} label="Add it" busy="Saving…" className="fjlog__f">
+          <input type="hidden" name="job_id" value={job.id} />
+          <input type="hidden" name="section" value={job.stage} />
+          <GrowText className="field" name="body" rows={2}
+                    aria-label="A note on this job"
+                    placeholder="What happened, what was said, what to watch for" />
+        </ActionForm>
+
+        {notes.length === 0 ? (
+          <p className="fjlog__none">Nothing written down yet.</p>
+        ) : (
+          <ul className="fjlog__l">
+            {notes.map((nte) => {
+              const word = nte.section
+                ? SECTIONS.find((x) => x.key === nte.section)?.en ?? null
+                : null
+              return (
+                <li key={nte.id}>
+                  <p>{nte.body}</p>
+                  <span>
+                    <b>{nte.by_crew ?? (nte.author_id ? wrote.get(nte.author_id) : null) ?? 'Somebody'}</b>
+                    <i>{new Date(nte.created_at).toLocaleDateString('en-US',
+                      { day: 'numeric', month: 'short', year: 'numeric' })}</i>
+                    {word && <i>{word}</i>}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </section>
 
       <p className="fjfoot">
         <Link href={'/fence' as any}>Back to jobs</Link>

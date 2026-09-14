@@ -69,5 +69,15 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     return new NextResponse('Nothing has been drawn on this job yet.', { status: 409 })
   }
 
-  return renderQuoteMap(job as any, runs, asOf, 'private, max-age=300')
+  /* A BROKEN IMAGE EXPLAINS NOTHING. When the picture cannot be drawn -- no
+     Mapbox token, geometry that will not frame, the renderer refusing -- the
+     old shape was a 500 page inside an <img>, which reaches somebody as a
+     gray icon and no way to find out why. The reason goes in the body. */
+  try {
+    return renderQuoteMap(job as any, runs, asOf, 'private, max-age=300')
+  } catch (e) {
+    const why = e instanceof Error ? e.message : String(e)
+    console.error('[quote map]', params.id, why)
+    return new NextResponse(`The quote map could not be drawn: ${why}`, { status: 500 })
+  }
 }
