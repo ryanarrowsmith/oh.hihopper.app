@@ -261,8 +261,8 @@ export default async function Estimate({ params }: { params: { id: string } }) {
             {/* The one blurb that survived. Every other section explained its own
                 title; this explains a control that is not obvious, which is a
                 different thing. */}
-            <p>It opens on <b>Move the map</b> — get the property in the frame first. Press
-              <b> Draw</b> and a tap drops a point; drag one to move it.</p>
+            <p>Frame the property first — drag it, zoom it, then press <b>Use this view</b>.
+              The picture stops moving after that, and a tap drops a point.</p>
           </div></div>
           <FenceDraw
             jobId={m.job.id}

@@ -8878,11 +8878,13 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:transparent}
 .fxbox--draw{cursor:crosshair}
 .fxbox--move{cursor:grab}
-/* The aerial is wider than its frame on purpose -- see PAD in FenceDraw. The
-   inset is set inline because the size is, and the box clips the overhang. */
-.fxaerial{
-  position:absolute; object-fit:cover; display:block; pointer-events:none;
-  will-change:transform}
+/* While the view is being FRAMED the picture is wider than its window -- see
+   PAD in FenceDraw -- so a drag pulls real ground in rather than a blank
+   margin. Once the view is used it is exactly the window and never moves. The
+   size is set inline because it depends on which step this is; the box clips
+   whatever hangs over. */
+.fxaerial{position:absolute; pointer-events:none; will-change:transform}
+.fxaerial img{display:block; width:100%; height:100%; object-fit:cover}
 .fxink{position:absolute; inset:0; width:100%; height:100%; overflow:visible}
 .fxbox{overflow:hidden}
 

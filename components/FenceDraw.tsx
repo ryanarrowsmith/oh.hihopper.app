@@ -75,11 +75,18 @@ export default function FenceDraw({
     initial.length ? initial
       : [{ label: 'Run 1', points: [], closed: false, grade: null, typed: null }])
   const [active, setActive] = useState(0)
-  /* IT OPENS IN MOVE. Ryan's call, 14 Sep: the first thing anybody does is get
-     the property in the frame, and a surface that drops a point when you meant
-     to pan is a surface you have to undo before you can start. Drawing is a
-     button you press when you are ready. */
-  const [mode, setMode] = useState<'draw' | 'move'>('move')
+  /* FRAME IT, THEN DRAW ON IT. Ryan's design, 14 Sep, after three goes at
+     making one surface do both.
+     A drag meant two things and the surface had to guess which, and every fix
+     for the panning made the drawing worse. So they are two steps now. FRAMING
+     is a live map: drag it, zoom it, get the property in the window. Pressing
+     "Use this view" FREEZES it -- from then on the picture does not move at
+     all, a tap is always a point, and there is no snapping back because there
+     is nothing left to snap.
+     A job with a line already drawn opens framed: that view was settled the
+     first time and reopening is for editing the line, not the frame. */
+  const [framed, setFramed] = useState(initial.some((r) => r.points.length > 0))
+  const mode: 'draw' | 'move' = framed ? 'draw' : 'move'
   const [span, setSpan] = useState(250)
   const [at, setAt] = useState<LngLat>(centre)
   const [picked, setPicked] = useState<number | null>(null)
@@ -119,18 +126,19 @@ export default function FenceDraw({
      panning back to where you were asks for a picture the browser already has.
      The box is PAD times the frame around the same centre at the same ground
      resolution, so what hangs off the edges is real ground rather than nothing. */
+  const pad = framed ? 1 : PAD
   const src = useMemo(() => {
     if (!view || !size) return null
-    const ox = (size.w * (PAD - 1)) / 2
-    const oy = (size.h * (PAD - 1)) / 2
+    const ox = (size.w * (pad - 1)) / 2
+    const oy = (size.h * (pad - 1)) / 2
     const sw = toLngLat(view, -ox, size.h + oy), ne = toLngLat(view, size.w + ox, -oy)
     const q = new URLSearchParams({
       w: sw[0].toFixed(6), s: sw[1].toFixed(6),
       e: ne[0].toFixed(6), n: ne[1].toFixed(6),
-      px: String(Math.round(size.w * PAD)), py: String(Math.round(size.h * PAD)),
+      px: String(Math.round(size.w * pad)), py: String(Math.round(size.h * pad)),
     })
     return `/api/aerial?${q}`
-  }, [view, size])
+  }, [view, size, pad])
 
   /* What the picture on screen is worth relative to the one being asked for.
      A zoom swaps the tile; scaling the old one by the ratio in the meantime
@@ -179,13 +187,13 @@ export default function FenceDraw({
     const [x, y] = local(e)
     box.current?.setPointerCapture(e.pointerId)
     drag.current = {
-      kind: mode === 'move' ? 'pan' : 'tap',
+      kind: framed ? 'tap' : 'pan',
       x, y, moved: false, from: at,
     }
   }
 
   const onDownVertex = (i: number) => (e: React.PointerEvent) => {
-    if (!mayEdit || !view || !e.isPrimary) return
+    if (!mayEdit || !view || !e.isPrimary || !framed) return
     e.stopPropagation()
     const [x, y] = local(e)
     box.current?.setPointerCapture(e.pointerId)
@@ -227,7 +235,7 @@ export default function FenceDraw({
     }
     setNudge({ dx: 0, dy: 0 })
 
-    if (d.kind === 'tap' && !d.moved && mode === 'draw') {
+    if (d.kind === 'tap' && !d.moved && framed) {
       const [x, y] = local(e)
       const p = toLngLat(view, x, y)
       set((old) => old.map((r, ri) => ri !== active ? r : { ...r, points: [...r.points, p] }))
@@ -324,15 +332,21 @@ export default function FenceDraw({
           onPointerUp={onUp}
           onPointerCancel={onUp}
         >
+          {/* The picture sits in a box of its own so the oversize is one thing
+              and the photograph filling it is another. Putting the percentages
+              on the <img> itself put them in the same declaration as object-fit
+              and left too much to work out. */}
           {(shown ?? src) && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img className="fxaerial" src={(shown ?? src) as string} alt="Aerial of the site"
+            <div className="fxaerial"
                  style={{
-                   left: `${(1 - PAD) * 50}%`, top: `${(1 - PAD) * 50}%`,
-                   width: `${PAD * 100}%`, height: `${PAD * 100}%`,
+                   left: `${(1 - pad) * 50}%`, top: `${(1 - pad) * 50}%`,
+                   width: `${pad * 100}%`, height: `${pad * 100}%`,
                    transform: `translate(${nudge.dx + hold.dx}px, ${nudge.dy + hold.dy}px)`
                      + (zoomScale !== 1 ? ` scale(${zoomScale})` : ''),
-                 }} />
+                 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={(shown ?? src) as string} alt="Aerial of the site" />
+            </div>
           )}
 
           {view && size && (
@@ -398,30 +412,30 @@ export default function FenceDraw({
       {/* One strip, under the plan, holding every drawing control. Nothing that
           changes the line lives anywhere else on the screen. */}
       <div className="fxstrip">
-        <div className="fxseg" role="group" aria-label="What a drag does">
-          <button type="button" className={mode === 'draw' ? 'is-on' : ''}
-                  aria-pressed={mode === 'draw'} onClick={() => setMode('draw')}>
-            <Pen />Draw
+        {!framed ? (
+          <>
+            <button type="button" className="btn btn--amber" onClick={() => setFramed(true)}>
+              <Pen />Use this view
+            </button>
+            <div className="fxzoom" role="group" aria-label="How much ground is in view">
+              <button type="button" aria-label="Closer"
+                      disabled={SPANS.indexOf(span) <= 0}
+                      onClick={() => setSpan(SPANS[Math.max(0, SPANS.indexOf(span) - 1)])}>
+                <Minus /></button>
+              <b>{ft(span)} across</b>
+              <button type="button" aria-label="Wider"
+                      disabled={SPANS.indexOf(span) >= SPANS.length - 1}
+                      onClick={() => setSpan(SPANS[Math.min(SPANS.length - 1, SPANS.indexOf(span) + 1)])}>
+                <Plus /></button>
+            </div>
+          </>
+        ) : (
+          <button type="button" className="btn btn--quiet" onClick={() => setFramed(false)}>
+            <Hand />Change the view
           </button>
-          <button type="button" className={mode === 'move' ? 'is-on' : ''}
-                  aria-pressed={mode === 'move'} onClick={() => setMode('move')}>
-            <Hand />Move the map
-          </button>
-        </div>
+        )}
 
-        <div className="fxzoom" role="group" aria-label="How much ground is in view">
-          <button type="button" aria-label="Closer"
-                  disabled={SPANS.indexOf(span) <= 0}
-                  onClick={() => setSpan(SPANS[Math.max(0, SPANS.indexOf(span) - 1)])}>
-            <Minus /></button>
-          <b>{ft(span)} across</b>
-          <button type="button" aria-label="Wider"
-                  disabled={SPANS.indexOf(span) >= SPANS.length - 1}
-                  onClick={() => setSpan(SPANS[Math.min(SPANS.length - 1, SPANS.indexOf(span) + 1)])}>
-            <Plus /></button>
-        </div>
-
-        {mayEdit && (
+        {mayEdit && framed && (
           <div className="fxacts">
             <button type="button" onClick={undo} disabled={!cur?.points.length}>
               <Undo />Undo</button>
