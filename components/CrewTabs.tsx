@@ -3,6 +3,7 @@ import { SPINE } from '@/lib/sow'
 import { useState } from 'react'
 import type { CrewTicket } from '@/lib/crew'
 import CrewNote from '@/components/CrewNote'
+import Choice from '@/components/Choice'
 
 type Labels = {
   sow: string; materials: string; tools: string; closeout: string
@@ -35,6 +36,16 @@ export default function CrewTabs({ ticket, token, labels }:
 
   return (
     <>
+      {/* FOUR TABS FIT A DESK AND NOT A PHONE. At 390 px "Herramientas" and
+          "Cierre" were fighting over the last third of the bar, and the answer
+          is not a smaller typeface on the one control every crew touches first.
+          Ryan, 14 Sep: use a dropdown on mobile.
+
+          Both are rendered and the stylesheet picks; `display:none` takes the
+          hidden one out of the tab order and the accessibility tree, so there
+          is never a second copy to tab into. The picker is keyed on the tab so
+          it cannot drift out of step with the row if a window is dragged across
+          the breakpoint. */}
       <div className="ck__tabs" role="tablist">
         {TABS.map((x) => (
           <button key={x.key} type="button" role="tab" className="ck__tab"
@@ -42,6 +53,12 @@ export default function CrewTabs({ ticket, token, labels }:
             {x.label}
           </button>
         ))}
+      </div>
+
+      <div className="ckpick">
+        <Choice key={tab} name="ck-tab" defaultValue={tab} filterFrom={99}
+                options={TABS.map((x) => ({ value: x.key, label: x.label }))}
+                onPick={(v) => setTab(v as typeof tab)} />
       </div>
 
       <div className="ck__body">

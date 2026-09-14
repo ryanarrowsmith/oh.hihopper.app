@@ -8704,6 +8704,28 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 }
 .ck__tab[aria-selected="true"]{background:var(--surface); color:var(--ink); border-bottom-color:var(--ink)}
 .ck__body{padding:14px 16px; background:var(--surface); min-height:50vh}
+
+/* THE TABS BECOME A DROPDOWN ON A PHONE. Ryan, 14 Sep. Four words across
+   390 px is four words nobody can read and four targets nobody can hit
+   accurately with a glove on — and the settings-tabs answer, wrapping to a
+   second row, spends the vertical space a crew needs for the thing under the
+   tabs. One full-width control, one line.
+
+   Hopper's own popover rather than a native select, which is the standing rule:
+   a native select draws its menu with the operating system and no stylesheet
+   reaches inside it. */
+.ckpick{display:none}
+@media (max-width:640px){
+  .ck__tabs{display:none}
+  .ckpick{
+    display:block; padding:12px 16px;
+    background:var(--sunken); border-bottom:1px solid var(--rule);
+  }
+  .ckpick .field{
+    width:100%; min-height:52px; background:var(--surface);
+    font-size:16px; font-weight:700; color:var(--ink);
+  }
+}
 .ck__sow{font-size:15.5px; line-height:1.55}
 .ck__warn{
   display:flex; gap:9px; align-items:flex-start; margin-top:14px; padding:11px 12px;
