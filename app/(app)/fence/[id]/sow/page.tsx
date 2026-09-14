@@ -98,36 +98,32 @@ export default async function Sow({ params }: { params: { id: string } }) {
         <h1>Scope of work</h1>
         <p className="scopeline"><span>
           <Link href={`/fence/${(job as any).id}`}>{(job as any).ref}</Link>
-          {(job as any).name ? ` — ${(job as any).name}` : ''} · drafted from the job, written by
-          the project manager, signed before a crew builds from it.
+          {(job as any).name ? ` — ${(job as any).name}` : ''}
+          {(job as any).customer ? ` · ${(job as any).customer}` : ''}
         </span></p>
       </div></div>
 
       {stand === 'sealed' && (
         <p className="note" style={{ marginTop: 16 }}>
-          <b>This scope is sealed.</b> It is readable and it cannot be changed — a revision
-          supersedes it and leaves the original standing.
+          <b>Sealed.</b> Readable, and not changeable — a revision supersedes it and leaves the
+          original standing.
         </p>
       )}
       {stand === 'read' && !sealed.has('sow') && (
         <p className="note" style={{ marginTop: 16 }}>
-          The scope belongs to the project manager. You can read every word and add a note to the
-          job; the text is theirs to change.
+          The scope belongs to the project manager. Every word is readable; the text is theirs to
+          change.
         </p>
       )}
 
       {!(sow as any)?.drafted_at && mayEdit && (
         <p className="note" style={{ marginTop: 16 }}>
-          <b>Nothing drafted yet.</b> Two things can write the first version.{' '}
-          <b>Render</b> turns the takeoff, the specification and the gate list into sentences and
-          cannot invent a figure.{' '}
+          <b>Nothing drafted yet.</b> <b>Render</b> writes it from the takeoff, the specification
+          and the gate list, and cannot invent a figure.{' '}
           {ai
-            ? <><b>Write with Claude</b> ({MODEL}) does the same job in better prose — the facts
-              go to the model as data, no prices among them, and any figure that comes back which
-              is in none of them throws the whole draft away rather than saving it with a warning
-              nobody reads.</>
-            : <>Writing it with a model is switched off here, because this deployment has no
-              Anthropic key.</>}
+            ? <><b>Write with Claude</b> ({MODEL}) does the same from the same facts, in better
+              prose. A figure it returns that is in none of them throws the draft away.</>
+            : <>Writing it with a model is off here — this deployment has no Anthropic key.</>}
           {' '}Either way, every word is then yours.
         </p>
       )}
@@ -143,7 +139,6 @@ export default async function Sow({ params }: { params: { id: string } }) {
                 ? `drafted by ${(sow as any).draft_model ?? 'a model'}` : 'rendered from the takeoff'}`,
             ].filter(Boolean).join(' · ')}
           </FenceMark>
-          <small>Then edited by hand, if anybody has. A draft is a starting point, not an answer.</small>
         </p>
       )}
 
@@ -155,8 +150,7 @@ export default async function Sow({ params }: { params: { id: string } }) {
         <header className="swsheet__h">
           <div className="swsheet__t">
             <h2>The words</h2>
-            <p>{sEn.words} words · {sEs.words} palabras. The headings are fixed so every scope
-              reads the same way and a crew knows where to look.</p>
+            <p>{sEn.words} words · {sEs.words} palabras</p>
           </div>
           {mayEdit && (
             <div className="swdrafts">
@@ -180,9 +174,6 @@ export default async function Sow({ params }: { params: { id: string } }) {
               <div className="swrow" key={sp.key}>
                 <div className="swrow__k">
                   <b>{sp.en}</b>
-                  <FenceMark kind="sealed" title="This heading is the same on every scope">
-                    Fixed
-                  </FenceMark>
                   <i>{sp.es}</i>
                   <small>{sp.hint}</small>
                 </div>
@@ -225,23 +216,18 @@ export default async function Sow({ params }: { params: { id: string } }) {
       <section className="sec">
         <div className="sec__h"><div className="sec__t">
           <h2>The translation check</h2>
-          <p>What can be counted, counted — and then a person decides. A score is not an
-            approval.</p>
         </div></div>
 
         <div className="swchecks">
-          <div><b>{sEn.words} → {sEs.words}</b><span>words</span>
-            <small>Spanish runs longer. A big gap either way is usually a missing paragraph.</small></div>
-          <div><b>{sEn.sentences} → {sEs.sentences}</b><span>sentences</span>
-            <small>These should match. They are the same facts.</small></div>
-          <div><b>{sEn.ease} · {sEs.ease}</b><span>reads as</span>
-            <small>{easeWord(sEn.ease, 'en')} · {easeWord(sEs.ease, 'es')}. Flesch and
-              Fernández Huerta — the same shape, fitted to each language.</small></div>
+          <div><b>{sEn.words} → {sEs.words}</b><span>words</span></div>
+          <div><b>{sEn.sentences} → {sEs.sentences}</b><span>sentences</span></div>
+          <div><b>{easeWord(sEn.ease, 'en')} · {easeWord(sEs.ease, 'es')}</b><span>reads as</span>
+            <small>{sEn.ease} · {sEs.ease}</small></div>
           <div className={broken.length ? 'is-bad' : undefined}>
             <b>{used.length - broken.length} of {used.length}</b><span>glossary terms held</span>
-            <small>{broken.length
-              ? `${broken.length} used in English with no agreed Spanish in the text.`
-              : 'Every agreed term used in the English has its partner in the Spanish.'}</small></div>
+            {broken.length > 0 && (
+              <small>{broken.length} in the English with no agreed Spanish in the text</small>
+            )}</div>
         </div>
 
         {stale && (
@@ -268,19 +254,14 @@ export default async function Sow({ params }: { params: { id: string } }) {
                   <span className="rcell">
                     <span className="rcell__lab">In this scope</span>
                     <span className="rcell__val">
-                      {!h.used ? <FenceMark kind="idle" title="In the glossary, not in this scope" />
-                        : h.paired ? <FenceMark kind="done" title="Used, and paired in the Spanish" />
+                      {!h.used ? <span className="fjnone">not in this scope</span>
+                        : h.paired ? <FenceMark kind="done">Paired</FenceMark>
                         : <FenceMark kind="warn">English only</FenceMark>}
                     </span>
                   </span>
                 </div></div>
               ))}
             </div>
-            <p className="fxakey">
-              <FenceMark kind="done">Used here, and paired</FenceMark>
-              <FenceMark kind="warn">In the English, not in the Spanish</FenceMark>
-              <FenceMark kind="idle">In the glossary, not in this scope</FenceMark>
-            </p>
           </>
         )}
       </section>
@@ -288,29 +269,25 @@ export default async function Sow({ params }: { params: { id: string } }) {
       <section className="sec">
         <div className="sec__h"><div className="sec__t">
           <h2>Signing</h2>
-          <p>A score is not an approval. Somebody who reads both languages signs to say a crew may
-            build from these words — and editing them afterwards takes the signature off, because
-            it was for the words that were there.</p>
+          <p>Somebody who reads both languages signs to say a crew may build from these words.
+            Editing them afterwards takes the signature off.</p>
         </div></div>
 
         {signed ? (
           <p className="swsigned">
             <FenceMark kind="done">Signed {signed.slice(0, 10)}</FenceMark>
-            <small>The crew ticket can carry it.</small>
           </p>
         ) : mayEdit ? (
           <ActionForm action={signSow} label="Sign it" busy="Signing…" className="formgrid swsign">
             <input type="hidden" name="job_id" value={(job as any).id} />
             <p className="swhint">
-              Both languages have to be written first. Signing records who and when; nothing here
-              can check that the signer reads Spanish, and pretending to would be worse than
-              saying so.
+              Both languages have to be written first. Signing records who and when.
             </p>
           </ActionForm>
         ) : (
           <p className="swsigned">
             <FenceMark kind="warn">Not signed</FenceMark>
-            <small>A crew can still open the ticket, and it says the scope is a draft.</small>
+            <small>The crew ticket will say the scope is a draft</small>
           </p>
         )}
       </section>

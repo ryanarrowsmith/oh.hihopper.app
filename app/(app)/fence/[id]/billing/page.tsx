@@ -131,8 +131,7 @@ export default async function Billing({ params }: { params: Promise<{ id: string
                  defaultValue={r?.note ?? ''} /></div>
       </div>
       <div style={{ marginTop: 12 }}>
-        <Toggle name="recurring" label="Bills again every cycle" defaultOn={r?.recurring ?? false}
-                say="A rental bills every cycle; everything else bills once" />
+        <Toggle name="recurring" label="Bills again every cycle" defaultOn={r?.recurring ?? false} />
       </div>
     </>
   )
@@ -160,15 +159,9 @@ export default async function Billing({ params }: { params: Promise<{ id: string
         </a>
       </div></div>
 
-      <p className="fxlede">
-        Fence Builder does not invoice. It writes accounting one message laid out to be keyed
-        from, with the whole job attached.
-      </p>
-
       {stand === 'read' && (
         <p className="note" style={{ marginTop: 16 }}>
-          The handoff belongs to billing. You can read every figure on it and add a note to the
-          job; the lines and the send are theirs.
+          The handoff belongs to billing. Every figure is readable; nothing here opens.
         </p>
       )}
 
@@ -176,16 +169,11 @@ export default async function Billing({ params }: { params: Promise<{ id: string
       <section className="sec fxrel">
         <div className="sec__h"><div className="sec__t">
           <h2><b className="fxn">1</b>Is it releasable</h2>
-          <p>Nothing releases while a change order is unpriced or a punch item is open.</p>
         </div></div>
 
         {blocked.length === 0 ? (
           <p className="fxrel__ok">
             <FenceMark kind="done">Ready to hand over</FenceMark>
-            <span>
-              The work is finished, the sold quote stands, the location has an account number and
-              every line can be keyed.
-            </span>
           </p>
         ) : (
           <ul className="fxrel__list">
@@ -204,31 +192,25 @@ export default async function Billing({ params }: { params: Promise<{ id: string
       <section className="sec">
         <div className="sec__h"><div className="sec__t">
           <h2><b className="fxn">2</b>Key this into Navusoft</h2>
-          <p>The five things the person keying it types before they reach a figure.</p>
         </div></div>
+        {/* Five facts and nothing under them. Every card used to carry a sentence
+            explaining what its own label meant -- "A location record", "Whoever
+            picked the job up after sales" -- which is the band Ryan pointed at on
+            the job page and the same answer applies. */}
         <div className="fxkey">
           <div><span>Navusoft account</span>
-            <b className="fjamono">{navusoft ?? <i className="fjnone">none on file</i>}</b>
-            <small>{navusoft
-              ? 'Held against the address, so every job at this site bills under it'
-              : 'The project manager creates it at the survey'}</small></div>
+            <b className="fjamono">{navusoft ?? <i className="fjnone">none on file</i>}</b></div>
           <div><span>Service location</span>
             <b>{place
               ? [place.line1, [place.city, place.region].filter(Boolean).join(', '), place.postcode]
                   .filter(Boolean).join(', ')
-              : job.site_address ?? '—'}</b>
-            <small>{place ? 'A location record' : 'Typed on the job — no location record yet'}</small></div>
+              : job.site_address ?? '—'}</b></div>
           <div><span>Work completed</span>
-            <b>{finished ? day(finished) : <i className="fjnone">not finished</i>}</b>
-            <small>The last crew or close-out step ticked</small></div>
+            <b>{finished ? day(finished) : <i className="fjnone">not finished</i>}</b></div>
           <div><span>Project manager</span>
-            <b>{pm ?? <i className="fjnone">nobody yet</i>}</b>
-            <small>Whoever picked the job up after sales</small></div>
+            <b>{pm ?? <i className="fjnone">nobody yet</i>}</b></div>
           <div><span>Billing type</span>
-            <b>{sheet?.recurring ? 'Recurring' : 'One time'}</b>
-            <small>{sheet?.recurring
-              ? 'A rental bills again every cycle'
-              : 'Billed once on completion'}</small></div>
+            <b>{sheet?.recurring ? 'Recurring' : 'One time'}</b></div>
         </div>
       </section>
 
@@ -236,11 +218,6 @@ export default async function Billing({ params }: { params: Promise<{ id: string
       <section className="sec">
         <div className="sec__h"><div className="sec__t">
           <h2><b className="fxn">3</b>What it bills</h2>
-          <p>
-            Rolled up from the quote the customer bought — the gates that bill on their own line,
-            and one line for everything else. Never re-priced: the figures are the ones that were
-            frozen when it was sold.
-          </p>
         </div></div>
 
         {!b.sold ? (
@@ -253,8 +230,7 @@ export default async function Billing({ params }: { params: Promise<{ id: string
           <>
             {!written && (
               <p className="note">
-                This is what the sheet WOULD say. Nothing is written down until somebody presses
-                the button below, and nothing can be sent until it is written down.
+                Not written down yet. Nothing sends until it is.
               </p>
             )}
 
@@ -269,8 +245,8 @@ export default async function Billing({ params }: { params: Promise<{ id: string
                     <td>{l.description}
                       {l.gap && <small>{l.gap}</small>}
                       {l.note && <small>{l.note}</small>}
-                      {l.edited && <small>Corrected by hand — a rebuild leaves it alone</small>}
-                      {l.byHand && <small>Added by hand, not from the quote</small>}
+                      {l.edited && <small>Corrected by hand</small>}
+                      {l.byHand && <small>Added by hand</small>}
                       {l.recurring && <small>Bills again every cycle</small>}</td>
                     <td className="fxnum">{l.qty == null ? '—'
                       : `${l.qty.toLocaleString('en-US')} ${l.uom ?? ''}`}</td>
@@ -302,8 +278,7 @@ export default async function Billing({ params }: { params: Promise<{ id: string
             {provisional > 0 && (
               <p className="fxhint">
                 {provisional === 1 ? 'One charge code is' : `${provisional} charge codes are`} still a
-                guess. Navusoft publishes no import schema, so these were invented to have something
-                to key — <Link href="/admin/fence?s=billing">the code book</Link> is where the real
+                guess — <Link href="/admin/fence?s=billing">the code book</Link> is where the real
                 ones go.
               </p>
             )}
@@ -316,9 +291,8 @@ export default async function Billing({ params }: { params: Promise<{ id: string
                              busy="Rolling up…">
                     <input type="hidden" name="job_id" value={job.id} />
                     <p className="fxhint">
-                      Worked out again from the sold quote on the way in. A line you corrected by
-                      hand, and a line you added, are both left alone — only the derived ones are
-                      replaced.
+                      Worked out again from the sold quote. A line you corrected or added by hand is
+                      left alone.
                     </p>
                   </ActionForm>
                 </div>
@@ -358,10 +332,6 @@ export default async function Billing({ params }: { params: Promise<{ id: string
                       <ActionForm action={setChargeLine} label="Add the line" busy="Adding…">
                         <input type="hidden" name="job_id" value={job.id} />
                         <LineFields />
-                        <p className="fxhint">
-                          Delivery, a tear-out, an escorted day — anything the quote did not carry
-                          but the job did. A line added here never comes back off in a rebuild.
-                        </p>
                       </ActionForm>
                     </div>
                   </>
@@ -376,21 +346,16 @@ export default async function Billing({ params }: { params: Promise<{ id: string
       <section className="sec">
         <div className="sec__h"><div className="sec__t">
           <h2><b className="fxn">4</b>File these to the Navusoft account</h2>
-          <p>What &ldquo;with the whole job attached&rdquo; means in practice.</p>
         </div></div>
         <ul className="fxfiles">
           <li>
             <FenceMark kind="done">The record</FenceMark>
-            <span>Six sections: the job, what was sold, the measure, the scope of work, the work
-              as done, and what accounting keys.</span>
             <Link href={`/fence/${job.id}/record` as any} target="_blank">Open it to print or save</Link>
           </li>
           <li>
             {b.sold
               ? <FenceMark kind="done">The quote map</FenceMark>
               : <FenceMark kind="absent">No quote map</FenceMark>}
-            <span>The measured line as it was frozen on the quote, with the job, the length and
-              the date burned into the picture.</span>
             {b.sold && (
               <a href={`/fence/${job.id}/map?option=${b.sold.id}`} target="_blank" rel="noreferrer">
                 Open it full size</a>
@@ -400,18 +365,13 @@ export default async function Billing({ params }: { params: Promise<{ id: string
             {b.sow?.signed_at
               ? <FenceMark kind="done">Signed scope of work</FenceMark>
               : <FenceMark kind="warn">Scope of work not signed</FenceMark>}
-            <span>{b.sow?.signed_at
-              ? `Signed ${day(b.sow.signed_at)}, in both languages.`
-              : 'A scope nobody signed is a scope nobody agreed to.'}</span>
+            {b.sow?.signed_at && <span>Signed {day(b.sow.signed_at)}</span>}
             <Link href={`/fence/${job.id}/sow` as any}>Open it</Link>
           </li>
           <li>
             {b.photos.length > 0
               ? <FenceMark kind="done">{b.photos.length} photograph{b.photos.length === 1 ? '' : 's'}</FenceMark>
               : <FenceMark kind="warn">No photographs</FenceMark>}
-            <span>{b.photos.length > 0
-              ? 'Taken on the job, listed in the record.'
-              : 'A finished fence nobody photographed is a dispute waiting for a memory.'}</span>
           </li>
         </ul>
       </section>
@@ -420,16 +380,11 @@ export default async function Billing({ params }: { params: Promise<{ id: string
       <section className="sec">
         <div className="sec__h"><div className="sec__t">
           <h2><b className="fxn">5</b>Send it to accounting</h2>
-          <p>
-            {b.target?.to_email
-              ? `${b.target.name} is the target, at ${b.target.to_email}. The whole sheet goes in the
-                 letter — accounting has no Hopper account, so a link in place of the figures would
-                 be a door they cannot open.`
-              : b.target
-                ? `${b.target.name} is the target but has no address on it, so there is nowhere to
-                   send. The message is below to take by hand.`
-                : `No billing target is set up, so there is nobody to send to yet.`}
-          </p>
+          {b.target && (
+            <p>{b.target.to_email
+              ? `${b.target.name} · ${b.target.to_email}`
+              : `${b.target.name} — no address on it, so it goes by hand`}</p>
+          )}
         </div></div>
 
         {!b.target && (
@@ -456,22 +411,14 @@ export default async function Billing({ params }: { params: Promise<{ id: string
                              placeholder="Two gates went in on the north drive, not one" /></div>
                   </div>
                   <p className="fxhint">
-                    Goes to <b>{b.target.to_email}</b> with the whole sheet in it, and lands in the
-                    job&rsquo;s record against Navusoft {navusoft ?? '—'}. Replies come back to you
-                    rather than to support. A second send is a second entry rather than an
-                    overwrite, which is how accounting losing the first one stays visible.
+                    The whole sheet goes in the letter, against Navusoft {navusoft ?? '—'}. Replies
+                    come back to you. A second send is a second entry, never an overwrite.
                   </p>
                 </ActionForm>
               </div>
             )}
 
             <h3 className="fxsub">Or take it by hand</h3>
-            <p className="fxhint">
-              Mail an app writes gets eaten by corporate filters, and the person waiting never
-              learns there was anything to wait for. So the same message is here to send with your
-              own hands — and recording it is then a separate act, because a button that claimed to
-              send and only wrote a row would be the worst of the three.
-            </p>
             <HandoffMessage subject={message.subject} body={message.body}
                             to={b.target?.to_email ?? null} />
             {mayEdit && blocked.length === 0 && (
@@ -486,8 +433,7 @@ export default async function Billing({ params }: { params: Promise<{ id: string
                              placeholder="Sent from Outlook, two gates noted" /></div>
                   </div>
                   <p className="fxhint">
-                    Writes down the sheet exactly as it stands, against Navusoft{' '}
-                    {navusoft ?? '—'}. Nothing is mailed by this button.
+                    Writes the sheet down against Navusoft {navusoft ?? '—'}. Nothing is mailed.
                   </p>
                 </ActionForm>
               </div>
@@ -530,8 +476,7 @@ export default async function Billing({ params }: { params: Promise<{ id: string
               ))}
             </ul>
             <p className="fxhint">
-              Append-only. A handoff cannot be edited or removed once it is recorded, because a
-              record of a message you can change afterwards is a record of nothing.
+              Append-only — a recorded handoff cannot be edited or removed.
             </p>
           </>
         )}

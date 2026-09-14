@@ -9210,6 +9210,8 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 .fxsend{margin-top:4px}
 .fxsend__go{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px}
 .fxsend__to{font-size:12.5px; color:var(--ink-3)}
+.fxsend__see{margin-top:0}
+.fxsend__see .fxsend__msg{margin-top:2px}
 .fxsend__msg{margin:0; padding:14px; overflow-x:auto; background:var(--sunken);
   border:1px solid var(--rule); font-family:var(--mono); font-size:12px; line-height:1.6;
   white-space:pre; color:var(--ink)}

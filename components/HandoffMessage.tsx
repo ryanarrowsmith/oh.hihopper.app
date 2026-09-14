@@ -41,7 +41,16 @@ export default function HandoffMessage({ subject, body, to }: {
         {to && <span className="fxsend__to">Goes to <b>{to}</b></span>}
       </div>
       {said && <p className="note note--ok noprint">{said}</p>}
-      <pre className="fxsend__msg">{body}</pre>
+      {/* The two blocks above this one already show every figure the letter
+          carries -- the five facts, then the lines and the total -- so the
+          composed text is a second reading of what is on the screen. It stays,
+          because somebody about to paste it into Outlook wants to see what they
+          are pasting, but it stays folded: same disclosure as the finished work
+          on the job page. */}
+      <details className="fjdone fxsend__see">
+        <summary>The message as it will read</summary>
+        <pre className="fxsend__msg">{body}</pre>
+      </details>
     </div>
   )
 }
