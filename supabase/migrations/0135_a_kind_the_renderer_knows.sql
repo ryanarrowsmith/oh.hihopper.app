@@ -7,13 +7,7 @@
 --
 -- So adding a mail kind is TWO acts and this is the second: the template went in
 -- with request-mail version 26, and the kind is allowed here. Found by probe, not
--- by reading: `internal.hopper_fence_handoff_mail` was correct in every other
--- respect and the insert was refused on its way out.
---
--- THIS IS A PLATFORM TABLE, NOT HOPPER'S. It is changed from a Hopper migration
--- because Hopper is the app adding the kind, and the constraint has to move in
--- the same breath as the template or one of the two is a bug. The Beebee source
--- for request-mail is checked in at beebee/supabase/functions/request-mail/.
+-- by reading: the function queued fine in isolation and the insert was refused.
 
 alter table beebee.mail_outbox drop constraint mail_outbox_kind_check;
 

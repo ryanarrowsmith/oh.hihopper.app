@@ -1,40 +1,7 @@
 -- 0134 — new codes for the classes that had none, and the letter itself
---
--- Ryan, 13 Sep, on the two things 0133 left open: "1. Emailed  2. Make new codes
--- for now."
---
--- THE CODES. 0133 deliberately left secure with no install rule and temporary
--- with no gate rule, so the screen named the gap rather than billing a secure
--- job as chain link. Ryan's answer is to invent the codes now and match them to
--- the real Navusoft template later — so they go in marked `provisional`, exactly
--- like the seven from 0118, and the mark is the thing that has to be cleared.
---
--- The temporary panel gate now bills on its own line. That reverses the
--- reasoning in 0133 (a rental includes its gates) on Ryan's say-so, and the
--- reversal is one row: temporary gets a `gate` rule and the panel gate type
--- gets a charge code.
---
--- THE LETTER. Accounting has no Hopper account, so a link in place of the
--- figures is a door they cannot open — the whole sheet has to be IN the message.
--- `internal.hopper_fence_handoff_mail` builds it and queues it as a new outbox
--- kind, `fence.handoff`, rendered by Beebee's request-mail function (version 26
--- added the template plus two generic blocks, `facts` and `table`, that any app
--- can now use).
---
--- WHY THE FUNCTION READS THE SHEET RATHER THAN BEING HANDED IT. A definer that
--- mails whatever text a caller passes to whatever address a caller passes is a
--- spam relay wearing our return address. So it takes a JOB, reads the lines from
--- `fence_charge_line`, reads the address from the account's own billing target,
--- and asks `hopper_fence_edits(..., 'billing')` whether this person may send it
--- at all — the same test the handoff row's insert policy makes. Nothing about
--- where it goes or what it says comes from the caller except the note.
---
--- WHY IT QUEUES BEFORE THE RECORD IS WRITTEN. `fence_handoff` is append-only, so
--- a row claiming `how = 'mailed'` can never be corrected. Queue first and the
--- record can only ever overstate by a transient database error; record first and
--- every failed queue leaves a permanent lie in the job's history.
+-- (the record of this migration, with its reasoning, is
+--  supabase/migrations/0134_accounting_gets_a_letter.sql)
 
--- ------------------------------------------------------------- the new codes
 insert into hopper.fence_charge_code
   (account_id, target_id, code, description, recurring, cycle_days, sort, provisional, note)
 select '1ade454c-54e8-45d9-beec-cc52a21f7ea2'::uuid, t.id, v.code, v.descr,
@@ -70,7 +37,6 @@ update hopper.fence_gate_type set charge_code = 'GATE-TURN'
 update hopper.fence_gate_type set charge_code = 'GATE-M30'
  where code = 'G-SEC-M30' and charge_code is null;
 
--- ------------------------------------------------------------------ the letter
 create or replace function internal.hopper_fence_handoff_mail(
   p_job uuid, p_note text default null
 ) returns bigint
@@ -104,8 +70,6 @@ begin
   if not found then raise exception 'no such job'; end if;
   v_acct := v_job.account_id;
 
-  -- The same question the handoff row's insert policy asks. Without this the
-  -- function is an open relay that happens to be about fencing.
   if not internal.hopper_fence_edits(v_acct, p_job, 'billing') then
     raise exception 'the billing handoff belongs to billing';
   end if;
@@ -123,7 +87,6 @@ begin
     raise exception 'there is no billing target with an address to send to';
   end if;
 
-  -- The sheet as it stands, read here rather than passed in.
   select count(*), coalesce(sum(cl.amount), 0), bool_or(cl.recurring)
     into v_lines, v_total, v_recur
     from hopper.fence_charge_line cl
@@ -145,9 +108,6 @@ begin
     from hopper.fence_charge_line cl
    where cl.account_id = v_acct and cl.job_id = p_job;
 
-  -- Who carried it: whoever ticked the first project-manager step. There is no
-  -- project_manager column and inventing one would be a second answer to a
-  -- question the task list already answers.
   select p.full_name into v_pm
     from hopper.fence_task t
     join hopper.person p on p.id = t.done_by
@@ -205,7 +165,6 @@ begin
               'total', '$' || to_char(v_total, v_money)),
             'body', nullif(trim(coalesce(p_note, '')), ''),
             'author', v_sender.full_name,
-            -- Accounting replies to the person who sent it, not to support.
             'reply_to', v_sender.email),
           'pending', 0)
   returning id into v_id;
@@ -216,12 +175,6 @@ end $fn$;
 comment on function internal.hopper_fence_handoff_mail(uuid, text) is
   'Queues the keying sheet to the account''s billing target. Reads the sheet and the address itself; the caller supplies only the job and a note.';
 
--- The way in. `internal` is not exposed, so nothing in the app can reach the
--- function above directly — and it must not be moved: a SECURITY DEFINER taking
--- arguments in an exposed schema is an HTTP endpoint, which `definer_exposed`
--- refuses. So this is the endpoint, and it is INVOKER, exactly like
--- `hopper.fence_rights`: it carries no privilege of its own and the authorization
--- stays where the privilege is.
 create or replace function hopper.fence_handoff_mail(job uuid, note text default null)
 returns bigint
 language sql

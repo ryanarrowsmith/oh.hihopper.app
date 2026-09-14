@@ -1,19 +1,13 @@
 -- 0136 — 1,016 ft, not "1,016. ft"
 --
 -- `to_char(1016, 'FM999,999,990.99')` returns "1,016." — FM drops the trailing
--- zeros of the decimal part and leaves the point standing. 0134 stripped
--- '\.00$', which never matched, so every whole quantity would have gone to
+-- zeros of the decimal part and leaves the point standing. The old expression
+-- stripped '\.00$', which never matched, so every whole quantity went to
 -- accounting with a full stop hanging off it.
 --
 -- The fix strips a BARE trailing point and nothing else. Stripping trailing
--- zeros as well would turn 1,000 into "1," — a correction worse than the bug.
---
--- The whole function is restated rather than patched, because a migration folder
--- you cannot replay is not a record of anything. Every argument for the rest of
--- the body is in 0134; only the quantity expression differs.
---
--- Found by probe: the sheet was built, queued and read back out of the outbox
--- before anything was sent, and "1,016. ft" was sitting in the third column.
+-- zeros as well would turn 1,000 into "1," — which is the kind of correction
+-- that is worse than the bug.
 
 create or replace function internal.hopper_fence_handoff_mail(
   p_job uuid, p_note text default null
@@ -48,8 +42,6 @@ begin
   if not found then raise exception 'no such job'; end if;
   v_acct := v_job.account_id;
 
-  -- The same question the handoff row's insert policy asks. Without this the
-  -- function is an open relay that happens to be about fencing.
   if not internal.hopper_fence_edits(v_acct, p_job, 'billing') then
     raise exception 'the billing handoff belongs to billing';
   end if;
@@ -67,7 +59,6 @@ begin
     raise exception 'there is no billing target with an address to send to';
   end if;
 
-  -- The sheet as it stands, read here rather than passed in.
   select count(*), coalesce(sum(cl.amount), 0), bool_or(cl.recurring)
     into v_lines, v_total, v_recur
     from hopper.fence_charge_line cl
@@ -89,9 +80,6 @@ begin
     from hopper.fence_charge_line cl
    where cl.account_id = v_acct and cl.job_id = p_job;
 
-  -- Who carried it: whoever ticked the first project-manager step. There is no
-  -- project_manager column and inventing one would be a second answer to a
-  -- question the task list already answers.
   select p.full_name into v_pm
     from hopper.fence_task t
     join hopper.person p on p.id = t.done_by
@@ -149,7 +137,6 @@ begin
               'total', '$' || to_char(v_total, v_money)),
             'body', nullif(trim(coalesce(p_note, '')), ''),
             'author', v_sender.full_name,
-            -- Accounting replies to the person who sent it, not to support.
             'reply_to', v_sender.email),
           'pending', 0)
   returning id into v_id;
