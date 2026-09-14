@@ -11,8 +11,9 @@ import FenceGates from '@/components/FenceGates'
 import ActionForm from '@/components/ActionForm'
 import Choice from '@/components/Choice'
 import QuoteLink from '@/components/QuoteLink'
+import { RecordRow } from '@/components/RowEdit'
 import { setJobSpec, putOnQuote, releaseOption, acceptOption,
-         sendForSignature, revokeQuoteLink } from '@/app/actions/fence'
+         sendForSignature, revokeQuoteLink, setJobContact } from '@/app/actions/fence'
 import { headers } from 'next/headers'
 import type { LngLat } from '@/lib/geo'
 
@@ -70,7 +71,7 @@ export default async function Estimate({ params }: { params: { id: string } }) {
   /* What has gone out to be signed, and what came back. One live link at a
      time by construction -- issuing a new one revokes the old -- so this reads
      the newest and lets the rest be history. */
-  const [{ data: links }, { data: signatures }, h] = await Promise.all([
+  const [{ data: links }, { data: signatures }, { data: people }, h] = await Promise.all([
     db.schema('hopper').from('fence_quote_link')
       .select('id, token, option_id, issued_at, expires_on, revoked, signed_at')
       .eq('account_id', session.accountId).eq('job_id', params.id)
@@ -79,8 +80,22 @@ export default async function Estimate({ params }: { params: { id: string } }) {
       .select('id, option_id, signed_name, signed_title, signed_at, price')
       .eq('account_id', session.accountId).eq('job_id', params.id)
       .order('signed_at', { ascending: false }),
+    /* The contact book. Account-wide and reusable: the second job for the same
+       customer picks the same person off a list rather than retyping them and
+       getting the address one character wrong. */
+    db.schema('hopper').from('fence_contact')
+      .select('id, full_name, title, email, phone, company')
+      .eq('account_id', session.accountId).eq('active', true).order('full_name'),
     headers(),
   ])
+  const contacts = (people ?? []) as
+    { id: string; full_name: string; title: string | null; email: string | null
+      phone: string | null; company: string | null }[]
+
+  const { data: jobRow } = await db.schema('hopper').from('fence_job')
+    .select('contact_id, customer').eq('account_id', session.accountId)
+    .eq('id', params.id).maybeSingle()
+  const forWhom = contacts.find((c) => c.id === (jobRow as any)?.contact_id) ?? null
   const allLinks = (links ?? []) as any[]
   const live = allLinks.find((l) => !l.revoked && !l.signed_at) ?? null
   const signed = ((signatures ?? []) as any[])[0] ?? null
@@ -136,6 +151,76 @@ export default async function Estimate({ params }: { params: { id: string } }) {
         <div className="fxstamp">
           <FenceMark kind="warn">Preliminary</FenceMark>
         </div>
+      </div>
+
+      {/* WHO IT IS FOR. An estimate goes to a person, and the job's `customer`
+          is a company typed into a box -- there was nothing on this screen that
+          could be addressed. Contacts are account-wide on purpose: the second
+          job for the same customer picks the same person rather than retyping
+          them. Sits above the work because it is the first thing a salesperson
+          settles and the last thing anybody wants to discover missing at the
+          moment they press send. */}
+      <div className="fxfor">
+        {mayEdit ? (
+          <RecordRow editLabel={forWhom ? 'Change who it is for' : 'Say who it is for'} face={
+            <p className="fjplace">
+              <span>{forWhom
+                ? `${forWhom.full_name}${forWhom.title ? `, ${forWhom.title}` : ''}`
+                : 'Nobody on the estimate yet'}</span>
+              {forWhom?.email && <i>{forWhom.email}</i>}
+              {forWhom?.phone && <i>{forWhom.phone}</i>}
+              {forWhom?.company && <i>{forWhom.company}</i>}
+            </p>
+          }>
+            {contacts.length > 0 && (
+              <ActionForm action={setJobContact} label="Use this one" busy="Saving…">
+                <input type="hidden" name="job_id" value={params.id} />
+                <div><label htmlFor="fc-pick">Somebody already in the book</label>
+                  <select className="field" id="fc-pick" name="contact_id"
+                          defaultValue={forWhom?.id ?? ''}>
+                    <option value="">Pick a contact…</option>
+                    {contacts.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.full_name}{c.company ? ` — ${c.company}` : ''}
+                        {c.email ? ` · ${c.email}` : ''}
+                      </option>
+                    ))}
+                  </select></div>
+              </ActionForm>
+            )}
+            <ActionForm action={setJobContact} label="Add them and use them" busy="Saving…">
+              <input type="hidden" name="job_id" value={params.id} />
+              <div className="formrow">
+                <div><label htmlFor="fc-name">Name</label>
+                  <input className="field" id="fc-name" name="full_name" required /></div>
+                <div><label htmlFor="fc-title">Title</label>
+                  <input className="field" id="fc-title" name="title"
+                         placeholder="Operations" /></div>
+              </div>
+              <div className="formrow" style={{ marginTop: 12 }}>
+                <div><label htmlFor="fc-email">Email</label>
+                  <input className="field" id="fc-email" name="email" type="email" /></div>
+                <div><label htmlFor="fc-phone">Phone</label>
+                  <input className="field" id="fc-phone" name="phone" /></div>
+                <div><label htmlFor="fc-co">Company</label>
+                  <input className="field" id="fc-co" name="company"
+                         defaultValue={(jobRow as any)?.customer ?? ''} /></div>
+              </div>
+              <p className="fxhint">
+                Anybody in Fence Builder can add a contact, and every job after this one can
+                pick them off the list. An address already in the book is the same person:
+                typing them again corrects the one that is there.
+              </p>
+            </ActionForm>
+          </RecordRow>
+        ) : (
+          <p className="fjplace">
+            <span>{forWhom
+              ? `${forWhom.full_name}${forWhom.title ? `, ${forWhom.title}` : ''}`
+              : 'Nobody on the estimate yet'}</span>
+            {forWhom?.email && <i>{forWhom.email}</i>}
+          </p>
+        )}
       </div>
 
       {stand === 'sealed' && (

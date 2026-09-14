@@ -44,7 +44,8 @@ export default async function Page({ params }: { params: Promise<{ token: string
   return (
     <main className="est__page">
       <div className="est__bar noprint">
-        <span>{q.job.ref} &middot; estimate for {q.job.customer ?? q.job.name}</span>
+        <span>{q.job.ref} &middot; estimate for{' '}
+          {q.contact?.company ?? q.job.customer ?? q.job.name}</span>
         <PrintIt label="Print or save as PDF" />
       </div>
 
@@ -56,6 +57,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
         gateNames={q.gateNames}
         specName={q.specName}
         seller={q.seller}
+        contact={q.contact}
         company={q.company}
         issuedOn={q.issuedOn}
         goodThrough={q.goodThrough}
@@ -74,7 +76,8 @@ export default async function Page({ params }: { params: Promise<{ token: string
             </p>
           </section>
         ) : (
-          <SignEstimate token={token} price={money(q.option.price)} />
+          <SignEstimate token={token} price={money(q.option.price)}
+                        was={q.contact} />
         )}
       </EstimateDoc>
     </main>

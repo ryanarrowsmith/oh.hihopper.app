@@ -45,6 +45,10 @@ export type OpenQuote = {
   gateNames: Map<string, string>
   specName: string | null
   seller: { name: string; email: string | null; phone: string | null; title: string | null } | null
+  /** Who it was addressed to. The signing form starts from this rather than an
+   *  empty box, because the person opening the link is usually them. */
+  contact: { name: string; title: string | null; email: string | null
+             phone: string | null; company: string | null } | null
   company: {
     name: string | null; line1: string | null; line2: string | null
     phone: string | null; site: string | null; license: string | null
@@ -73,7 +77,7 @@ export async function openQuote(token: string): Promise<OpenQuote | null> {
   const [{ data: job }, { data: option }, { data: gateTypes }, { data: seller },
          { data: settings }, { data: sig }] = await Promise.all([
     db.schema('hopper').from('fence_job')
-      .select('id, ref, name, customer, site_address, cls, location_id')
+      .select('id, ref, name, customer, site_address, cls, location_id, contact_id')
       .eq('account_id', acct).eq('id', jobId).maybeSingle(),
     db.schema('hopper').from('fence_option')
       .select('id, label, price, spec_code, takeoff')
@@ -97,6 +101,12 @@ export async function openQuote(token: string): Promise<OpenQuote | null> {
     ? await db.schema('hopper').from('fence_location')
         .select('line1, line2, city, region, postcode')
         .eq('account_id', acct).eq('id', (job as any).location_id).maybeSingle()
+    : { data: null }
+
+  const { data: person } = (job as any).contact_id
+    ? await db.schema('hopper').from('fence_contact')
+        .select('full_name, title, email, phone, company')
+        .eq('account_id', acct).eq('id', (job as any).contact_id).maybeSingle()
     : { data: null }
 
   const { data: spec } = (option as any).spec_code
@@ -132,6 +142,13 @@ export async function openQuote(token: string): Promise<OpenQuote | null> {
     frozen: (option as any).takeoff as Frozen,
     gateNames: names,
     specName: (spec as any)?.name_en ?? null,
+    contact: person
+      ? {
+          name: (person as any).full_name, title: (person as any).title,
+          email: (person as any).email, phone: (person as any).phone,
+          company: (person as any).company,
+        }
+      : null,
     seller: seller
       ? {
           name: (seller as any).full_name, email: (seller as any).email,

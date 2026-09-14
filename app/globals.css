@@ -9610,3 +9610,7 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 .fxsigned{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:14px 0 0}
 .fxsigned small{font-size:12.5px; color:var(--ink-3)}
 @media (max-width:640px){ .fxlink__go .btn{min-height:44px; width:100%} }
+
+/* Who the estimate is for. Same rail as the address on the job page, because
+   it is the same kind of thing: one line of fact, an editor behind it. */
+.fxfor{margin-top:16px}

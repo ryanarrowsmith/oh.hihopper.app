@@ -16,11 +16,19 @@ import { signEstimate } from '@/app/actions/sign'
  * is unique on the link -- but a button that looks pressable while the first
  * press is in flight is a button somebody presses twice.
  */
-export default function SignEstimate({ token, price }: { token: string; price: string }) {
+export default function SignEstimate({ token, price, was }: {
+  token: string; price: string
+  /** Who it was addressed to. Filled in rather than asked for: the person who
+   *  opened the link is usually them, and a form that makes somebody retype
+   *  what you already knew reads as a form that was not expecting them. Every
+   *  box is still theirs to change -- an assistant signing for their boss is
+   *  the ordinary case, not an error. */
+  was: { name: string; title: string | null; email: string | null } | null
+}) {
   const router = useRouter()
-  const [name, setName] = useState('')
-  const [title, setTitle] = useState('')
-  const [email, setEmail] = useState('')
+  const [name, setName] = useState(was?.name ?? '')
+  const [title, setTitle] = useState(was?.title ?? '')
+  const [email, setEmail] = useState(was?.email ?? '')
   const [busy, setBusy] = useState(false)
   const [bad, setBad] = useState<string | null>(null)
 

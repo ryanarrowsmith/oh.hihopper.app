@@ -28,6 +28,8 @@ export type EstimateFor = {
   gateNames: Map<string, string>
   specName: string | null
   seller: { name: string; email: string | null; phone: string | null; title: string | null } | null
+  contact: { name: string; title: string | null; email: string | null
+             phone: string | null; company: string | null } | null
   company: { name: string | null; line1: string | null; line2: string | null
              phone: string | null; site: string | null; license: string | null }
   issuedOn: string
@@ -108,8 +110,10 @@ export default function EstimateDoc(p: EstimateFor) {
         <div className="est__facts">
           <div>
             <span>Prepared for</span>
-            <b>{p.job.customer ?? p.job.name}</b>
-            {p.job.customer && p.job.name !== p.job.customer && <i>{p.job.name}</i>}
+            <b>{p.contact?.company ?? p.job.customer ?? p.job.name}</b>
+            {p.contact
+              ? <i>{[p.contact.name, p.contact.title].filter(Boolean).join(', ')}</i>
+              : (p.job.customer && p.job.name !== p.job.customer && <i>{p.job.name}</i>)}
           </div>
           <div>
             <span>Where the work is</span>
@@ -188,7 +192,7 @@ export default function EstimateDoc(p: EstimateFor) {
 
       {/* ---------------- sheet two ---------------- */}
       <section className="est__sheet est__sheet--last">
-        <Mast sub={<>{p.job.customer ?? p.job.name}<br />page 2 of 2</>} />
+        <Mast sub={<>{p.contact?.company ?? p.job.customer ?? p.job.name}<br />page 2 of 2</>} />
 
         <section className="est__sec">
           <div className="est__two">

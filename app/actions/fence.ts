@@ -1993,3 +1993,67 @@ export async function revokeQuoteLink(_p: Result | null, form: FormData): Promis
   revalidatePath(`/fence/${job}/estimate`)
   return { ok: true, message: 'That link no longer opens.' }
 }
+
+/**
+ * Put somebody on the estimate.
+ *
+ * One action, two doors: pick a contact who is already in the book, or type a
+ * new one and have them attached in the same act. Ryan's call, 14 Sep -- the
+ * salesperson adds the contact, and contacts are reusable, which is the whole
+ * reason they are account-wide rather than a few more columns on the job.
+ *
+ * AN ADDRESS ALREADY IN THE BOOK IS THE SAME PERSON. A partial unique index on
+ * (account, lower(email)) says so, so typing a contact who exists updates the
+ * one that is there rather than making a second Dana Whitfield with the same
+ * inbox -- which is how a list of contacts becomes a list of guesses.
+ */
+export async function setJobContact(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const session = await currentSession()
+  const job = str(form, 'job_id')
+  if (!job) return { ok: false, message: 'No job.' }
+
+  let id = str(form, 'contact_id') || null
+  const name = str(form, 'full_name')
+
+  if (name) {
+    const email = str(form, 'email').toLowerCase() || null
+    const row = {
+      account_id: account, full_name: name.slice(0, 120),
+      title: nul(form, 'title'), email,
+      phone: nul(form, 'phone'), company: nul(form, 'company'),
+      created_by: session?.personId ?? null, active: true,
+    }
+
+    // Same address, same person. Without this the second estimate to somebody
+    // whose name was typed slightly differently makes a second contact, and the
+    // picker fills up with people who are one person.
+    const { data: had } = email
+      ? await db.schema('hopper').from('fence_contact').select('id')
+          .eq('account_id', account).ilike('email', email).maybeSingle()
+      : { data: null }
+
+    const { data, error } = (had as any)?.id
+      ? await db.schema('hopper').from('fence_contact')
+          .update({ full_name: row.full_name, title: row.title, phone: row.phone,
+                    company: row.company, active: true })
+          .eq('account_id', account).eq('id', (had as any).id).select('id').maybeSingle()
+      : await db.schema('hopper').from('fence_contact')
+          .insert(row).select('id').maybeSingle()
+    if (error) return { ok: false, message: refused(error.message, 'contacts') }
+    if (!data) return { ok: false, message: 'That contact did not save.' }
+    id = (data as any).id
+  }
+
+  if (!id) return { ok: false, message: 'Pick somebody, or type a new one.' }
+
+  const { data: put, error: putErr } = await db.schema('hopper').from('fence_job')
+    .update({ contact_id: id }).eq('account_id', account).eq('id', job)
+    .select('id').maybeSingle()
+  if (putErr) return { ok: false, message: refused(putErr.message, 'job') }
+  if (!put) return { ok: false, message: 'That job is not yours to change.' }
+
+  revalidatePath(`/fence/${job}/estimate`)
+  revalidatePath(`/fence/${job}`)
+  return { ok: true, message: name ? `${name} is on the estimate.` : 'Contact set.' }
+}
