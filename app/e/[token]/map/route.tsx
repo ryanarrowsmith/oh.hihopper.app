@@ -29,7 +29,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   }
 
   try {
-    return renderQuoteMap(
+    return await renderQuoteMap(
       { ref: q.job.ref, name: q.job.name, site_address: q.job.site_address },
       runs,
       q.frozen.priced_on ?? null,
