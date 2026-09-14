@@ -76,7 +76,7 @@ export default async function Record({ params }: { params: Promise<{ id: string 
 
   return (
     <div className="pdoc">
-      <PrintIt />
+      <div className="pdoc__do noprint"><PrintIt /></div>
 
       <div className="pdoc__top">
         <span className="pdoc__mark mark mark--sm">hopper<span className="pd">.</span></span>

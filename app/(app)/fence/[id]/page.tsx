@@ -75,11 +75,20 @@ export default async function Page({ params, searchParams }: {
 
   /* What the project manager wants accounting told. Read here so close-out can
      show what was already said rather than an empty box beside a full record. */
-  const { data: billNotes } = await supabaseServer().schema('hopper').from('fence_note')
-    .select('id, body, created_at')
-    .eq('account_id', session.accountId).eq('job_id', id).eq('section', 'billing')
-    .order('created_at', { ascending: false }).limit(3)
-  const toBilling = (billNotes ?? []) as { id: string; body: string; created_at: string }[]
+  const [{ data: billNotes }, { data: wentOut }] = await Promise.all([
+    supabaseServer().schema('hopper').from('fence_note')
+      .select('id, body, created_at, author_id')
+      .eq('account_id', session.accountId).eq('job_id', id).eq('section', 'billing')
+      .order('created_at', { ascending: false }).limit(3),
+    // The lock. Once the letter has gone, the note it carried stops moving.
+    supabaseServer().schema('hopper').from('fence_handoff')
+      .select('sent_at').eq('account_id', session.accountId).eq('job_id', id)
+      .order('sent_at', { ascending: false }).limit(1),
+  ])
+  const toBilling = (billNotes ?? []) as
+    { id: string; body: string; created_at: string; author_id: string | null }[]
+  const handedOff = ((wentOut ?? []) as { sent_at: string }[])[0] ?? null
+  const mineToBilling = toBilling.find((n) => n.author_id === session.personId) ?? null
   const quotes = (options ?? []) as { id: string; label: string; price: number | null; accepted: boolean }[]
   const soldOne = quotes.find((q) => q.accepted) ?? null
 
@@ -270,19 +279,27 @@ export default async function Page({ params, searchParams }: {
                 top of the letter. */}
             {sec === 'closeout' && (how === 'edit' || toBilling.length > 0) && (
               <div className="fjnote">
-                {toBilling.length > 0 && (
-                  <ul className="fjnote__had">
-                    {toBilling.map((nte) => (
-                      <li key={nte.id}>{nte.body}</li>
-                    ))}
-                  </ul>
-                )}
-                {how === 'edit' && (
-                  <ActionForm action={noteForBilling} label="Leave it for accounting"
+                {toBilling
+                  .filter((nte) => handedOff || nte.id !== mineToBilling?.id)
+                  .map((nte) => (
+                    <p className="fjnote__had" key={nte.id}>{nte.body}</p>
+                  ))}
+
+                {handedOff ? (
+                  toBilling.length > 0 && (
+                    <p className="fjnote__shut">
+                      Sent to accounting {new Date(handedOff.sent_at)
+                        .toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                    </p>
+                  )
+                ) : how === 'edit' && (
+                  <ActionForm action={noteForBilling}
+                              label={mineToBilling ? 'Save it' : 'Leave it for accounting'}
                               busy="Saving…" className="fjnote__f">
                     <input type="hidden" name="job_id" value={job.id} />
                     <label htmlFor="fj-bill-note">Anything accounting should know</label>
                     <GrowText className="field" id="fj-bill-note" name="body" rows={2}
+                              defaultValue={mineToBilling?.body ?? ''}
                               placeholder="Two gates went in on the north drive, not one" />
                   </ActionForm>
                 )}

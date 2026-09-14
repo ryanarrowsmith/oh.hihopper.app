@@ -1858,17 +1858,40 @@ export async function noteForBilling(_p: Result | null, form: FormData): Promise
   if (!job) return { ok: false, message: 'No job.' }
   if (!body) return { ok: false, message: 'Nothing typed, so nothing was saved.' }
 
-  const { data, error } = await db.schema('hopper').from('fence_note')
-    .insert({
-      account_id: session.accountId, job_id: job, section: 'billing',
-      kind: 'note', body, author_id: session.personId,
-    })
-    .select('id').maybeSingle()
+  /* LOCKED ONCE SENT. Ryan's call: a note that changes after the letter has
+     gone is a note that no longer matches what accounting is holding, and the
+     handoff row is append-only precisely so nobody can quietly restate it.
+     Until then it is theirs to correct -- one note, edited, not a pile. */
+  const { data: sent } = await db.schema('hopper').from('fence_handoff')
+    .select('id').eq('account_id', session.accountId).eq('job_id', job).limit(1)
+  if ((sent ?? []).length > 0) {
+    return {
+      ok: false,
+      message: 'This one has gone to accounting already, so the note is closed. '
+        + 'Anything new goes in the next letter.',
+    }
+  }
 
-  // An RLS refusal on an insert raises rather than matching nothing, but a
-  // person with no person row would come back empty and silent.
+  const { data: mine } = await db.schema('hopper').from('fence_note')
+    .select('id').eq('account_id', session.accountId).eq('job_id', job)
+    .eq('section', 'billing').eq('author_id', session.personId)
+    .order('created_at', { ascending: false }).limit(1).maybeSingle()
+
+  const { data, error } = mine?.id
+    ? await db.schema('hopper').from('fence_note')
+        .update({ body }).eq('account_id', session.accountId).eq('id', mine.id)
+        .select('id').maybeSingle()
+    : await db.schema('hopper').from('fence_note')
+        .insert({
+          account_id: session.accountId, job_id: job, section: 'billing',
+          kind: 'note', body, author_id: session.personId,
+        })
+        .select('id').maybeSingle()
+
+  // An RLS-refused update matches nothing rather than raising, so an empty
+  // result is a refusal and not a shrug.
   if (error || !data) {
-    return { ok: false, message: 'That did not save. Close-out has to be yours to write on.' }
+    return { ok: false, message: 'That did not save. The note has to be yours to write.' }
   }
 
   await logAudit(db, {

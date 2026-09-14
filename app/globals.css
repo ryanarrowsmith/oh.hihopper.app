@@ -4264,6 +4264,10 @@ h1 .helpb{font-size:12px}
 
 .pdoc{color:var(--ink); width:186mm; margin:0 auto; padding:24px 0 60px; position:relative}
 .pdoc__again{position:absolute; top:0; right:0}
+/* A row of its own. Absolute placement put the button over the wordmark on one
+   document and over the meta column on another; a document's only control gets
+   its own line above the masthead and stops arguing with the header. */
+.pdoc__do{display:flex; justify-content:flex-end; margin-bottom:14px}
 
 /* A cover BLOCK, not a cover page. A one-report dashboard does not deserve a
    sheet of paper with four words on it, so this is a header the first report
@@ -9162,9 +9166,10 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 /* The message to accounting, written at close-out by whoever ran the job.
    Same rail as the hand-off form above it: a rule, then the work. */
 .fjnote{margin-top:12px; padding-top:12px; border-top:1px solid var(--rule-soft)}
-.fjnote__had{list-style:none; margin:0 0 10px; padding:0}
-.fjnote__had li{margin:0 0 6px; padding:9px 11px; background:var(--sunken);
-  font-size:13.5px; line-height:1.55; color:var(--ink-1)}
+.fjnote__had{margin:0 0 8px; padding:9px 11px; background:var(--sunken);
+  font-size:13.5px; line-height:1.55; color:var(--ink-1); white-space:pre-line}
+.fjnote__shut{margin:0; font-family:var(--mono); font-size:10.5px; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--ink-3)}
 .fjnote__f label{display:block; font-size:11.5px; font-weight:800; letter-spacing:.06em;
   text-transform:uppercase; color:var(--ink-3); margin-bottom:5px}
 .fjnote__f textarea.field{width:100%; min-width:0}
