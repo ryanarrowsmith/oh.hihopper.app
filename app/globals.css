@@ -8957,9 +8957,15 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 .fxrunchip__x.is-asking{
   padding:0 10px; font-family:var(--mono); font-size:10.5px; font-weight:700;
   letter-spacing:.02em; color:var(--ink); background:var(--amber)}
+/* The strip holds the total and the save state, and at the survey two more
+   fields besides. A grid had to be told how many columns that was and got it
+   wrong either way; a wrapping row does not care, and the save state taking the
+   slack at the end is one rule that holds for two children or four. */
 .fxsum{
-  display:grid; gap:14px; margin-top:12px; padding:14px;
+  display:flex; flex-wrap:wrap; align-items:flex-end; gap:14px 22px;
+  margin-top:12px; padding:14px;
   border:1px solid var(--rule); background:var(--surface)}
+.fxsum .fxsaved{margin-left:auto}
 .fxsum__big b{display:block; font-size:30px; font-weight:800; letter-spacing:-.03em;
   line-height:1.05}
 .fxsum__big span{font-size:12.5px; color:var(--ink-3)}
@@ -9033,12 +9039,7 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   .fxseg{flex:0 0 auto}
   .fxseg button{flex:0 0 auto; white-space:nowrap}
   .fxacts{display:flex; flex:1 1 auto; justify-content:flex-end}
-  /* Four things sit in this strip, and three columns left the widest one
-     stretched across a gap the label inside it refuses to fill -- which is why
-     it read as an empty white band with a number in the corner. One column
-     each, and the save state takes the slack at the end. */
-  .fxsum{grid-template-columns:auto auto auto minmax(0,1fr); align-items:end}
-  .fxsum .fxsaved{justify-content:flex-end}
+
 }
 @media (max-width:640px){
   /* A thumb misses a small target and a missed target on this screen puts a

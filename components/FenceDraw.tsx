@@ -98,12 +98,23 @@ function opening(runs: Run[], pin: LngLat): { at: LngLat; span: number } {
 }
 
 export default function FenceDraw({
-  jobId, centre, runs: initial, mayEdit,
+  jobId, centre, runs: initial, mayEdit, measuring = false,
 }: {
   jobId: string
   centre: LngLat
   runs: Run[]
   mayEdit: boolean
+  /* THE ESTIMATE IS NOT A MEASUREMENT. Ryan, 14 Sep: the sales person is not
+     going out with a wheel -- they are working off the photograph -- so a field
+     asking for a walked length and a field asking for a slope had no business
+     on their screen. An aerial cannot read a slope, and nobody has stood on the
+     ground yet.
+     Both belong to the SITE SURVEY, which happens after the signature and is
+     the whole reason the estimate is stamped preliminary. The columns behind
+     them already exist and takeoff, the crew ticket and the bill all read them,
+     so this is a prop rather than a deletion: the survey screen turns the same
+     surface into the place those numbers get filled in. */
+  measuring?: boolean
 }) {
   const [runs, setRuns] = useState<Run[]>(
     initial.length ? initial
@@ -515,7 +526,13 @@ export default function FenceDraw({
             <button type="button" onClick={loop} aria-pressed={!!cur?.closed}
                     className={cur?.closed ? 'is-on' : ''} disabled={(cur?.points.length ?? 0) < 3}>
               <Loop />Closed loop</button>
-            <button type="button" onClick={separate}>
+            {/* An empty run is already a separate run. Ryan, 14 Sep, looking at
+                five chips and four of them saying "nothing drawn": the button
+                added another every time it was pressed, whether or not the last
+                one had been used, so a stray press was free and a pile-up was
+                the natural end state. Now it can only be pressed once there is
+                something to separate FROM. */}
+            <button type="button" onClick={separate} disabled={!cur?.points.length}>
               <Split />Separate run</button>
             <button type="button" onClick={clear} disabled={!cur?.points.length}>
               <Bin />Clear this run</button>
@@ -555,7 +572,7 @@ export default function FenceDraw({
           <span>{drawn === 0 ? 'nothing measured yet'
             : `${drawn} run${drawn === 1 ? '' : 's'} · ${runs.reduce((s, r) => s + corners(r.points, r.closed), 0)} corners`}</span>
         </div>
-        {mayEdit && (
+        {mayEdit && measuring && (
           <label className="fxgrade">
             {/* Also the keyboard path onto this screen. Drawing needs a pointer;
                 a length does not, and a run measured with a wheel at the survey
@@ -566,7 +583,7 @@ export default function FenceDraw({
             <small>Fill this in and it beats the drawing — a wheel beats a photograph.</small>
           </label>
         )}
-        {mayEdit && (
+        {mayEdit && measuring && (
           <label className="fxgrade">
             <span>Grade on {cur?.label ?? 'this run'}, %</span>
             <input className="field" inputMode="decimal" value={cur?.grade ?? ''}
