@@ -48,7 +48,9 @@ export const dynamic = 'force-dynamic'
 const HAS_SCREEN: Partial<Record<Section, string>> = {
   estimate: 'estimate',
   survey: 'survey',
+  schedule: 'schedule',
   sow: 'sow',
+  closeout: 'closeout',
   billing: 'billing',
 }
 

@@ -9914,3 +9914,62 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 .svstep__t span{display:block; font-size:12.5px; color:var(--ink-2); margin-top:3px}
 .svstep__f{flex:0 0 auto}
 .svstep__f .formgrid__go{margin:0}
+
+/* ------------------------------------------------- booking it, closing it out
+   /fence/[id]/schedule and /fence/[id]/closeout. Own prefixes (`sc` and `co`),
+   same reason as `fx`. Both screens borrow the estimator's section furniture —
+   .sec, .fxn, .fxtally__r, .fxtable — because they are the same job at a later
+   hour, and a screen that looks like a different product is a screen somebody
+   has to learn twice.
+   -------------------------------------------------------------------------- */
+.scdates{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px;
+  margin-bottom:16px}
+.scread{font-size:15px; font-weight:700; padding:10px 0 0; margin:0}
+
+/* A crew is picked by what it can do, so the card carries the three facts that
+   decide it: who runs it, what it reads, and whether it gets through a gate. */
+.sccrews{border:0; padding:0; margin:0; display:grid; gap:8px}
+.sccrew{display:flex; align-items:flex-start; gap:10px; padding:11px 12px; cursor:pointer;
+  background:var(--surface); border:1px solid var(--rule)}
+.sccrew:hover{background:var(--sunken)}
+.sccrew:has(input:checked){border-color:var(--ink-3); box-shadow:inset 3px 0 0 var(--amber)}
+.sccrew input{margin-top:3px}
+.sccrew__b{display:grid; gap:3px}
+.sccrew__b b{font-size:14px}
+.sccrew__b small{font-size:12px; color:var(--ink-3)}
+.sccrew__m{display:flex; flex-wrap:wrap; gap:6px; margin:2px 0}
+
+/* The address is read off a screen and typed into a phone, so it is monospaced
+   and it wraps at a character rather than at a word. */
+.sclink{padding:12px 14px; background:var(--sunken); border:1px solid var(--rule)}
+.sclink__u{margin:0; font-family:var(--mono); font-size:12.5px; word-break:break-all}
+.sclink__w{margin:6px 0 0; font-size:12px; color:var(--ink-3)}
+.scacts{display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; align-items:flex-start}
+.scbook{margin-top:16px; padding-top:16px; border-top:1px solid var(--rule)}
+/* The yard is walked group by group, so the list is read that way. */
+.sclgroup td{font-size:11px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--ink-3); background:var(--sunken); padding-top:10px}
+
+.cobuilt .field{padding:6px 8px; font-size:13px}
+.cobuilt .field--num{max-width:8ch; text-align:right; font-family:var(--mono)}
+.cobuilt tfoot td{font-weight:700; border-top:2px solid var(--ink)}
+/* Less fence than was billed for. Steel, never red -- red is the logo's. */
+.cominus{color:var(--steel-ink)}
+.cotally{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px;
+  padding:14px; background:var(--surface); border:1px solid var(--rule)}
+/* The sentence billing reads at the top of the letter, drawn as the quotation
+   it is rather than as another field on a form. */
+.conote{margin:14px 0 0; padding:12px 14px; font-size:14px; line-height:1.5;
+  background:var(--sunken); border-left:3px solid var(--amber)}
+.cophotos{display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px;
+  list-style:none; margin:0; padding:0}
+.cophotos li{display:grid; gap:4px}
+.cophotos img{display:block; width:100%; aspect-ratio:4/3; object-fit:cover;
+  border:1px solid var(--rule)}
+.cophotos span{font-size:12.5px}
+.cophotos small{font-size:11px; color:var(--ink-3)}
+
+@media (max-width:640px){
+  .scdates, .cotally{grid-template-columns:1fr}
+  .cobuilt{overflow-x:auto}
+}
