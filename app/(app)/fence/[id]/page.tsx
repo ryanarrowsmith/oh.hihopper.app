@@ -10,6 +10,9 @@ import FenceTasks from '@/components/FenceTasks'
 import ActionForm from '@/components/ActionForm'
 import { RecordRow } from '@/components/RowEdit'
 import GrowText from '@/components/GrowText'
+import Mentioned from '@/components/Mentioned'
+import NoteAttach from '@/components/NoteAttach'
+import type { Named } from '@/lib/mentions'
 import { handToPm, setJobPlace, noteForBilling, addNote } from '@/app/actions/fence'
 
 export const dynamic = 'force-dynamic'
@@ -90,7 +93,7 @@ export default async function Page({ params, searchParams }: {
        the job's memory: the reason a gate moved, the day the locate came back,
        what the customer said on the phone. */
     supabaseServer().schema('hopper').from('fence_note')
-      .select('id, body, section, created_at, author_id, by_crew')
+      .select('id, body, section, created_at, author_id, by_crew, file_path, file_name, file_mime, file_bytes')
       .eq('account_id', session.accountId).eq('job_id', id)
       .order('created_at', { ascending: false }).limit(60),
     supabaseServer().schema('hopper').from('directory')
@@ -98,8 +101,11 @@ export default async function Page({ params, searchParams }: {
   ])
   const notes = (log ?? []) as
     { id: string; body: string; section: Section | null; created_at: string
-      author_id: string | null; by_crew: string | null }[]
+      author_id: string | null; by_crew: string | null
+      file_path: string | null; file_name: string | null
+      file_mime: string | null; file_bytes: number | null }[]
   const wrote = new Map(((dir ?? []) as any[]).map((p) => [p.id, p.full_name as string]))
+  const roster: Named[] = ((dir ?? []) as any[]).map((p) => ({ id: p.id, name: p.full_name }))
   const toBilling = (billNotes ?? []) as
     { id: string; body: string; created_at: string; author_id: string | null }[]
   const handedOff = ((wentOut ?? []) as { sent_at: string }[])[0] ?? null
@@ -380,6 +386,12 @@ export default async function Page({ params, searchParams }: {
           <GrowText className="field" name="body" rows={2}
                     aria-label="A note on this job"
                     placeholder="What happened, what was said, what to watch for" />
+          <div className="fjlog__row">
+            <NoteAttach />
+            <p className="fjlog__at">
+              @ somebody and they get a notification and an email.
+            </p>
+          </div>
         </ActionForm>
 
         {notes.length === 0 ? (
@@ -392,7 +404,25 @@ export default async function Page({ params, searchParams }: {
                 : null
               return (
                 <li key={nte.id}>
-                  <p>{nte.body}</p>
+                  <p><Mentioned text={nte.body} roster={roster} /></p>
+                  {nte.file_path && (
+                    nte.file_mime?.startsWith('image/') ? (
+                      <a className="fjshot" href={`/api/fence/file/${nte.id}`}
+                         target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={`/api/fence/file/${nte.id}`}
+                             alt={nte.file_name ?? 'An attachment'} loading="lazy" />
+                      </a>
+                    ) : (
+                      <a className="fjfile" href={`/api/fence/file/${nte.id}`}
+                         target="_blank" rel="noreferrer">
+                        {nte.file_name ?? 'A file'}
+                        {nte.file_bytes != null && (
+                          <i>{Math.max(1, Math.round(nte.file_bytes / 1024))} KB</i>
+                        )}
+                      </a>
+                    )
+                  )}
                   <span>
                     <b>{nte.by_crew ?? (nte.author_id ? wrote.get(nte.author_id) : null) ?? 'Somebody'}</b>
                     <i>{new Date(nte.created_at).toLocaleDateString('en-US',

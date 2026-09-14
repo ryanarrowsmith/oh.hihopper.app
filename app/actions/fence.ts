@@ -13,6 +13,7 @@ import { loadRates, loadRights, loadJob } from '@/lib/fence'
 import { geocode, whyNoPin } from '@/lib/mapbox'
 import { buildSheet as buildSheetFrom, mergeSheet, whatBlocks } from '@/lib/handoff'
 import { loadBilling } from '@/lib/billing'
+import { tellMentioned } from '@/lib/notify'
 import { SPINE, draft, spineOf, type Part } from '@/lib/sow'
 import { aiReady, askClaude, firstJson, MODEL } from '@/lib/ai'
 import { factsFor, englishPrompt, spanishPrompt, figureCheck, mustKeepOf,
@@ -2193,6 +2194,11 @@ export async function setCompany(_p: Result | null, form: FormData): Promise<Res
  * The note is TAGGED with the section it was left against, so the log reads as
  * a history of the job rather than a pile. It defaults to wherever the work is
  * standing, because that is what somebody is looking at when they type.
+ *
+ * NAMING SOMEBODY REACHES THEM. @ a colleague and they get the bell and a
+ * letter -- Ryan's call, 14 Sep. A note that names the one person who can
+ * answer it, and sits there until they happen to open the job, is a question
+ * nobody asked.
  */
 export async function addNote(_p: Result | null, form: FormData): Promise<Result> {
   const session = await currentSession()
@@ -2202,19 +2208,71 @@ export async function addNote(_p: Result | null, form: FormData): Promise<Result
   const job = str(form, 'job_id')
   const body = str(form, 'body').slice(0, 4000)
   const section = str(form, 'section') || null
+  const file = form.get('file')
+  const hasFile = file instanceof File && file.size > 0
   if (!job) return { ok: false, message: 'No job.' }
-  if (!body) return { ok: false, message: 'Nothing typed, so nothing was saved.' }
+  if (!body && !hasFile) {
+    return { ok: false, message: 'Nothing typed and nothing chosen, so nothing was saved.' }
+  }
+
+  /* THE FILE GOES UP FIRST. If the row fails after the object is written the
+     object is orphaned, which is a file nobody can see; the other way round is
+     a log entry pointing at nothing, which is worse to read. */
+  let put: { path: string; name: string; bytes: number; mime: string | null } | null = null
+  if (hasFile) {
+    const f = file as File
+    if (f.size > 15 * 1024 * 1024) {
+      return {
+        ok: false,
+        message: 'That one is over 15 MB. Put it somewhere and paste the link in a note.',
+      }
+    }
+    // The name a person sees and the name on disk are different things: the
+    // first can hold anything, the second has to be safe in a URL.
+    const dot = f.name.lastIndexOf('.')
+    const ext = dot > 0 ? f.name.slice(dot + 1).toLowerCase().replace(/[^a-z0-9]/g, '') : ''
+    const path = `${session.accountId}/${job}/${crypto.randomUUID()}${ext ? `.${ext}` : ''}`
+    const up = await db.storage.from('fence-files')
+      .upload(path, f, { contentType: f.type || 'application/octet-stream' })
+    if (up.error) {
+      return {
+        ok: false,
+        message: /policy|row-level/i.test(up.error.message)
+          ? 'Attaching a file is limited to people who can reach this job.'
+          : up.error.message,
+      }
+    }
+    put = { path, name: f.name.slice(0, 200), bytes: f.size, mime: f.type || null }
+  }
 
   const { data, error } = await db.schema('hopper').from('fence_note')
     .insert({
       account_id: session.accountId, job_id: job, section,
-      kind: 'note', body, author_id: session.personId,
+      kind: put ? 'file' : 'note',
+      body: body || put!.name, author_id: session.personId,
+      file_path: put?.path ?? null, file_name: put?.name ?? null,
+      file_bytes: put?.bytes ?? null, file_mime: put?.mime ?? null,
     })
     .select('id').maybeSingle()
   if (error || !data) {
     return { ok: false, message: 'That did not save. This job has to be one you can reach.' }
   }
 
+  const { data: ref } = await db.schema('hopper').from('fence_job')
+    .select('ref, name').eq('account_id', session.accountId).eq('id', job).maybeSingle()
+  const named = await tellMentioned(body, {
+    title: `${(ref as any)?.ref ?? 'a job'}${(ref as any)?.name ? ` · ${(ref as any).name}` : ''}`,
+    href: `/fence/${job}`,
+    object: 'fence_job', objectId: job,
+    mail: true,
+  })
+
   revalidatePath(`/fence/${job}`)
-  return { ok: true, message: 'Added to the log.' }
+  return {
+    ok: true,
+    message: named.length
+      ? `Added, and ${named.map((p) => p.name.split(' ')[0]).join(' and ')} `
+        + `${named.length === 1 ? 'was' : 'were'} told.`
+      : 'Added to the log.',
+  }
 }

@@ -34,6 +34,15 @@ export async function tell(to: string, kind: Kind, title: string, href: string, 
  */
 export async function tellMentioned(text: string, about: {
   title: string; href: string; object?: string; objectId?: string; body?: string
+  /** Also write to them. Ryan's call, 14 Sep: being named should reach somebody
+   *  who has not opened the app today, not only ring a bell they have to come
+   *  and find. Off by default so a caller opts in rather than discovering it.
+   *
+   *  The ADDRESS IS NEVER READ HERE. hopper.mention_mail looks it up itself and
+   *  will only reach an active person in this account -- the directory carries
+   *  no email on purpose, and a helper that took one would be a way to mail
+   *  anybody. */
+  mail?: boolean
 }) {
   if (!text.includes('@')) return []
   const db = supabaseServer()
@@ -50,5 +59,15 @@ export async function tellMentioned(text: string, about: {
   await Promise.all(named.map((p) => tell(p.id, 'mention', about.title, about.href, {
     body: about.body ?? text, object: about.object ?? null, objectId: about.objectId ?? null,
   })))
+
+  if (about.mail) {
+    await Promise.all(named.map(async (p) => {
+      try {
+        await db.schema('hopper').rpc('mention_mail', {
+          p_to: p.id, p_title: about.title, p_body: text, p_href: about.href,
+        })
+      } catch { /* the note still saved, and the bell still rang */ }
+    }))
+  }
   return named
 }
