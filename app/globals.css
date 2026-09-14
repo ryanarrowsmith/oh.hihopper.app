@@ -8878,10 +8878,13 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:transparent}
 .fxbox--draw{cursor:crosshair}
 .fxbox--move{cursor:grab}
+/* The aerial is wider than its frame on purpose -- see PAD in FenceDraw. The
+   inset is set inline because the size is, and the box clips the overhang. */
 .fxaerial{
-  position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block;
-  pointer-events:none}
+  position:absolute; object-fit:cover; display:block; pointer-events:none;
+  will-change:transform}
 .fxink{position:absolute; inset:0; width:100%; height:100%; overflow:visible}
+.fxbox{overflow:hidden}
 
 /* The line is drawn twice: a dark strand under a light one, so it reads on grass,
    on gravel and on a white concrete pad without a color that means anything. */

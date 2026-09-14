@@ -144,8 +144,14 @@ export function aerialBoxUrl(o: {
   if (!raw || !raw.trim()) return null
   const token = raw.trim().replace(/^['"]|['"]$/g, '')
   const style = process.env.MAPBOX_STYLE_AERIAL || 'mapbox/satellite-v9'
-  const w = Math.min(Math.round(o.width), 1280)
-  const h = Math.min(Math.round(o.height), 1280)
+  /* Mapbox caps a static image at 1280 a side. Clamping the two sides
+     SEPARATELY squashes the picture -- a 2160x1215 request came back 1280x1215,
+     which is the same ground drawn at the wrong shape. One factor for both
+     keeps it square to the world. */
+  const big = Math.max(o.width, o.height)
+  const k = big > 1280 ? 1280 / big : 1
+  const w = Math.max(1, Math.round(o.width * k))
+  const h = Math.max(1, Math.round(o.height * k))
   const n = (x: number) => x.toFixed(6)
   return `https://api.mapbox.com/styles/v1/${style}/static/`
     + `[${n(o.west)},${n(o.south)},${n(o.east)},${n(o.north)}]/${w}x${h}@2x`

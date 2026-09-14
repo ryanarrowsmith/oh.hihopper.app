@@ -51,6 +51,15 @@ type Saved = 'clean' | 'dirty' | 'saving' | 'failed'
 const SPANS = [40, 60, 80, 120, 175, 250, 350, 500, 700, 1000, 1500]
 const TAP = 8          // px of travel that still counts as a tap, not a drag
 
+/* THE PICTURE IS BIGGER THAN THE WINDOW.
+   A tile cut to the exact size of the frame has nothing outside it, so dragging
+   it pulls a blank margin into view and you are moving toward emptiness -- you
+   cannot see where you are going until you let go and the next one arrives.
+   Asking for 1.8x the frame and hanging the extra off every edge means the
+   ground you are dragging toward is ALREADY THERE: 40% of a frame in every
+   direction, which is further than one drag goes. */
+const PAD = 1.8
+
 const ft = (n: number) =>
   n >= 1000 ? `${Math.round(n).toLocaleString('en-US')} ft` : `${Math.round(n)} ft`
 
@@ -106,18 +115,28 @@ export default function FenceDraw({
     () => (size && size.w > 0 ? viewAround(at, span, size.w, size.h) : null),
     [at, span, size])
 
-  // The aerial. Whole pixels and six decimals, so panning back to where you were
-  // asks for a picture the browser already has.
+  /* The aerial, a frame and a bit wide. Whole pixels and six decimals, so
+     panning back to where you were asks for a picture the browser already has.
+     The box is PAD times the frame around the same centre at the same ground
+     resolution, so what hangs off the edges is real ground rather than nothing. */
   const src = useMemo(() => {
     if (!view || !size) return null
-    const sw = toLngLat(view, 0, size.h), ne = toLngLat(view, size.w, 0)
+    const ox = (size.w * (PAD - 1)) / 2
+    const oy = (size.h * (PAD - 1)) / 2
+    const sw = toLngLat(view, -ox, size.h + oy), ne = toLngLat(view, size.w + ox, -oy)
     const q = new URLSearchParams({
       w: sw[0].toFixed(6), s: sw[1].toFixed(6),
       e: ne[0].toFixed(6), n: ne[1].toFixed(6),
-      px: String(Math.round(size.w)), py: String(Math.round(size.h)),
+      px: String(Math.round(size.w * PAD)), py: String(Math.round(size.h * PAD)),
     })
     return `/api/aerial?${q}`
   }, [view, size])
+
+  /* What the picture on screen is worth relative to the one being asked for.
+     A zoom swaps the tile; scaling the old one by the ratio in the meantime
+     means the press does something instantly instead of waiting on a fetch. */
+  const [shownSpan, setShownSpan] = useState(span)
+  const zoomScale = shownSpan / span
 
   // Load the next aerial off-screen and only swap when it is ready, so there is
   // never a frame with nothing in it.
@@ -126,11 +145,15 @@ export default function FenceDraw({
     if (src === shown) return
     let gone = false
     const im = new Image()
-    im.onload = () => { if (!gone) { setShown(src); setHold({ dx: 0, dy: 0 }) } }
-    im.onerror = () => { if (!gone) { setShown(src); setHold({ dx: 0, dy: 0 }) } }
+    const done = () => {
+      if (gone) return
+      setShown(src); setHold({ dx: 0, dy: 0 }); setShownSpan(span)
+    }
+    im.onload = done
+    im.onerror = done
     im.src = src
     return () => { gone = true }
-  }, [src, shown])
+  }, [src, shown, span])
 
   const set = (fn: (r: Run[]) => Run[]) => {
     setRuns((old) => fn(old))
@@ -304,8 +327,12 @@ export default function FenceDraw({
           {(shown ?? src) && (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img className="fxaerial" src={(shown ?? src) as string} alt="Aerial of the site"
-                 style={{ transform:
-                   `translate(${nudge.dx + hold.dx}px, ${nudge.dy + hold.dy}px)` }} />
+                 style={{
+                   left: `${(1 - PAD) * 50}%`, top: `${(1 - PAD) * 50}%`,
+                   width: `${PAD * 100}%`, height: `${PAD * 100}%`,
+                   transform: `translate(${nudge.dx + hold.dx}px, ${nudge.dy + hold.dy}px)`
+                     + (zoomScale !== 1 ? ` scale(${zoomScale})` : ''),
+                 }} />
           )}
 
           {view && size && (
