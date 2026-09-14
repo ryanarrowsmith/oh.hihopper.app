@@ -206,6 +206,14 @@ export function EditableSection({
  * says the state, so it is readable and not only shown by position. The hidden
  * input keeps the FormData shape a checkbox would have produced, so server
  * actions did not have to learn anything new.
+ *
+ * THE LABEL IS WHAT THE SWITCH IS; `say` IS WHAT HAPPENS. This used to render
+ * `say ?? label`, so the moment a caller explained the consequence the name of
+ * the control disappeared -- leaving two switches stacked on the rate book, one
+ * reading "No · Saving stamps today's date on it" and the other "Yes · Off
+ * keeps the figure", with nothing on screen saying which was which. The label
+ * survived only in aria-label, so it was there for a screen reader and gone for
+ * everybody else. Both now show, in the shape the house already uses.
  */
 export function Toggle({
   name, label, defaultOn = false, say,
@@ -220,7 +228,9 @@ export function Toggle({
         <span className="tog__track" /><span className="tog__knob" />
       </span>
       <span className="togstate">{on ? 'Yes' : 'No'}</span>
-      <span className="togsay">{say ?? label}</span>
+      {say
+        ? <span className="togline__say"><b>{label}</b><small>{say}</small></span>
+        : <span className="togsay">{label}</span>}
     </div>
   )
 }
