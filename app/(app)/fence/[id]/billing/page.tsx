@@ -13,6 +13,7 @@ import {
 import { loadBilling } from '@/lib/billing'
 import { FenceMark } from '@/components/FenceMark'
 import ActionForm from '@/components/ActionForm'
+import GrowText from '@/components/GrowText'
 import HandoffMessage from '@/components/HandoffMessage'
 import { RecordRow, RowForm, RowDanger, Toggle } from '@/components/RowEdit'
 import { buildSheet, setChargeLine, dropChargeLine, recordHandoff } from '@/app/actions/fence'
@@ -82,9 +83,12 @@ export default async function Billing({ params }: { params: Promise<{ id: string
 
   const h = await headers()
   const origin = `https://${h.get('host') ?? 'oh.hihopper.app'}`
+  /* What the project manager left for accounting at close-out. Only the notes
+     aimed at billing: a close-out note about the work is for the record, and
+     putting it in the letter would mail accounting somebody else's shop talk. */
   const pmNote = b.notes
-    .filter((n: any) => ['closeout', 'billing'].includes(n.section))
-    .map((n: any) => n.body).join(' ') || null
+    .filter((n: any) => n.section === 'billing')
+    .map((n: any) => String(n.body ?? '').trim()).filter(Boolean).join('\n\n') || null
 
   const message = sheet
     ? keyingMessage({
@@ -387,6 +391,13 @@ export default async function Billing({ params }: { params: Promise<{ id: string
           )}
         </div></div>
 
+        {pmNote && (
+          <div className="fxpm">
+            <span>From the project manager</span>
+            <p>{pmNote}</p>
+          </div>
+        )}
+
         {!b.target && (
           <p className="note note--err">
             <b>Nothing to send to.</b>{' '}
@@ -405,11 +416,10 @@ export default async function Billing({ params }: { params: Promise<{ id: string
                             busy="Sending…">
                   <input type="hidden" name="job_id" value={job.id} />
                   <input type="hidden" name="how" value="mailed" />
-                  <div className="formrow">
-                    <div><label htmlFor="hn">Anything accounting should know</label>
-                      <input className="field" id="hn" name="note"
-                             placeholder="Two gates went in on the north drive, not one" /></div>
-                  </div>
+                  <div><label htmlFor="hn">Anything accounting should know</label>
+                    <GrowText className="field" id="hn" name="note" rows={2}
+                              defaultValue={pmNote ?? ''}
+                              placeholder="Two gates went in on the north drive, not one" /></div>
                   <p className="fxhint">
                     The whole sheet goes in the letter, against Navusoft {navusoft ?? '—'}. Replies
                     come back to you. A second send is a second entry, never an overwrite.
@@ -427,11 +437,10 @@ export default async function Billing({ params }: { params: Promise<{ id: string
                             busy="Recording…">
                   <input type="hidden" name="job_id" value={job.id} />
                   <input type="hidden" name="how" value="copied" />
-                  <div className="formrow">
-                    <div><label htmlFor="hn2">What you told them</label>
-                      <input className="field" id="hn2" name="note"
-                             placeholder="Sent from Outlook, two gates noted" /></div>
-                  </div>
+                  <div><label htmlFor="hn2">What you told them</label>
+                    <GrowText className="field" id="hn2" name="note" rows={2}
+                              defaultValue={pmNote ?? ''}
+                              placeholder="Sent from Outlook, two gates noted" /></div>
                   <p className="fxhint">
                     Writes the sheet down against Navusoft {navusoft ?? '—'}. Nothing is mailed.
                   </p>

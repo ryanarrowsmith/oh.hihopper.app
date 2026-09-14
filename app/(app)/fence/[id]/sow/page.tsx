@@ -7,9 +7,10 @@ import { SPINE, spineOf, score, easeWord, heldTo, wordsIn, type Part } from '@/l
 import { FenceMark } from '@/components/FenceMark'
 import ActionForm from '@/components/ActionForm'
 import GrowText from '@/components/GrowText'
+import SowAutoDraft from '@/components/SowAutoDraft'
 import { saveSow, draftSow, signSow, aiDraftSow } from '@/app/actions/fence'
 import { LANG_NAME } from '@/lib/i18n'
-import { aiReady, MODEL } from '@/lib/ai'
+import { aiReady } from '@/lib/ai'
 
 export const dynamic = 'force-dynamic'
 
@@ -86,7 +87,7 @@ export default async function Sow({ params }: { params: { id: string } }) {
       <input type="hidden" name="lang" value={lang} />
       <button className={by === 'claude' ? 'btn btn--amber' : 'btn'} type="submit">
         {by === 'claude'
-          ? `Write the ${LANG_NAME[lang]} with Claude`
+          ? `Write the ${LANG_NAME[lang]} again`
           : has ? `Render the ${LANG_NAME[lang]} again` : `Render the ${LANG_NAME[lang]}`}
       </button>
     </form>
@@ -117,15 +118,7 @@ export default async function Sow({ params }: { params: { id: string } }) {
       )}
 
       {!(sow as any)?.drafted_at && mayEdit && (
-        <p className="note" style={{ marginTop: 16 }}>
-          <b>Nothing drafted yet.</b> <b>Render</b> writes it from the takeoff, the specification
-          and the gate list, and cannot invent a figure.{' '}
-          {ai
-            ? <><b>Write with Claude</b> ({MODEL}) does the same from the same facts, in better
-              prose. A figure it returns that is in none of them throws the draft away.</>
-            : <>Writing it with a model is off here — this deployment has no Anthropic key.</>}
-          {' '}Either way, every word is then yours.
-        </p>
+        <SowAutoDraft jobId={(job as any).id} />
       )}
 
       {/* Who wrote this matters to somebody deciding how hard to read it before
@@ -134,9 +127,9 @@ export default async function Sow({ params }: { params: { id: string } }) {
         <p className="swby">
           <FenceMark kind="read">
             {[(sow as any).drafted_en && `English ${(sow as any).drafted_en === 'claude'
-              ? `drafted by ${(sow as any).draft_model ?? 'a model'}` : 'rendered from the takeoff'}`,
+              ? 'drafted automatically' : 'rendered from the takeoff'}`,
               (sow as any).drafted_es && `Spanish ${(sow as any).drafted_es === 'claude'
-                ? `drafted by ${(sow as any).draft_model ?? 'a model'}` : 'rendered from the takeoff'}`,
+                ? 'drafted automatically' : 'rendered from the takeoff'}`,
             ].filter(Boolean).join(' · ')}
           </FenceMark>
         </p>
@@ -254,7 +247,7 @@ export default async function Sow({ params }: { params: { id: string } }) {
                   <span className="rcell">
                     <span className="rcell__lab">In this scope</span>
                     <span className="rcell__val">
-                      {!h.used ? <span className="fjnone">not in this scope</span>
+                      {!h.used ? <span className="fjnone">—</span>
                         : h.paired ? <FenceMark kind="done">Paired</FenceMark>
                         : <FenceMark kind="warn">English only</FenceMark>}
                     </span>

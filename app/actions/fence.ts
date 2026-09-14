@@ -1800,3 +1800,82 @@ export async function setJobPlace(_p: Result | null, form: FormData): Promise<Re
       : `Saved, but there is still no pin: ${whyNoPin(g)}`,
   }
 }
+
+/**
+ * The first draft, written on the way in.
+ *
+ * Ryan's call, 14 Sep: a project manager opening a scope that has never been
+ * written should find words in the boxes, not four buttons and a paragraph
+ * about which one to press. So the screen asks for this once, on mount, and
+ * then gets out of the way -- every word is still theirs to change.
+ *
+ * It runs ONCE PER JOB and the guard is the row, not the screen: drafted_at is
+ * set by the first write, so a second open, a refresh, or two people opening it
+ * at the same moment all find it already drafted and spend nothing. English
+ * first, because the Spanish is written from the English.
+ */
+export async function autoDraftSow(jobId: string): Promise<Result> {
+  const { db, account } = await ctx()
+  if (!jobId) return { ok: false, message: 'No job.' }
+
+  const { data: had } = await db.schema('hopper').from('fence_sow')
+    .select('drafted_at').eq('account_id', account).eq('job_id', jobId).maybeSingle()
+  if ((had as any)?.drafted_at) return { ok: true, message: 'Already drafted.' }
+
+  const one = (lang: 'en' | 'es') => {
+    const f = new FormData()
+    f.set('job_id', jobId)
+    f.set('lang', lang)
+    return aiReady() ? aiDraftSow(null, f) : draftSow(null, f)
+  }
+
+  const en = await one('en')
+  if (!en.ok) return en
+  const es = await one('es')
+  if (!es.ok) return es
+  return { ok: true, message: 'Drafted in both languages.' }
+}
+
+/**
+ * The project manager's message to accounting.
+ *
+ * Ryan's call, 14 Sep: the person who ran the job is the one who knows what
+ * accounting needs telling -- two gates went in instead of one, the customer
+ * wants it split -- and by the time the sheet reaches billing that person is
+ * gone. So they write it at close-out, on the job, in the section they own.
+ *
+ * It is a NOTE ON THE JOB, not a field on the handoff: it belongs to the record
+ * whether or not anything is ever mailed, and the billing screen offers it as
+ * the letter's opening rather than sending it behind anybody's back.
+ */
+export async function noteForBilling(_p: Result | null, form: FormData): Promise<Result> {
+  const session = await currentSession()
+  if (!session) return { ok: false, message: 'Not signed in.' }
+  const db = supabaseServer()
+
+  const job = str(form, 'job_id')
+  const body = str(form, 'body').slice(0, 4000)
+  if (!job) return { ok: false, message: 'No job.' }
+  if (!body) return { ok: false, message: 'Nothing typed, so nothing was saved.' }
+
+  const { data, error } = await db.schema('hopper').from('fence_note')
+    .insert({
+      account_id: session.accountId, job_id: job, section: 'billing',
+      kind: 'note', body, author_id: session.personId,
+    })
+    .select('id').maybeSingle()
+
+  // An RLS refusal on an insert raises rather than matching nothing, but a
+  // person with no person row would come back empty and silent.
+  if (error || !data) {
+    return { ok: false, message: 'That did not save. Close-out has to be yours to write on.' }
+  }
+
+  await logAudit(db, {
+    account_id: session.accountId, kind: 'fence', object: 'Note for accounting',
+    object_id: job, summary: 'Left a note for accounting on the job',
+  })
+  revalidatePath(`/fence/${job}`)
+  revalidatePath(`/fence/${job}/billing`)
+  return { ok: true, message: 'Saved. Billing sees it on the handoff.' }
+}

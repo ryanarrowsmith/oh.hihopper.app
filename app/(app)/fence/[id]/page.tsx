@@ -9,7 +9,8 @@ import {
 import FenceTasks from '@/components/FenceTasks'
 import ActionForm from '@/components/ActionForm'
 import { RecordRow } from '@/components/RowEdit'
-import { handToPm, setJobPlace } from '@/app/actions/fence'
+import GrowText from '@/components/GrowText'
+import { handToPm, setJobPlace, noteForBilling } from '@/app/actions/fence'
 
 export const dynamic = 'force-dynamic'
 
@@ -71,6 +72,14 @@ export default async function Page({ params, searchParams }: {
       .eq('account_id', session.accountId).eq('job_id', id)
       .order('priced_at', { ascending: false }),
   ])
+
+  /* What the project manager wants accounting told. Read here so close-out can
+     show what was already said rather than an empty box beside a full record. */
+  const { data: billNotes } = await supabaseServer().schema('hopper').from('fence_note')
+    .select('id, body, created_at')
+    .eq('account_id', session.accountId).eq('job_id', id).eq('section', 'billing')
+    .order('created_at', { ascending: false }).limit(3)
+  const toBilling = (billNotes ?? []) as { id: string; body: string; created_at: string }[]
   const quotes = (options ?? []) as { id: string; label: string; price: number | null; accepted: boolean }[]
   const soldOne = quotes.find((q) => q.accepted) ?? null
 
@@ -253,6 +262,31 @@ export default async function Page({ params, searchParams }: {
             {secTasks.length > 0 && !(waiting && sec !== job.stage) && (
               <FenceTasks jobId={job.id} tasks={secTasks as Task[]} mayEdit={how === 'edit'}
                           navusoft={place?.navusoft_account ?? null} hasPlace={!!place} />
+            )}
+
+            {/* Close-out is the last moment the person who ran the job is still
+                looking at it, so it is where the message to accounting gets
+                written. Billing reads it on the handoff and it goes out at the
+                top of the letter. */}
+            {sec === 'closeout' && (how === 'edit' || toBilling.length > 0) && (
+              <div className="fjnote">
+                {toBilling.length > 0 && (
+                  <ul className="fjnote__had">
+                    {toBilling.map((nte) => (
+                      <li key={nte.id}>{nte.body}</li>
+                    ))}
+                  </ul>
+                )}
+                {how === 'edit' && (
+                  <ActionForm action={noteForBilling} label="Leave it for accounting"
+                              busy="Saving…" className="fjnote__f">
+                    <input type="hidden" name="job_id" value={job.id} />
+                    <label htmlFor="fj-bill-note">Anything accounting should know</label>
+                    <GrowText className="field" id="fj-bill-note" name="body" rows={2}
+                              placeholder="Two gates went in on the north drive, not one" />
+                  </ActionForm>
+                )}
+              </div>
             )}
 
             {/* Sales sends it forward from the section it owns. The seal and the
