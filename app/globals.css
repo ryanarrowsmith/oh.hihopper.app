@@ -8298,10 +8298,12 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
   }
   .btn__w{ display:inline; }
 
-  /* Four tabs wrap onto two lines rather than scrolling sideways: a tab you
-     have to discover by swiping is a tab most people never find. */
-  .dktabs{ overflow-x:visible; flex-wrap:wrap; gap:0 4px; }
-  .dktabs > button{ flex:1 1 auto; text-align:center; }
+  /* The four settings tabs used to wrap onto two lines here, on the argument
+     that a tab you discover by swiping is a tab nobody finds. That argument
+     still holds against sideways scrolling; it was never an argument FOR
+     spending a second row of a phone on navigation. They are a dropdown now —
+     see .tabrow / .tabdrop. */
+  .dktabs{ margin-top:0; }
 
   /* Thumbs. 29px is a target you miss. */
   .dkchip, .choice, .btn--tiny{ min-height:40px; }
@@ -8705,26 +8707,14 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 .ck__tab[aria-selected="true"]{background:var(--surface); color:var(--ink); border-bottom-color:var(--ink)}
 .ck__body{padding:14px 16px; background:var(--surface); min-height:50vh}
 
-/* THE TABS BECOME A DROPDOWN ON A PHONE. Ryan, 14 Sep. Four words across
-   390 px is four words nobody can read and four targets nobody can hit
-   accurately with a glove on — and the settings-tabs answer, wrapping to a
-   second row, spends the vertical space a crew needs for the thing under the
-   tabs. One full-width control, one line.
-
-   Hopper's own popover rather than a native select, which is the standing rule:
-   a native select draws its menu with the operating system and no stylesheet
-   reaches inside it. */
-.ckpick{display:none}
+/* The crew ticket's own dressing for the picker. The rule itself lives with
+   .tabrow / .tabdrop, further down. */
 @media (max-width:640px){
-  .ck__tabs{display:none}
-  .ckpick{
-    display:block; padding:12px 16px;
+  .ck .tabdrop{
+    margin:0; padding:12px 16px;
     background:var(--sunken); border-bottom:1px solid var(--rule);
   }
-  .ckpick .field{
-    width:100%; min-height:52px; background:var(--surface);
-    font-size:16px; font-weight:700; color:var(--ink);
-  }
+  .ck .tabdrop .field{min-height:52px; font-size:16px; font-weight:700}
 }
 .ck__sow{font-size:15.5px; line-height:1.55}
 .ck__warn{
@@ -10127,4 +10117,38 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 @media (max-width:640px){
   .scdates, .cotally{grid-template-columns:1fr}
   .cobuilt{overflow-x:auto}
+}
+
+/* ==========================================================================
+   A ROW OF TABS, SAID AS A DROPDOWN ON A PHONE
+   Ryan's rule, 14 Sep: always prefer a dropdown on mobile unless it is ugly.
+
+   Both controls render and this picks between them, rather than a media query
+   in JavaScript — partly because the server renders neither width, and mostly
+   because `display:none` takes the hidden one out of the tab order and the
+   accessibility tree. A control that is merely invisible is a control somebody
+   tabs into and then cannot see.
+
+   IT SITS AT THE END OF THIS FILE ON PURPOSE. `.tabrow` and `.ck__tabs` are
+   both a single class, so neither out-specifies the other and SOURCE ORDER
+   decides — and every tab row it has to switch off (.ck__tabs, .dktabs) is
+   declared further down than the form fields this block was first written
+   beside, where it silently lost. Doubling the class to win on specificity
+   would work and would read as a trick; being last is the same answer said out
+   loud. Anything added below this has to keep that in mind.
+
+   Where it STOPS is as much the rule as where it applies: a two-option switch
+   stays a row, because both halves of a switch have to be visible or the second
+   one is a feature nobody discovers — which is the same failure the old wrap
+   rule was written against, arrived at from the other direction. TabDrop's own
+   comment carries the full line.
+   ========================================================================== */
+.tabdrop{display:none}
+@media (max-width:640px){
+  .tabrow{display:none}
+  /* Standing off whatever heading it follows. The crew ticket gives its picker
+     a band of its own and turns this back off. */
+  .tabdrop{display:block; margin:14px 0 0}
+  /* Thumbs, and the same 16px floor every other control on a phone gets. */
+  .tabdrop .field{width:100%; min-height:48px; font-size:16px; font-weight:700}
 }

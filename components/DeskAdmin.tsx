@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import Choice from '@/components/Choice'
+import TabDrop from '@/components/TabDrop'
 import Toggle from '@/components/Toggle'
 import {
   saveDesk, saveQueue, saveSla, saveKind, saveField, saveSnippet, setQueueAgent,
@@ -128,7 +129,9 @@ export default function DeskAdmin({
         )}
       </div>
 
-      <div className="dktabs" role="tablist">
+      {/* Four settings tabs used to wrap onto a second row on a phone. They
+          are a dropdown there now — see TabDrop. */}
+      <div className="dktabs tabrow" role="tablist">
         {TABS.map((t) => (
           <button key={t.key} type="button" role="tab" aria-selected={tab === t.key}
                   className={tab === t.key ? 'on' : ''} onClick={() => setTab(t.key)}>
@@ -136,6 +139,9 @@ export default function DeskAdmin({
           </button>
         ))}
       </div>
+
+      <TabDrop name="dk-tab" value={tab} onPick={setTab}
+               options={TABS.map((t) => ({ value: t.key, label: t.label }))} />
 
       {tab === 'queues' && (
         <Queues org={org} queues={myQueues} deps={myDeps} slas={mySlas}
