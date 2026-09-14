@@ -8,7 +8,9 @@ import {
 } from '@/lib/fence'
 import { FenceMark } from '@/components/FenceMark'
 import FenceTasks from '@/components/FenceTasks'
-import { handToPm } from '@/app/actions/fence'
+import ActionForm from '@/components/ActionForm'
+import { RecordRow } from '@/components/RowEdit'
+import { handToPm, setJobPlace } from '@/app/actions/fence'
 
 export const dynamic = 'force-dynamic'
 
@@ -61,6 +63,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const soldOne = quotes.find((q) => q.accepted) ?? null
   const sealed = new Set<Section>(seals.map((s) => s.section))
 
+  // The address belongs to intake and the survey, exactly as fence_job's own
+  // policy says, so the editor is drawn for whoever owns either of them.
+  const mayPlace = howToDraw('intake', jobRole, sealed, rights.mayManage) === 'edit'
+    || howToDraw('survey', jobRole, sealed, rights.mayManage) === 'edit'
+  const pinned = job.lat != null && job.lon != null
+
   const done = tasks.filter((t) => t.done).length
   const entered = SECTIONS.findIndex((s) => s.key === job.reached)
 
@@ -92,6 +100,87 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             ? 'No tasks on the plan yet.'
             : `${Math.round((done / tasks.length) * 100)}% · ${done} / ${tasks.length} tasks`}
         </p>
+      </section>
+
+      {/* Where it is.
+
+          The estimator refuses to draw without a pin and sends people here —
+          "the job is where the address and the pin are set" — and for a while
+          there was nothing here to send them to, which made a job with a bad
+          address a dead end. The pin is looked up again whenever the address
+          changes, because a pin that outlives its address points somewhere
+          confidently wrong. */}
+      <section className="sec">
+        <div className="sec__h"><div className="sec__t">
+          <h2>Where it is</h2>
+          <p>Typed once. It travels to the survey, the crew ticket, the scope of work and the
+            service location accounting keys.</p>
+        </div></div>
+
+        <div className="fxkey">
+          <div><span>Site address</span>
+            <b>{place
+              ? [place.line1, [place.city, place.region].filter(Boolean).join(', '), place.postcode]
+                  .filter(Boolean).join(', ')
+              : job.site_address ?? <i className="fjnone">not set</i>}</b>
+            <small>{place
+              ? 'A location record — every job at this yard bills under the same account'
+              : 'Typed on the job. A location record is made when the account number is set.'}</small></div>
+          <div><span>Aerial</span>
+            <b>{pinned
+              ? <FenceMark kind="done">Pinned</FenceMark>
+              : <FenceMark kind="warn">No pin</FenceMark>}</b>
+            <small>{pinned
+              ? 'The estimator can draw the line on it'
+              : 'Nothing to draw on until the address resolves'}</small></div>
+          <div><span>Navusoft account</span>
+            <b className="fjamono">{place?.navusoft_account ?? <i className="fjnone">none yet</i>}</b>
+            <small>The project manager creates it at the survey</small></div>
+        </div>
+
+        {mayPlace && (
+          <div className="rlist" style={{ marginTop: 12 }}>
+            <RecordRow editLabel="Change the address" face={
+              <span className="rcell rcell--lead">
+                <span className="fjname">Change the address</span>
+                <span className="fjsub">The pin is looked up again when you save</span>
+              </span>
+            }>
+              <ActionForm action={setJobPlace} label="Save the address" busy="Looking it up…">
+                <input type="hidden" name="job_id" value={job.id} />
+                <div className="formrow">
+                  <div><label htmlFor="jp-l1">Site address</label>
+                    <input className="field" id="jp-l1" name="line1" required
+                           defaultValue={place?.line1 ?? job.site_address ?? ''} /></div>
+                </div>
+                <div className="formrow" style={{ marginTop: 12 }}>
+                  <div><label htmlFor="jp-city">City</label>
+                    <input className="field" id="jp-city" name="city"
+                           defaultValue={place?.city ?? ''} /></div>
+                  <div><label htmlFor="jp-region">State</label>
+                    <input className="field" id="jp-region" name="region"
+                           defaultValue={place?.region ?? ''} /></div>
+                  <div><label htmlFor="jp-zip">ZIP</label>
+                    <input className="field" id="jp-zip" name="postcode"
+                           defaultValue={place?.postcode ?? ''} /></div>
+                </div>
+                <div className="formrow" style={{ marginTop: 12 }}>
+                  <div><label htmlFor="jp-note">Anything about getting on site</label>
+                    <input className="field" id="jp-note" name="pin_note"
+                           placeholder="Gate code, which drive takes a truck, who to ask for" /></div>
+                </div>
+              </ActionForm>
+            </RecordRow>
+          </div>
+        )}
+
+        {!pinned && (
+          <p className="note note--err">
+            <b>There is no pin on this job</b>, so the estimator has nothing to draw on. The
+            address is what the aerial is found from — a parcel is found from the address, never
+            guessed from the customer.
+          </p>
+        )}
       </section>
 
       {PHASES.map((phase, pi) => {

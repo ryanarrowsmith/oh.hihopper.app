@@ -53,6 +53,9 @@ export type Job = {
   name: string
   customer: string | null
   site_address: string | null
+  /** The map pin, looked up from the address. Null until one resolves. */
+  lat: number | null
+  lon: number | null
   cls: 'permanent' | 'temporary' | 'secure' | null
   stage: Section
   /** The furthest phase this job has reached. Not a time. */
@@ -143,7 +146,7 @@ export async function loadJobs(accountId: string, complete = false) {
   const db = supabaseServer()
   const { data, error } = await db.schema('hopper')
     .from('fence_job')
-    .select('id, ref, name, customer, site_address, cls, stage, reached, crew, starts_on, complete, created_at')
+    .select('id, ref, name, customer, site_address, lat, lon, cls, stage, reached, crew, starts_on, complete, created_at')
     .eq('account_id', accountId)
     .eq('complete', complete)
     .order('created_at', { ascending: false })
@@ -162,8 +165,8 @@ export async function loadJob(accountId: string, id: string) {
   const db = supabaseServer()
   const { data: job } = await db.schema('hopper')
     .from('fence_job')
-    .select('id, ref, name, customer, site_address, cls, stage, reached, crew, starts_on,'
-      + ' complete, created_at, location_id, navusoft_sent, navusoft_sent_at')
+    .select('id, ref, name, customer, site_address, lat, lon, cls, stage, reached, crew,'
+      + ' starts_on, complete, created_at, location_id, navusoft_sent, navusoft_sent_at')
     .eq('account_id', accountId).eq('id', id).maybeSingle()
   if (!job) return null
 
@@ -282,4 +285,25 @@ export async function loadRates(accountId: string, retired = false) {
 export function rateAge(verified_on: string | null): number | null {
   if (!verified_on) return null
   return Math.floor((Date.now() - new Date(verified_on).getTime()) / 86_400_000)
+}
+
+/* ==========================================================================
+   WHERE A JOB CAN BE OPENED
+
+   A job belongs to an organization in the portfolio, and `fence_job.entity_id`
+   is NOT NULL — so the screen that opens one has to ask which, and must only
+   offer the organizations this person actually holds the module on at edit
+   level. `hopper.my_module_levels` answers that; it is INVOKER and asks the same
+   helpers the policies ask, so no screen can offer what the database refuses.
+   ========================================================================== */
+
+export type FenceEntity = { id: string; name: string; level: string }
+
+export async function loadFenceEntities(accountId: string): Promise<FenceEntity[]> {
+  const { data } = await supabaseServer().schema('hopper')
+    .rpc('my_module_levels', { acct: accountId })
+  return ((data ?? []) as any[])
+    .filter((r) => r.module === 'fence' && (r.level === 'edit' || r.level === 'admin'))
+    .map((r) => ({ id: r.entity_id, name: r.entity_name, level: r.level }))
+    .sort((a, b) => a.name.localeCompare(b.name))
 }

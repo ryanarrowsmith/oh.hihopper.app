@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import { currentSession } from '@/lib/tenant'
 import { logAudit } from '@/lib/audit'
@@ -8,6 +9,7 @@ import type { Result } from '@/app/actions/admin'
 import { loadMeasure, loadRecipe } from '@/lib/takeoff'
 import { priceIt } from '@/lib/price'
 import { loadRates, loadRights, loadJob } from '@/lib/fence'
+import { geocode, whyNoPin } from '@/lib/mapbox'
 import { buildSheet as buildSheetFrom, mergeSheet, whatBlocks } from '@/lib/handoff'
 import { loadBilling } from '@/lib/billing'
 import { SPINE, draft, spineOf, type Part } from '@/lib/sow'
@@ -1599,5 +1601,202 @@ export async function recordHandoff(_p: Result | null, form: FormData): Promise<
         + ' It goes out within the minute; a second send is a second entry rather than an overwrite.'
       : `Recorded against Navusoft ${navusoft}. It is in the job's record now, and a second`
         + ' send is a second entry rather than an overwrite.',
+  }
+}
+
+// ------------------------------------------------------- opening a job
+/**
+ * A job, opened.
+ *
+ * This is the screen the whole module hangs off and it did not exist: the jobs
+ * list has linked to /fence/new since the first day and the route was never
+ * built, so both buttons went to a 404 and nothing in Fence Builder could be
+ * exercised by anybody. Mine, and the lesson is that a link written ahead of its
+ * page is a promise with no test behind it.
+ *
+ * TWO WAYS IN, ONE FORM. A new estimate starts at intake and goes through sales.
+ * A work order on an open rental has no sales phase at all — somebody rang and
+ * asked for more fence — so it enters at the SURVEY, and the project manager's
+ * task plan has to be opened here rather than at the sales handoff, because
+ * there will not be one.
+ *
+ * THE REFERENCE IS TAKEN, NOT GIVEN. Nobody types FB-1043. It is the next number
+ * after the highest this person can see, and a collision is retried rather than
+ * prevented — two people opening a job in the same second is exactly when a
+ * look-first check fails, and the retry is honest about that.
+ *
+ * THE PIN IS NOT THE ADDRESS. Geocoding can fail — no token, a bad address, a
+ * lookup that did not complete — and none of those are reasons to refuse the
+ * job. It is opened either way and the screen says why there is no pin yet,
+ * because a job you cannot create is worse than a job you cannot draw on.
+ */
+export async function openJob(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const session = await currentSession()
+
+  const name = str(form, 'name')
+  const entity = str(form, 'entity_id')
+  const fromSurvey = str(form, 'from') === 'survey'
+  if (!name) return { ok: false, message: 'A job needs a name — what somebody would call it on the phone.' }
+  if (!entity) return { ok: false, message: 'Say which organization the job belongs to.' }
+
+  const line1 = str(form, 'line1')
+  const place = {
+    address_line1: line1 || null,
+    city: nul(form, 'city'),
+    region: nul(form, 'region'),
+    postal_code: nul(form, 'postcode'),
+    country: 'United States',
+  }
+  const siteAddress = line1
+    ? [line1, [str(form, 'city'), [str(form, 'region'), str(form, 'postcode')]
+        .filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean).join(', ')
+    : null
+
+  // The pin, when there is an address to look one up from. A failure is carried
+  // in the sentence at the end rather than raised: see the note above.
+  let pin: { latitude: number; longitude: number } | null = null
+  let noPin: string | null = null
+  if (line1) {
+    const g = await geocode(place)
+    if (g.ok) pin = g.pin
+    else noPin = whyNoPin(g)
+  }
+
+  const cls = ['permanent', 'temporary', 'secure'].includes(str(form, 'cls'))
+    ? str(form, 'cls') : 'permanent'
+
+  // The next number after the highest already here. `ref` is unique per account
+  // in practice rather than by constraint, so a clash is caught and retried.
+  const { data: highest } = await db.schema('hopper').from('fence_job')
+    .select('ref').eq('account_id', account).like('ref', 'FB-%')
+    .order('ref', { ascending: false }).limit(1)
+  const seen = Number(String((highest as any[])?.[0]?.ref ?? '').replace(/^FB-/, ''))
+  let next = Number.isFinite(seen) && seen > 0 ? seen + 1 : 1001
+
+  const base = {
+    account_id: account, entity_id: entity,
+    name,
+    customer: nul(form, 'customer'),
+    site_address: siteAddress,
+    lat: pin?.latitude ?? null, lon: pin?.longitude ?? null,
+    pin_note: nul(form, 'pin_note'),
+    cls,
+    stage: fromSurvey ? 'survey' : 'intake',
+    reached: fromSurvey ? 'survey' : 'intake',
+    created_by: session?.personId ?? null,
+  }
+
+  let job: { id: string; ref: string } | null = null
+  let last = ''
+  for (let tries = 0; tries < 5 && !job; tries++, next++) {
+    const { data, error } = await db.schema('hopper').from('fence_job')
+      .insert({ ...base, ref: `FB-${next}` }).select('id, ref').maybeSingle()
+    if (data) { job = data as any; break }
+    last = error?.message ?? ''
+    if (!/duplicate key|unique/i.test(last)) break
+  }
+
+  if (!job) {
+    return {
+      ok: false,
+      message: last
+        ? refused(last, 'jobs')
+        : 'Nothing was opened. Opening a job needs the fence module on that organization, '
+          + 'and a job of your own to own — sales opens an estimate, a project manager opens a work order.',
+    }
+  }
+
+  /* A work order has no sales phase, so the plan cannot wait for the handoff
+     that opens it on an estimate. Refused is survivable — the job exists and the
+     tasks can be added by hand — so it is reported rather than rolled back. */
+  let opened = 0
+  let planWhy: string | null = null
+  if (fromSurvey) {
+    const { data: plan } = await db.schema('hopper').from('fence_task_plan')
+      .select('section, en, es, needs, due_days, sort')
+      .eq('account_id', account).eq('active', true).order('sort')
+    const today = new Date()
+    const rows = ((plan ?? []) as any[]).map((p) => ({
+      account_id: account, job_id: job!.id, section: p.section,
+      en: p.en, es: p.es, needs: p.needs ?? null,
+      due_on: p.due_days == null ? null
+        : new Date(today.getTime() + p.due_days * 86_400_000).toISOString().slice(0, 10),
+      from_plan: true, sort: p.sort, done: false,
+    }))
+    if (rows.length) {
+      const { data: made, error } = await db.schema('hopper').from('fence_task')
+        .insert(rows).select('id')
+      opened = made?.length ?? 0
+      if (error || !opened) {
+        planWhy = 'The job is open, but its task plan is not — opening the standing plan needs '
+          + 'the same right as sealing an estimate. Ask an administrator, or add the steps by hand.'
+      }
+    }
+  }
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object: job.ref, object_id: job.id,
+    summary: `Opened ${job.ref} — ${name}`
+      + (fromSurvey ? `, a work order entering at the survey with ${opened} tasks` : ' at intake'),
+    payload: { ref: job.ref, cls, from: fromSurvey ? 'survey' : 'intake', pinned: !!pin },
+  })
+  revalidatePath('/fence')
+  redirect(`/fence/${job.id}`)
+}
+
+/**
+ * Where the work happens, corrected.
+ *
+ * The estimator sends people here — "the job is where the address and the pin
+ * are set" — and there was nowhere to go. The pin is looked up again every time
+ * the address changes, because a pin that outlives the address it came from is
+ * the worst kind: it points somewhere confidently.
+ */
+export async function setJobPlace(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const job = str(form, 'job_id')
+  const line1 = str(form, 'line1')
+  if (!job) return { ok: false, message: 'No job.' }
+  if (!line1) return { ok: false, message: 'A site needs a street address — that is what the aerial is found from.' }
+
+  const g = await geocode({
+    address_line1: line1,
+    city: nul(form, 'city'), region: nul(form, 'region'),
+    postal_code: nul(form, 'postcode'), country: 'United States',
+  })
+  const siteAddress = [line1, [str(form, 'city'), [str(form, 'region'), str(form, 'postcode')]
+    .filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean).join(', ')
+
+  const { data, error } = await db.schema('hopper').from('fence_job')
+    .update({
+      site_address: siteAddress,
+      // A failed lookup leaves the old pin alone rather than clearing it: the
+      // address may have been mistyped, and the pin that was right yesterday is
+      // better than none while somebody fixes it.
+      ...(g.ok ? { lat: g.pin.latitude, lon: g.pin.longitude } : {}),
+      pin_note: nul(form, 'pin_note'),
+    })
+    .eq('account_id', account).eq('id', job).select('id, ref').maybeSingle()
+
+  if (error) return { ok: false, message: refused(error.message, 'job') }
+  if (!data) {
+    return {
+      ok: false,
+      message: 'Nothing changed. The address belongs to intake and the survey — sales sets it, '
+        + 'the project manager corrects it at the walk, and a sealed estimate is nobody’s to move.',
+    }
+  }
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object: (data as any).ref, object_id: job,
+    summary: `Set the site address on ${(data as any).ref} to ${siteAddress}`,
+  })
+  revalidatePath(`/fence/${job}`); revalidatePath(`/fence/${job}/estimate`)
+  return {
+    ok: true,
+    message: g.ok
+      ? 'Saved, and the pin moved with it. The estimator can draw on the aerial now.'
+      : `Saved, but there is still no pin: ${whyNoPin(g)}`,
   }
 }
