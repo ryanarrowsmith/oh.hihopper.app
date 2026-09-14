@@ -18,6 +18,7 @@ import { loadBilling } from '@/lib/billing'
 import { tellMentioned } from '@/lib/notify'
 import { SPINE, draft, spineOf, type Part } from '@/lib/sow'
 import { aiReady, askClaude, firstJson, MODEL } from '@/lib/ai'
+import { englishOf } from '@/lib/translate'
 import { factsFor, englishPrompt, spanishPrompt, figureCheck, mustKeepOf,
          numbersEverywhere, SYSTEM } from '@/lib/sow-ai'
 
@@ -2418,11 +2419,28 @@ export async function addNote(_p: Result | null, form: FormData): Promise<Result
     put = { path, name: f.name.slice(0, 200), bytes: f.size, mime: f.type || null }
   }
 
+  /* THE ENGLISH TWIN, WRITTEN ONCE, HERE. A note typed in Spanish is read in
+     English everywhere outside the crew's own steps — the log, the record, the
+     billing letter — and that translation is made at the moment of writing
+     rather than at every reading. The letter is built in SQL by a definer that
+     cannot call a model, and a translation made fresh each time would come out
+     differently on the screen and in the copy accounting filed.
+
+     The lookup is one column off the person already in hand, and it costs a
+     model call only when the answer is 'es'. Everybody else's note saves at the
+     speed it saved yesterday. */
+  const { data: me } = session.personId
+    ? await db.schema('hopper').from('person').select('lang')
+        .eq('account_id', session.accountId).eq('id', session.personId).maybeSingle()
+    : { data: null }
+  const twin = await englishOf(body, (me as any)?.lang ?? null)
+
   const { data, error } = await db.schema('hopper').from('fence_note')
     .insert({
       account_id: session.accountId, job_id: job, section,
       kind: put ? 'file' : 'note',
       body: body || put!.name, author_id: session.personId,
+      lang: twin.lang, body_en: twin.en,
       file_path: put?.path ?? null, file_name: put?.name ?? null,
       file_bytes: put?.bytes ?? null, file_mime: put?.mime ?? null,
     })

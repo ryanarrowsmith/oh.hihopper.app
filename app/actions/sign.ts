@@ -4,7 +4,7 @@ import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { supabaseService } from '@/lib/supabase/service'
 import { openQuote } from '@/lib/quote'
-import { money } from '@/lib/estimate'
+import { money, quoteLines, signedPage } from '@/lib/estimate'
 import type { Result } from '@/app/actions/admin'
 
 /* ==========================================================================
@@ -69,6 +69,35 @@ export async function signEstimate(
   const agent = (h.get('user-agent') ?? '').slice(0, 300) || null
   const origin = `https://${h.get('host') ?? 'oh.hihopper.app'}`
 
+  /* THE PAGE IS FROZEN IN THE SAME BREATH AS THE SIGNATURE.
+     Built by the function that drew what they just read, so what the billing
+     letter reproduces six months from now is the document that was agreed to
+     rather than a re-price of it. Nothing here re-derives a figure: the lines
+     come off the frozen takeoff, the extras off the revision, and the total is
+     the price on the option. */
+  const where = q.place
+    ? [q.place.line1, q.place.line2,
+       [q.place.city, q.place.region].filter(Boolean).join(', '), q.place.postcode]
+        .filter(Boolean).join(', ')
+    : q.job.site_address
+  const page = signedPage({
+    firm: !!q.firm,
+    ref: q.job.ref,
+    where,
+    specName: q.specName,
+    spec: q.option.spec_code,
+    company: q.company.name,
+    lines: quoteLines(q.frozen, (code) => q.gateNames.get(code) ?? code),
+    extras: q.firm?.extras ?? [],
+    before: q.firm?.before ?? null,
+    price: q.option.price,
+    issuedOn: q.issuedOn,
+    goodThrough: q.goodThrough,
+    signedName: name,
+    signedTitle: (who.title ?? '').trim().slice(0, 120) || null,
+    signedAt,
+  })
+
   /* 1 — the signature. Unique on link_id, so two presses of the button race to
      one row and the loser is told it is already signed rather than writing a
      second one. */
@@ -78,7 +107,7 @@ export async function signEstimate(
       signed_name: name,
       signed_title: (who.title ?? '').trim().slice(0, 120) || null,
       signed_email: (who.email ?? '').trim().slice(0, 200) || null,
-      signed_at: signedAt, ip, agent, price: q.option.price,
+      signed_at: signedAt, ip, agent, price: q.option.price, page,
     })
     .select('id').maybeSingle()
   if (sigErr || !sig) {

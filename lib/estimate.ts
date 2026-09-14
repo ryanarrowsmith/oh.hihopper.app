@@ -180,3 +180,138 @@ export function goodThrough(from: string | Date, days = GOOD_FOR_DAYS): string {
   const d = typeof from === 'string' ? new Date(from) : from
   return new Date(d.getTime() + days * 86_400_000).toISOString().slice(0, 10)
 }
+
+/* ==========================================================================
+   THE PAGE SOMEBODY SIGNED, AS A VALUE.
+
+   The billing letter reproduces the estimate and the firm quote as full pages,
+   and the letter is assembled in SQL by a security definer that reads what it
+   mails rather than being handed it. A definer cannot call quoteLines(), and
+   writing a second copy of quoteLines() in plpgsql would be two pricers in two
+   languages drifting apart on a document a customer already signed.
+
+   So the page is frozen the moment it is signed, by the same function that
+   drew it on the screen they signed on, and the definer reads the frozen copy.
+   That is the argument the accepted option already makes for its takeoff, one
+   step further along: a document outlives the moment it was made.
+
+   IT IS A VALUE, NOT MARKUP. Labels, cells and a total. What renders it is an
+   email in one place and a printed record in another, and neither of them
+   should be receiving HTML from the database.
+   ========================================================================== */
+
+/** A cell that may carry a quieter second line under it. */
+export type PageCell = string | { text: string; note: string }
+
+export type SignedPage = {
+  label: string
+  mast: string
+  mast_note: string
+  ref: string
+  ref_date: string
+  ref_note: string | null
+  title: string
+  lead: string
+  body: string
+  table: {
+    head: string[]
+    align: ('left' | 'right')[]
+    rows: PageCell[][]
+    total_label: string
+    total: string
+  }
+  signed_name: string | null
+  signed_title: string | null
+  signed_at: string | null
+}
+
+/* DAY, MONTH, YEAR — the order the rest of this letter already uses.
+   The record around it says "Sep 16, 2026" like every other screen in the app,
+   and the reproduced page deliberately does not: it sits inside a letter whose
+   facts are stamped by the database as "16 Sep 2026", and two spellings of the
+   same date on one page is the kind of thing somebody stops reading to work
+   out. A document reproduced twice has to read the same both times. */
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+const stamp = (iso: string | null | undefined) => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`
+}
+
+const at = (iso: string | null | undefined) => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  const clock = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  return `${stamp(iso)}, ${clock}`
+}
+
+export function signedPage(o: {
+  /** A revision is a firm price; the original is an estimate. */
+  firm: boolean
+  ref: string
+  /** The service address, said the way the customer says it. */
+  where: string | null
+  specName: string | null
+  spec: string | null
+  company: string | null
+  /** The customer's own lines, off quoteLines — never a re-price. */
+  lines: QuoteLine[]
+  /** What the survey found, on a firm price. Empty on an estimate. */
+  extras: { what: string; detail: string; amount: number }[]
+  /** The estimate figure a firm price is built on top of. */
+  before: number | null
+  price: number
+  issuedOn: string | null
+  goodThrough: string | null
+  signedName: string | null
+  signedTitle: string | null
+  signedAt: string | null
+}): SignedPage {
+  const what = o.specName ?? (o.spec ? specWords(o.spec) : 'Fence')
+
+  const rows: PageCell[][] = o.firm
+    ? [
+        ['Estimated at signing', '', money(o.before)],
+        ...o.extras.map((e): PageCell[] =>
+          [{ text: e.what, note: e.detail }, '', money(e.amount)]),
+      ]
+    : o.lines.map((l): PageCell[] =>
+        [{ text: l.what, note: l.detail }, l.qty, money(l.amount)])
+
+  return {
+    /* NOT NUMBERED HERE. "Page 1 of 1" frozen the day the estimate was signed
+       is a lie the day the firm price joins it. Whoever is assembling the
+       document counts the pages; this one only knows which page it is. */
+    label: o.firm ? 'the firm quote as signed' : 'the estimate as signed',
+    mast: o.company ?? 'On Call Services & Rentals',
+    mast_note: o.firm ? 'Firm price' : 'Estimate',
+    ref: o.ref,
+    ref_date: stamp(o.issuedOn),
+    ref_note: o.firm
+      ? 'confirmed by the survey'
+      : (o.goodThrough ? `good through ${stamp(o.goodThrough)}` : null),
+    title: o.where ? `${what} — ${o.where}` : what,
+    lead: o.firm
+      ? 'This is a firm price, not an estimate.'
+      : 'This is an estimate, not a final price.',
+    body: o.firm
+      ? 'Somebody has walked the line, measured it on the ground and seen what is in the '
+        + 'way. Everything that changed is listed with what it costs.'
+      : 'It is based on what we know today and confirmed after a site survey, when '
+        + 'somebody walks the line and sees what is in the way.',
+    table: {
+      head: ['Item', 'Qty', 'Amount'],
+      align: ['left', 'right', 'right'],
+      rows,
+      total_label: o.firm ? 'Firm total' : 'Estimated total',
+      total: money(o.price),
+    },
+    signed_name: o.signedName,
+    signed_title: o.signedTitle,
+    signed_at: o.signedAt ? at(o.signedAt) : null,
+  }
+}

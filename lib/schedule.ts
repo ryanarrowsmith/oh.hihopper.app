@@ -208,7 +208,7 @@ export async function loadCloseout(accountId: string, jobId: string) {
        renders the images off that one stream rather than a second table with a
        second uploader and a second place to look in March. */
     h().from('fence_note')
-      .select('id, body, section, created_at, by_crew, file_name, file_mime')
+      .select('id, body, body_en, section, created_at, by_crew, file_name, file_mime')
       .eq('account_id', accountId).eq('job_id', jobId)
       .not('file_path', 'is', null)
       .order('created_at', { ascending: false }),
@@ -256,7 +256,8 @@ export async function loadCloseout(accountId: string, jobId: string) {
       .map((n) => ({
         id: n.id as string,
         section: (n.section ?? null) as Section | null,
-        caption: (n.body ?? null) as string | null,
+        // Close-out is not the crew's own step, so the caption reads in English.
+        caption: ((n.body_en ?? n.body) ?? null) as string | null,
         takenBy: (n.by_crew ?? null) as string | null,
         name: (n.file_name ?? 'photograph') as string,
         createdAt: n.created_at as string,

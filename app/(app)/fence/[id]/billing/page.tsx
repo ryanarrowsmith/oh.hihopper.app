@@ -88,7 +88,7 @@ export default async function Billing({ params }: { params: Promise<{ id: string
      putting it in the letter would mail accounting somebody else's shop talk. */
   const pmNote = b.notes
     .filter((n: any) => n.section === 'billing')
-    .map((n: any) => String(n.body ?? '').trim()).filter(Boolean).join('\n\n') || null
+    .map((n: any) => String(n.said ?? n.body ?? '').trim()).filter(Boolean).join('\n\n') || null
 
   const message = sheet
     ? keyingMessage({

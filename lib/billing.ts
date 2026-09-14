@@ -1,6 +1,7 @@
 import 'server-only'
 import { supabaseServer } from '@/lib/supabase/server'
 import type { ChargeRule, ChargeCode, Sold, SheetLine } from '@/lib/handoff'
+import type { SignedPage } from '@/lib/estimate'
 
 /**
  * Everything the billing handoff reads, in one round trip.
@@ -23,7 +24,8 @@ export async function loadBilling(accountId: string, jobId: string) {
   const db = supabaseServer()
   const h = () => db.schema('hopper')
 
-  const [opt, rel, rules, codes, gateTypes, saved, revisions, targets, handoffs, notes, photos, sow] =
+  const [opt, rel, rules, codes, gateTypes, saved, revisions, targets, handoffs, notes,
+         photos, sow, signed] =
     await Promise.all([
       h().from('fence_option')
         .select('id, label, price, spec_code, priced_at, note, takeoff')
@@ -47,13 +49,21 @@ export async function loadBilling(accountId: string, jobId: string) {
       h().from('fence_handoff')
         .select('id, sent_at, navusoft_account, to_email, how, note, sheet, sent_by')
         .eq('account_id', accountId).eq('job_id', jobId).order('sent_at', { ascending: false }),
-      h().from('fence_note').select('body, section, created_at, by_crew, author_id')
+      h().from('fence_note').select('body, body_en, lang, section, created_at, by_crew, author_id')
         .eq('account_id', accountId).eq('job_id', jobId).order('created_at'),
       h().from('fence_photo').select('id, section, caption, created_at')
         .eq('account_id', accountId).eq('job_id', jobId).order('created_at'),
       h().from('fence_sow')
         .select('parts_en, parts_es, signed_at, signed_by, readability, written_en, written_es')
         .eq('account_id', accountId).eq('job_id', jobId).maybeSingle(),
+      /* THE DOCUMENTS SOMEBODY PUT THEIR NAME TO, with the page each of them
+         read at the moment they signed it. `page` is null on a signature taken
+         before 0152 — and the reader says the document is on file rather than
+         reconstructing it, because a rebuilt contract is worse than an absent
+         one. */
+      h().from('fence_signature')
+        .select('id, signed_name, signed_title, signed_at, price, page')
+        .eq('account_id', accountId).eq('job_id', jobId).order('signed_at'),
     ])
 
   const releasedIds = new Set(((rel.data ?? []) as any[]).map((r) => r.option_id))
@@ -91,11 +101,25 @@ export async function loadBilling(accountId: string, jobId: string) {
     handoffs: ((handoffs.data ?? []) as any[]).map((r) => ({
       ...r, sent_by_name: r.sent_by ? name.get(r.sent_by) ?? null : null,
     })) as Handoff[],
+    /* THE BILLING SCREEN IS NOT THE CREW'S OWN STEP, so a note typed in Spanish
+       reads in English here. `body` stays on the row for anyone who wants what
+       was actually typed; `said` is what this screen shows. */
     notes: ((notes.data ?? []) as any[]).map((n) => ({
-      ...n, author: n.by_crew ? 'The crew' : (n.author_id ? name.get(n.author_id) ?? null : null),
+      ...n,
+      said: (n.body_en ?? n.body) as string,
+      fromEs: n.lang === 'es' && !!n.body_en,
+      author: n.by_crew ? 'The crew' : (n.author_id ? name.get(n.author_id) ?? null : null),
     })),
     photos: (photos.data ?? []) as any[],
     sow: (sow.data ?? null) as any,
+    signed: ((signed.data ?? []) as any[]).map((r) => ({
+      id: r.id as string,
+      name: (r.signed_name ?? null) as string | null,
+      title: (r.signed_title ?? null) as string | null,
+      at: (r.signed_at ?? null) as string | null,
+      price: r.price == null ? null : Number(r.price),
+      page: (r.page ?? null) as SignedPage | null,
+    })),
   }
 }
 

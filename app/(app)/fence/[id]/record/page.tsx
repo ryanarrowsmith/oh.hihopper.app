@@ -250,7 +250,10 @@ export default async function Record({ params }: { params: Promise<{ id: string 
         {pmNotes.length > 0 && (
           <div className="fxrec__notes">
             {pmNotes.map((n: any, i: number) => (
-              <p key={i}><b>{n.author ?? 'Somebody'}</b> — {n.body}</p>
+              <p key={i}>
+                <b>{n.author ?? 'Somebody'}</b> — {n.said ?? n.body}
+                {n.fromEs && <i> (written in Spanish on the crew ticket)</i>}
+              </p>
             ))}
           </div>
         )}
@@ -306,6 +309,74 @@ export default async function Record({ params }: { params: Promise<{ id: string 
           <p className="fxrec__lead">Not yet handed to accounting.</p>
         )}
       </section>
+
+      {/* 7 -------------------------------------------------------------- */}
+      {b.signed.length > 0 && (
+        <section className="pblock">
+          <div className="pblock__h"><h2>7 · Signed documents</h2></div>
+          {b.signed.map((sg, i) => {
+            const pg = sg.page
+            if (!pg) {
+              return (
+                <p key={sg.id} className="fxrec__lead">
+                  <b>{sg.name ?? 'Somebody'}</b> signed {day(sg.at)} at {money(sg.price)}.
+                  The signed document is on file and was taken before this record
+                  reproduced pages.
+                </p>
+              )
+            }
+            return (
+              <div className="pgwrap" key={sg.id}>
+                <p className="pglbl">
+                  <span>Page {i + 1} of {b.signed.length} · {pg.label}</span>
+                </p>
+                <div className="pg">
+                  <div className="pg__m">
+                    <b>{pg.mast}<small>{pg.mast_note}</small></b>
+                    <span><u>{pg.ref}</u>{pg.ref_date}
+                      {pg.ref_note && <><br />{pg.ref_note}</>}</span>
+                  </div>
+                  <h4>{pg.title}</h4>
+                  <p className="pg__b"><b>{pg.lead}</b> {pg.body}</p>
+                  <table className="pg__t">
+                    <thead><tr>
+                      {pg.table.head.map((hd, k) => (
+                        <th key={k} className={pg.table.align[k] === 'right' ? 'fxnum' : undefined}>
+                          {hd}</th>
+                      ))}
+                    </tr></thead>
+                    <tbody>
+                      {pg.table.rows.map((row, r) => (
+                        <tr key={r}>
+                          {row.map((cell, k) => (
+                            <td key={k}
+                                className={pg.table.align[k] === 'right' ? 'fxnum' : undefined}>
+                              {typeof cell === 'string' ? cell : (
+                                <>{cell.text}<small>{cell.note}</small></>
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot><tr>
+                      <td>{pg.table.total_label}</td>
+                      {pg.table.head.slice(2).map((_, k) => <td key={k} className="fxnum" />)}
+                      <td className="fxnum">{pg.table.total}</td>
+                    </tr></tfoot>
+                  </table>
+                  <div className="pgsign">
+                    <span className="pgsign__n">{pg.signed_name}</span>
+                    <span className="pgsign__l">Signed by<b>
+                      {[pg.signed_name, pg.signed_title].filter(Boolean).join(', ')}</b></span>
+                    <span className="pgsign__l">On<b>{pg.signed_at ?? day(sg.at)}</b></span>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </section>
+      )}
 
       <div className="pdoc__foot">
         <span>{job.ref} · {job.name}</span>

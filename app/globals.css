@@ -9385,6 +9385,65 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 .fxrec__map img{width:100%; height:auto; display:block; border:1px solid var(--rule)}
 .fxrec__notes{margin-top:4mm}
 .fxrec__notes p{margin:0 0 2mm; font-size:9.5pt; line-height:1.6; color:var(--ink-2)}
+.fxrec__notes i{font-style:italic; color:var(--ink-3)}
+
+/* --------------------------------------------------------------------------
+   THE SIGNED DOCUMENTS, REPRODUCED AS PAGES.
+
+   Not a card summarizing a contract: the contract, at the foot of the record
+   and again at the foot of the billing letter, so the thing that is printed and
+   the thing accounting receives are the same document. It is drawn from the
+   page frozen on the signature — labels, cells and a total — so what appears
+   here is what was on the screen when somebody typed their name, not a reprice
+   of it.
+
+   It is inset and paler than the record around it, because it is a quotation.
+   A reproduction that looks exactly like the page reproducing it is a page
+   somebody will mistake for the original.
+   -------------------------------------------------------------------------- */
+.pgwrap{margin-top:6mm; break-inside:avoid; page-break-inside:avoid}
+.pglbl{margin:0 0 2mm; display:flex; align-items:center; gap:3mm}
+.pglbl span{font-family:var(--mono); font-size:7pt; font-weight:700;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); white-space:nowrap}
+.pglbl::after{content:''; flex:1 1 auto; height:1px; background:var(--rule)}
+
+.pg{border:1px solid var(--rule); background:var(--sunken); padding:7mm 8mm 8mm}
+.pg__m{display:flex; align-items:flex-start; justify-content:space-between; gap:6mm;
+  padding-bottom:3mm; border-bottom:1.5px solid var(--ink)}
+.pg__m b{font-size:10.5pt; font-weight:800; letter-spacing:-.02em; line-height:1.15}
+.pg__m b small{display:block; margin-top:1mm; font-family:var(--mono); font-size:6.5pt;
+  font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3)}
+.pg__m span{flex:none; text-align:right; font-family:var(--mono); font-size:7pt;
+  line-height:1.6; color:var(--ink-3)}
+.pg__m u{display:block; text-decoration:none; font-size:8.5pt; font-weight:700;
+  letter-spacing:.06em; color:var(--ink)}
+
+.pg h4{margin:4mm 0 2.5mm; font-size:12pt; font-weight:800; letter-spacing:-.02em;
+  line-height:1.2}
+.pg__b{margin:0 0 4mm; font-size:9pt; line-height:1.6; color:var(--ink-2); max-width:58ch}
+.pg__b b{color:var(--ink); font-weight:700}
+
+.pg__t{width:100%; border-collapse:collapse}
+.pg__t th{padding:0 3mm 1.5mm 0; border-bottom:1.5px solid var(--ink); text-align:left;
+  font-family:var(--mono); font-size:6.5pt; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-2)}
+.pg__t td{padding:2mm 3mm 2mm 0; border-bottom:1px solid var(--rule-soft);
+  font-size:9pt; line-height:1.45; vertical-align:top}
+.pg__t td small{display:block; margin-top:.6mm; font-size:7.5pt; color:var(--ink-3)}
+.pg__t .fxnum{font-family:var(--mono); text-align:right; white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.pg__t tfoot td{border-bottom:0; border-top:1.5px solid var(--ink); padding-top:2.5mm;
+  font-weight:800; font-size:10pt}
+
+/* The name in the hand it was typed in, over the line it was typed on. The two
+   labels under it are the record: what they said their title was, and when. */
+.pgsign{margin-top:7mm; display:grid; gap:1.5mm; break-inside:avoid}
+.pgsign__n{font-family:var(--hand); font-size:20pt; line-height:1; color:var(--ink);
+  padding-bottom:1.5mm; border-bottom:1px solid var(--ink); max-width:70mm}
+.pgsign__l{font-family:var(--mono); font-size:6.5pt; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3)}
+.pgsign__l b{font-family:var(--sans); font-size:9pt; font-weight:700; letter-spacing:0;
+  text-transform:none; color:var(--ink); margin-left:2mm}
 
 
 /* ==========================================================================
@@ -9750,6 +9809,8 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
 .fjlog__l li{padding:12px 0; border-top:1px solid var(--rule-soft)}
 .fjlog__l li:first-child{border-top:0}
 .fjlog__l p{margin:0; font-size:14px; line-height:1.6; white-space:pre-line}
+.fjlog__l p.fjlog__from{margin-top:4px; font-size:11.5px; font-style:italic;
+  color:var(--ink-3); white-space:normal}
 .fjlog__l span{display:flex; gap:10px; flex-wrap:wrap; align-items:baseline; margin-top:5px}
 .fjlog__l b{font-size:12.5px; font-weight:700; color:var(--ink-2)}
 .fjlog__l i{font-style:normal; font-family:var(--mono); font-size:10.5px;

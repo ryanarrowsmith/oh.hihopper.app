@@ -96,14 +96,15 @@ export default async function Page({ params, searchParams }: {
        the job's memory: the reason a gate moved, the day the locate came back,
        what the customer said on the phone. */
     supabaseServer().schema('hopper').from('fence_note')
-      .select('id, body, section, created_at, author_id, by_crew, file_path, file_name, file_mime, file_bytes')
+      .select('id, body, body_en, lang, section, created_at, author_id, by_crew, file_path, file_name, file_mime, file_bytes')
       .eq('account_id', session.accountId).eq('job_id', id)
       .order('created_at', { ascending: false }).limit(60),
     supabaseServer().schema('hopper').from('directory')
       .select('id, full_name').eq('active', true),
   ])
   const notes = (log ?? []) as
-    { id: string; body: string; section: Section | null; created_at: string
+    { id: string; body: string; body_en: string | null; lang: string | null
+      section: Section | null; created_at: string
       author_id: string | null; by_crew: string | null
       file_path: string | null; file_name: string | null
       file_mime: string | null; file_bytes: number | null }[]
@@ -407,7 +408,14 @@ export default async function Page({ params, searchParams }: {
                 : null
               return (
                 <li key={nte.id}>
-                  <p><Mentioned text={nte.body} roster={roster} /></p>
+                  {/* THE ENGLISH, AND A LINE SAYING SO. This is the job's log,
+                      which is outside the crew's own steps, so a note typed in
+                      Spanish reads in English here — and says that it was. The
+                      original is never replaced; body_en sits beside it. */}
+                  <p><Mentioned text={nte.body_en ?? nte.body} roster={roster} /></p>
+                  {nte.lang === 'es' && nte.body_en && (
+                    <p className="fjlog__from">Written in Spanish on the crew ticket</p>
+                  )}
                   {nte.file_path && (
                     nte.file_mime?.startsWith('image/') ? (
                       <a className="fjshot" href={`/api/fence/file/${nte.id}`}

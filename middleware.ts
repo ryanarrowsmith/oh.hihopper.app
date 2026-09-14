@@ -9,8 +9,12 @@ import { NextResponse, type NextRequest } from 'next/server'
    estimate they were sent. The secret in the path is what stands in for a
    session, exactly as it does for `cal`. Without this the crew ticket redirects
    a crew to a sign-in page they cannot pass. */
+/* /shot is open for the same reason and by the same means: the billing letter
+   goes to accounting, accounting has no account, and a photograph in a letter
+   that redirects to a sign-in page is a broken image. The job's own token is in
+   the path and the route checks it against the note. */
 const PUBLIC = ['/sign-in', '/forgot', '/reset', '/auth', '/no-access', '/landing',
-                '/beta/', '/t/', '/e/']
+                '/beta/', '/t/', '/e/', '/shot/']
 
 /* The bare domain is the landing page; oh. is the app.
    One project, one deploy, one set of keys — the host decides which face a
