@@ -73,7 +73,8 @@ export default async function Estimate({ params }: { params: { id: string } }) {
      the newest and lets the rest be history. */
   const [{ data: links }, { data: signatures }, { data: people }, h] = await Promise.all([
     db.schema('hopper').from('fence_quote_link')
-      .select('id, token, option_id, issued_at, expires_on, revoked, signed_at')
+      .select('id, token, option_id, issued_at, expires_on, revoked, signed_at,'
+        + ' mailed_at, mailed_to')
       .eq('account_id', session.accountId).eq('job_id', params.id)
       .order('issued_at', { ascending: false }),
     db.schema('hopper').from('fence_signature')
@@ -539,7 +540,7 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                                 <input type="hidden" name="job_id" value={params.id} />
                                 <input type="hidden" name="option_id" value={q.id} />
                                 <button className="btn btn--amber" type="submit">
-                                  Send it to sign
+                                  {forWhom?.email ? `Send it to ${forWhom.full_name}` : 'Make a signing link'}
                                 </button>
                               </form>
                             )}
@@ -575,6 +576,20 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                     ) : live ? (
                       <>
                         <h3 className="fxsub">Out to sign</h3>
+                        {live.mailed_at ? (
+                          <p className="fxsigned">
+                            <FenceMark kind="done">
+                              Emailed {String(live.mailed_at).slice(0, 10)}
+                            </FenceMark>
+                            <small>{live.mailed_to}</small>
+                          </p>
+                        ) : (
+                          <p className="fxsigned">
+                            <FenceMark kind="warn">Not emailed</FenceMark>
+                            <small>Nobody on this job had an address, so the link is yours to
+                              send</small>
+                          </p>
+                        )}
                         <QuoteLink url={`${origin}/e/${live.token}`} />
                         <p className="fxhint">
                           {quotes.find((q) => q.id === live.option_id)?.label ?? 'One option'}

@@ -84,6 +84,16 @@ export type Settings = {
   /** Null when this person may not read what labor costs us. */
   crew_rate: number | null
   labor_markup: number | null
+  /* The letterhead: what is printed at the foot of a customer's estimate, and
+     how long one stands. Every one nullable -- an estimate with no license
+     number is a worse document, not a broken one. */
+  company_name: string | null
+  company_line1: string | null
+  company_line2: string | null
+  company_phone: string | null
+  company_site: string | null
+  company_license: string | null
+  estimate_days: number
 }
 
 /** The row, and whether the two cost figures on it were readable. Those are
@@ -192,7 +202,9 @@ export async function loadSettings(accountId: string): Promise<SettingsRead> {
   const db = supabaseServer()
   const [plain, cost, rights] = await Promise.all([
     db.schema('hopper').from('fence_settings')
-      .select('margin_floor, waste_pct, link_expires').eq('account_id', accountId).maybeSingle(),
+      .select('margin_floor, waste_pct, link_expires, company_name, company_line1,'
+        + ' company_line2, company_phone, company_site, company_license, estimate_days')
+      .eq('account_id', accountId).maybeSingle(),
     db.schema('hopper').from('fence_cost_settings')
       .select('crew_rate, labor_markup').eq('account_id', accountId).maybeSingle(),
     loadRights(accountId),
@@ -207,6 +219,13 @@ export async function loadSettings(accountId: string): Promise<SettingsRead> {
       link_expires: r.link_expires,
       crew_rate: c ? Number(c.crew_rate) : null,
       labor_markup: c ? Number(c.labor_markup) : null,
+      company_name: r.company_name ?? null,
+      company_line1: r.company_line1 ?? null,
+      company_line2: r.company_line2 ?? null,
+      company_phone: r.company_phone ?? null,
+      company_site: r.company_site ?? null,
+      company_license: r.company_license ?? null,
+      estimate_days: Number(r.estimate_days ?? 30),
     } : null,
   }
 }

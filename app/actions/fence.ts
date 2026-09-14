@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import { currentSession } from '@/lib/tenant'
@@ -1915,6 +1916,13 @@ export async function noteForBilling(_p: Result | null, form: FormData): Promise
  * price nobody senior has agreed to yet, and a signature on it is binding in a
  * way a screen warning is not. The estimator sees the same rule at the seal;
  * this is the earlier door onto the same room.
+ *
+ * IT ACTUALLY SENDS, when there is somebody to send it to. Ryan's call, 14 Sep.
+ * The letter goes out over the COMPANY'S name -- On Call Services and Rentals,
+ * not Hopper -- because the person reading it is dealing with a fencing company
+ * and has never heard of the software. The link still shows on the screen after,
+ * because a customer who says they never got it needs somebody able to paste it
+ * into a reply.
  */
 export async function sendForSignature(_p: Result | null, form: FormData): Promise<Result> {
   const { db, account } = await ctx()
@@ -1958,11 +1966,13 @@ export async function sendForSignature(_p: Result | null, form: FormData): Promi
       account_id: account, job_id: job, option_id: optionId,
       issued_by: session?.personId ?? null, expires_on: expires,
     })
-    .select('token').maybeSingle()
+    .select('id, token').maybeSingle()
   if (error) return { ok: false, message: refused(error.message, 'estimate') }
   if (!data) {
     return { ok: false, message: 'Nothing was issued. The estimate is either sealed or not yours.' }
   }
+
+  const sent = await mailTheEstimate(db, account, job, data as any, opt as any, days)
 
   await logAudit(db, {
     account_id: account, kind: 'fence', object: (opt as any).label, object_id: job,
@@ -1970,7 +1980,79 @@ export async function sendForSignature(_p: Result | null, form: FormData): Promi
       + `$${Number((opt as any).price ?? 0).toLocaleString('en-US')}`,
   })
   revalidatePath(`/fence/${job}/estimate`)
-  return { ok: true, message: `Link ready, good for ${days} days. Copy it and send it.` }
+  return {
+    ok: true,
+    message: sent
+      ? `Sent to ${sent}. Good for ${days} days.`
+      : `Link ready, good for ${days} days. Nobody has an address on this job, so copy it `
+        + `and send it yourself.`,
+  }
+}
+
+/** The letter, when there is somebody to send it to. Returns the address it
+ *  went to, or null when there was none — which is a fact the screen says out
+ *  loud rather than a failure. */
+async function mailTheEstimate(
+  db: ReturnType<typeof supabaseServer>,
+  account: string, job: string,
+  link: { id: string; token: string },
+  opt: { label: string; price: number | null; takeoff: any },
+  days: number,
+): Promise<string | null> {
+  const session = await currentSession()
+  const [{ data: row }, { data: settings }] = await Promise.all([
+    db.schema('hopper').from('fence_job')
+      .select('ref, name, customer, site_address, contact_id')
+      .eq('account_id', account).eq('id', job).maybeSingle(),
+    db.schema('hopper').from('fence_settings')
+      .select('company_name').eq('account_id', account).maybeSingle(),
+  ])
+  if (!(row as any)?.contact_id) return null
+
+  const { data: to } = await db.schema('hopper').from('fence_contact')
+    .select('full_name, email').eq('account_id', account)
+    .eq('id', (row as any).contact_id).maybeSingle()
+  const email = String((to as any)?.email ?? '').trim().toLowerCase()
+  if (!email) return null
+
+  const h = await headers()
+  const origin = `https://${h.get('host') ?? 'oh.hihopper.app'}`
+  const feet = Number(opt.takeoff?.measure?.fence_ft ?? 0)
+  const where = (row as any).site_address
+  const company = (settings as any)?.company_name || 'us'
+
+  const { error } = await db.schema('beebee').from('mail_outbox').insert({
+    kind: 'fence.estimate', app_id: 'hopper',
+    to_email: email, to_name: (to as any)?.full_name ?? null,
+    payload: {
+      // The company's name on the envelope, not the software's. The address
+      // stays ours because that is what is signed; only the name a person
+      // reads changes.
+      from_name: company,
+      job: `${(row as any).ref}${(row as any).name ? ` · ${(row as any).name}` : ''}`,
+      url: `${origin}/e/${link.token}`,
+      what: feet > 0
+        ? `an estimate for about ${Math.round(feet).toLocaleString('en-US')} feet of fence`
+          + (where ? ` at ${where}` : '')
+        : 'an estimate for your fence',
+      facts: [
+        { label: 'Reference', value: (row as any).ref },
+        { label: 'Where the work is', value: where },
+        { label: 'Good through', value: new Date(Date.now() + days * 86_400_000)
+            .toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) },
+        { label: 'Your estimator', value: session?.displayName ?? null },
+      ],
+      author: session?.displayName ?? null,
+      reply_to: session?.email ?? null,
+    },
+    status: 'pending', attempts: 0,
+  })
+  if (error) return null
+
+  await db.schema('hopper').from('fence_quote_link')
+    .update({ mailed_at: new Date().toISOString(), mailed_to: email })
+    .eq('account_id', account).eq('id', link.id)
+  return email
 }
 
 /** Stop a link working. An unsigned estimate somebody has changed their mind
@@ -2056,4 +2138,46 @@ export async function setJobContact(_p: Result | null, form: FormData): Promise<
   revalidatePath(`/fence/${job}/estimate`)
   revalidatePath(`/fence/${job}`)
   return { ok: true, message: name ? `${name} is on the estimate.` : 'Contact set.' }
+}
+
+/**
+ * The letterhead: what goes at the foot of an estimate, and how long one lasts.
+ *
+ * Its own action rather than more fields on setFenceSettings, because these are
+ * printed on a document that leaves the building and read by somebody with no
+ * account — where the margin floor is an internal rule nobody outside ever
+ * sees. Administrators only, like every other account-wide setting.
+ */
+export async function setCompany(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+
+  const days = num(form, 'estimate_days')
+  if (days === null || days < 1 || days > 365) {
+    return {
+      ok: false,
+      message: 'An estimate is good for somewhere between a day and a year. '
+        + 'A price with no end on it is a price somebody holds you to next spring.',
+    }
+  }
+
+  const { data, error } = await db.schema('hopper').from('fence_settings').upsert({
+    account_id: account,
+    company_name: nul(form, 'company_name'),
+    company_line1: nul(form, 'company_line1'),
+    company_line2: nul(form, 'company_line2'),
+    company_phone: nul(form, 'company_phone'),
+    company_site: nul(form, 'company_site'),
+    company_license: nul(form, 'company_license'),
+    estimate_days: Math.round(days),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'account_id' }).select('account_id').maybeSingle()
+  if (error) return { ok: false, message: refused(error.message, 'these settings') }
+  if (!data) return { ok: false, message: 'That is not yours to change.' }
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object: 'Estimate letterhead',
+    summary: `Set what goes on an estimate, good for ${Math.round(days)} days`,
+  })
+  revalidatePath('/admin/fence')
+  return { ok: true, message: 'Saved. Every estimate from here carries it.' }
 }

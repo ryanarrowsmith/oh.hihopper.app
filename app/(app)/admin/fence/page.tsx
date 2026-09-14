@@ -8,6 +8,7 @@ import Choice from '@/components/Choice'
 import { FenceMark } from '@/components/FenceMark'
 import { loadFenceAdmin, editsFor } from '@/lib/fence-admin'
 import { loadRates, rateAge, RATE_KINDS, SECTIONS, ROLE_WORD, type JobRole } from '@/lib/fence'
+import { setCompany } from '@/app/actions/fence'
 import { LANG_NAME } from '@/lib/i18n'
 import {
   setFencePerson, dropFencePerson, setRate, setSpec, setGateType,
@@ -30,7 +31,8 @@ export const dynamic = 'force-dynamic'
  * lines further down.
  */
 
-const KEYS = ['people', 'plan', 'rates', 'specs', 'glossary', 'billing', 'crews', 'pricing'] as const
+const KEYS = ['people', 'plan', 'rates', 'specs', 'glossary', 'billing', 'crews',
+              'pricing', 'company'] as const
 type Key = (typeof KEYS)[number]
 
 const TITLE: Record<Key, string> = {
@@ -42,6 +44,7 @@ const TITLE: Record<Key, string> = {
   billing: 'Charge codes and billing',
   crews: 'Crews',
   pricing: 'Pricing settings',
+  company: 'What goes on an estimate',
 }
 
 const ROLES = (['sales', 'pm', 'field', 'billing'] as JobRole[])
@@ -157,6 +160,7 @@ export default async function FenceAdmin(
       {s === 'billing' && <Billing codes={a.codes} rules={a.rules} targets={a.targets} may={may} />}
       {s === 'crews' && <Crews crews={a.crews} people={a.people} may={may} />}
       {s === 'pricing' && <Pricing read={a.settings} may={may} />}
+      {s === 'company' && <Company read={a.settings} may={may} />}
     </>
   )
 }
@@ -1276,5 +1280,84 @@ function Pricing({ read, may }: {
         </div>
       </section>
     </>
+  )
+}
+
+// ---------------------------------------------------------------- company
+/**
+ * What goes on an estimate.
+ *
+ * Everything here is printed on a document that LEAVES THE BUILDING and is
+ * read by somebody with no account. That is why it is its own section rather
+ * than four more fields under pricing: the margin floor is an internal rule,
+ * and this is the letterhead.
+ *
+ * Every field is optional and the footer simply omits what is empty, because
+ * an estimate with no license number is a worse document rather than a broken
+ * one. The exception is how long an estimate stands: a document that does not
+ * say when it expires is a price somebody can hold you to next spring.
+ */
+function Company({ read, may }: {
+  read: Awaited<ReturnType<typeof loadFenceAdmin>>['settings']; may: boolean
+}) {
+  const s = read.row as any
+
+  return (
+    <section className="sec">
+      <div className="sec__h"><div className="sec__t">
+        <h2>What goes on an estimate</h2>
+      </div></div>
+
+      {!may ? (
+        <div className="fjaown">
+          <div className="fjaown__r"><b>Company</b>
+            <span>{s?.company_name ?? <i className="fjnone">not set</i>}</span></div>
+          <div className="fjaown__r"><b>Address</b>
+            <span>{[s?.company_line1, s?.company_line2].filter(Boolean).join(', ')
+              || <i className="fjnone">not set</i>}</span></div>
+          <div className="fjaown__r"><b>Phone</b>
+            <span className="fjamono">{s?.company_phone ?? <i className="fjnone">not set</i>}</span></div>
+          <div className="fjaown__r"><b>An estimate is good for</b>
+            <span className="fjamono">{s?.estimate_days ?? 30} days</span></div>
+        </div>
+      ) : (
+        <ActionForm action={setCompany} label="Save it">
+          <div className="formrow">
+            <div><label htmlFor="co-name">Company name</label>
+              <input className="field" id="co-name" name="company_name"
+                     defaultValue={s?.company_name ?? ''} />
+              <p className="fjahint">The name at the foot of every estimate.</p></div>
+          </div>
+          <div className="formrow" style={{ marginTop: 12 }}>
+            <div><label htmlFor="co-l1">Street</label>
+              <input className="field" id="co-l1" name="company_line1"
+                     defaultValue={s?.company_line1 ?? ''} /></div>
+            <div><label htmlFor="co-l2">City, state and ZIP</label>
+              <input className="field" id="co-l2" name="company_line2"
+                     defaultValue={s?.company_line2 ?? ''} /></div>
+          </div>
+          <div className="formrow" style={{ marginTop: 12 }}>
+            <div><label htmlFor="co-ph">Phone</label>
+              <input className="field" id="co-ph" name="company_phone"
+                     defaultValue={s?.company_phone ?? ''} /></div>
+            <div><label htmlFor="co-web">Website</label>
+              <input className="field" id="co-web" name="company_site"
+                     defaultValue={s?.company_site ?? ''} placeholder="oncallok.com" /></div>
+            <div><label htmlFor="co-lic">License number</label>
+              <input className="field" id="co-lic" name="company_license"
+                     defaultValue={s?.company_license ?? ''} />
+              <p className="fjahint">Left off the document when it is empty.</p></div>
+          </div>
+          <div className="formrow" style={{ marginTop: 12 }}>
+            <div><label htmlFor="co-days">An estimate is good for, days</label>
+              <input className="field" id="co-days" name="estimate_days" inputMode="numeric"
+                     defaultValue={s?.estimate_days ?? 30} />
+              <p className="fjahint">The date on the document is worked out from this, and the
+                signing link stops opening on it. A customer cannot sign a price that has
+                expired, which is the whole point of saying when it does.</p></div>
+          </div>
+        </ActionForm>
+      )}
+    </section>
   )
 }
