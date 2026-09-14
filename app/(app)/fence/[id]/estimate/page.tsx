@@ -10,7 +10,10 @@ import FenceDraw from '@/components/FenceDraw'
 import FenceGates from '@/components/FenceGates'
 import ActionForm from '@/components/ActionForm'
 import Choice from '@/components/Choice'
-import { setJobSpec, putOnQuote, releaseOption, acceptOption } from '@/app/actions/fence'
+import QuoteLink from '@/components/QuoteLink'
+import { setJobSpec, putOnQuote, releaseOption, acceptOption,
+         sendForSignature, revokeQuoteLink } from '@/app/actions/fence'
+import { headers } from 'next/headers'
 import type { LngLat } from '@/lib/geo'
 
 export const dynamic = 'force-dynamic'
@@ -63,6 +66,25 @@ export default async function Estimate({ params }: { params: { id: string } }) {
         .eq('account_id', session.accountId).eq('job_id', params.id)
         .order('priced_at', { ascending: false }),
     ])
+
+  /* What has gone out to be signed, and what came back. One live link at a
+     time by construction -- issuing a new one revokes the old -- so this reads
+     the newest and lets the rest be history. */
+  const [{ data: links }, { data: signatures }, h] = await Promise.all([
+    db.schema('hopper').from('fence_quote_link')
+      .select('id, token, option_id, issued_at, expires_on, revoked, signed_at')
+      .eq('account_id', session.accountId).eq('job_id', params.id)
+      .order('issued_at', { ascending: false }),
+    db.schema('hopper').from('fence_signature')
+      .select('id, option_id, signed_name, signed_title, signed_at, price')
+      .eq('account_id', session.accountId).eq('job_id', params.id)
+      .order('signed_at', { ascending: false }),
+    headers(),
+  ])
+  const allLinks = (links ?? []) as any[]
+  const live = allLinks.find((l) => !l.revoked && !l.signed_at) ?? null
+  const signed = ((signatures ?? []) as any[])[0] ?? null
+  const origin = `https://${h.get('host') ?? 'oh.hihopper.app'}`
 
   // Which of those quotes has been let out below the floor, and by whom. Its own
   // table, so releasing touches nothing about the option it releases.
@@ -424,6 +446,18 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                                 <button className="btn btn--amber" type="submit">Release it</button>
                               </form>
                             )}
+                            {mayEdit && !q.accepted && !signed && (
+                              <form className="fxopt__go" action={async (f: FormData) => {
+                                'use server'
+                                await sendForSignature(null, f)
+                              }}>
+                                <input type="hidden" name="job_id" value={params.id} />
+                                <input type="hidden" name="option_id" value={q.id} />
+                                <button className="btn btn--amber" type="submit">
+                                  Send it to sign
+                                </button>
+                              </form>
+                            )}
                             {mayEdit && !q.accepted && (
                               <form className="fxopt__go" action={async (f: FormData) => {
                                 'use server'
@@ -437,12 +471,51 @@ export default async function Estimate({ params }: { params: { id: string } }) {
                         )
                       })}
                     </ul>
-                    {mayEdit && !quotes.some((q) => q.accepted) && (
-                      <p className="fxhint">
-                        None marked sold. Billing rolls its sheet up out of the sold quote, and the
-                        seal at handoff makes the answer permanent.
+                    {/* Out to sign, or signed. A signature is the handoff: it marks
+                        the sale, seals this section and dates the project manager's
+                        plan from the day the customer agreed. */}
+                    {signed ? (
+                      <p className="fxsigned">
+                        <FenceMark kind="done">
+                          Signed {String(signed.signed_at).slice(0, 10)}
+                        </FenceMark>
+                        <small>
+                          {signed.signed_name}
+                          {signed.signed_title ? `, ${signed.signed_title}` : ''}
+                          {signed.price != null
+                            ? ` · ${money(Number(signed.price))}`
+                            : ''}
+                        </small>
                       </p>
-                    )}
+                    ) : live ? (
+                      <>
+                        <h3 className="fxsub">Out to sign</h3>
+                        <QuoteLink url={`${origin}/e/${live.token}`} />
+                        <p className="fxhint">
+                          {quotes.find((q) => q.id === live.option_id)?.label ?? 'One option'}
+                          , good through {live.expires_on ?? 'no date'}. Signing marks it sold,
+                          seals the estimate and opens the project manager&rsquo;s list dated from
+                          that day &mdash; so send the one they should be looking at.
+                        </p>
+                        {mayEdit && (
+                          <form action={async (f: FormData) => {
+                            'use server'
+                            await revokeQuoteLink(null, f)
+                          }}>
+                            <input type="hidden" name="job_id" value={params.id} />
+                            <input type="hidden" name="link_id" value={live.id} />
+                            <button className="btn btn--quiet" type="submit">
+                              Stop this link working
+                            </button>
+                          </form>
+                        )}
+                      </>
+                    ) : mayEdit && !quotes.some((q) => q.accepted) ? (
+                      <p className="fxhint">
+                        None marked sold. Send one to sign and the customer settles it, or mark
+                        it sold by hand if they already have.
+                      </p>
+                    ) : null}
                     {quotes.some((q) => q.takeoff?.below_floor && !released.get(q.id))
                       && !rights.mayRelease && (
                       <p className="note">

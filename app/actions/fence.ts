@@ -1902,3 +1902,94 @@ export async function noteForBilling(_p: Result | null, form: FormData): Promise
   revalidatePath(`/fence/${job}/billing`)
   return { ok: true, message: 'Saved. Billing sees it on the handoff.' }
 }
+
+/**
+ * Send an estimate to the customer to sign.
+ *
+ * Issues one link against ONE option, because a customer signs a price rather
+ * than a folder. Hopper composes it and a person sends it, the same way the
+ * billing letter works: mail an app writes gets eaten by corporate filters, and
+ * the salesperson is talking to this customer anyway.
+ *
+ * A THIN QUOTE CANNOT BE SENT. Under the margin floor and not released is a
+ * price nobody senior has agreed to yet, and a signature on it is binding in a
+ * way a screen warning is not. The estimator sees the same rule at the seal;
+ * this is the earlier door onto the same room.
+ */
+export async function sendForSignature(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const session = await currentSession()
+  const job = str(form, 'job_id')
+  const optionId = str(form, 'option_id')
+  if (!job || !optionId) return { ok: false, message: 'No option.' }
+
+  const [{ data: opt }, { data: rel }, { data: settings }] = await Promise.all([
+    db.schema('hopper').from('fence_option').select('id, label, price, takeoff')
+      .eq('account_id', account).eq('job_id', job).eq('id', optionId).maybeSingle(),
+    db.schema('hopper').from('fence_option_release').select('option_id')
+      .eq('account_id', account).eq('option_id', optionId).maybeSingle(),
+    db.schema('hopper').from('fence_settings').select('estimate_days')
+      .eq('account_id', account).maybeSingle(),
+  ])
+  if (!opt) return { ok: false, message: 'That option is not on this job.' }
+  if ((opt as any).takeoff?.below_floor && !rel) {
+    return {
+      ok: false,
+      message: 'This one is under the margin floor and has not been released. '
+        + 'A signature on it binds the company to a price nobody senior has agreed to.',
+    }
+  }
+  if (!Number((opt as any).price)) {
+    return { ok: false, message: 'That option has no price on it, so there is nothing to sign.' }
+  }
+
+  const days = Number((settings as any)?.estimate_days ?? 30)
+  const expires = new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10)
+
+  // Any older link on this job stops working. Two live links on one job is two
+  // prices a customer could sign, and the second one arriving is exactly how a
+  // superseded quote gets signed.
+  await db.schema('hopper').from('fence_quote_link')
+    .update({ revoked: true })
+    .eq('account_id', account).eq('job_id', job).eq('revoked', false).is('signed_at', null)
+
+  const { data, error } = await db.schema('hopper').from('fence_quote_link')
+    .insert({
+      account_id: account, job_id: job, option_id: optionId,
+      issued_by: session?.personId ?? null, expires_on: expires,
+    })
+    .select('token').maybeSingle()
+  if (error) return { ok: false, message: refused(error.message, 'estimate') }
+  if (!data) {
+    return { ok: false, message: 'Nothing was issued. The estimate is either sealed or not yours.' }
+  }
+
+  await logAudit(db, {
+    account_id: account, kind: 'fence', object: (opt as any).label, object_id: job,
+    summary: `Sent ${(opt as any).label} out for signature at `
+      + `$${Number((opt as any).price ?? 0).toLocaleString('en-US')}`,
+  })
+  revalidatePath(`/fence/${job}/estimate`)
+  return { ok: true, message: `Link ready, good for ${days} days. Copy it and send it.` }
+}
+
+/** Stop a link working. An unsigned estimate somebody has changed their mind
+ *  about, or a link sent to the wrong address. A signed one stays open: the
+ *  person who signed it should be able to read what they signed. */
+export async function revokeQuoteLink(_p: Result | null, form: FormData): Promise<Result> {
+  const { db, account } = await ctx()
+  const id = str(form, 'link_id')
+  const job = str(form, 'job_id')
+  if (!id) return { ok: false, message: 'No link.' }
+
+  const { data, error } = await db.schema('hopper').from('fence_quote_link')
+    .update({ revoked: true })
+    .eq('account_id', account).eq('id', id).is('signed_at', null)
+    .select('id').maybeSingle()
+  if (error) return { ok: false, message: refused(error.message, 'estimate') }
+  if (!data) {
+    return { ok: false, message: 'That link is already signed or already off.' }
+  }
+  revalidatePath(`/fence/${job}/estimate`)
+  return { ok: true, message: 'That link no longer opens.' }
+}

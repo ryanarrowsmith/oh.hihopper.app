@@ -9413,3 +9413,200 @@ a.crow:focus-visible{ outline:none; box-shadow:inset var(--focus); }
      least load-bearing thing on the screen. */
   .fjarail--own .fjwho{display:none}
 }
+
+/* ==========================================================================
+   THE CUSTOMER'S ESTIMATE  (.est)
+
+   The one document in Hopper drawn in ON CALL's brand rather than Hopper's,
+   because it is the only thing a customer ever sees. Two letter sheets on
+   screen, two pages out of a printer, one set of markup.
+
+   RED IS THE LOGO'S AND NOTHING ELSE'S -- Ryan's rule, 14 Sep, system wide.
+   Steel does the eyebrow, the section rules, the bullets and the line on the
+   plan; the only red on the page lives inside the artwork. The letterhead's own
+   black sweep closes the last sheet, and that one shape is the whole device:
+   the printed stock opens with a RED sweep top-left, and a steel one in its
+   place would be a corner of color doing nothing.
+
+   Namespaced hard. Nothing in here may leak into the app, and nothing in the
+   app may reach in: this page is rendered to somebody outside the company and
+   a stray rule from a dashboard is a stray rule on a contract.
+   ========================================================================== */
+.est, .est__page{
+  --est-steel:#0069A6;
+  --est-ink:#0C0C0C;
+  --est-ink-2:#4A4A4A;
+  --est-ink-3:#807B76;
+  --est-rule:#DEDAD3;
+  --est-rule-soft:#EDE9E3;
+  --est-sand:#F4F1EB;
+  --est-sq:"Saira","Archivo","Helvetica Neue",Arial,sans-serif;
+  --est-tx:"Source Sans 3","Source Sans Pro","Segoe UI",Helvetica,Arial,sans-serif;
+}
+.est__page{min-height:100vh; background:#E6E2DB; padding:0 0 40px;
+  font-family:var(--est-tx); color:var(--est-ink)}
+.est__bar{display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  padding:14px 20px; background:var(--est-ink); color:#fff;
+  font-family:var(--est-sq); font-size:12px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase}
+.est__bar .btn{margin-left:auto}
+.est--gone{max-width:34rem; margin:0 auto; padding:80px 22px;
+  font-family:var(--est-tx)}
+.est--gone h1{font-family:var(--est-sq); font-size:26px; margin:0 0 10px}
+.est--gone p{font-size:15px; line-height:1.6; color:var(--est-ink-2)}
+
+.est__sheet{position:relative; overflow:hidden; width:8.5in; min-height:11in;
+  margin:26px auto; padding:.62in .68in .55in; background:#fff;
+  box-shadow:0 1px 2px rgba(0,0,0,.10), 0 14px 34px rgba(0,0,0,.13);
+  font-size:11pt; line-height:1.55}
+.est__sheet--last::after{content:""; position:absolute; right:0; bottom:0;
+  width:1.45in; height:2.05in;
+  background:radial-gradient(circle 2.05in at 0 0,
+    rgba(0,0,0,0) 0 2.05in, var(--est-ink) 2.05in)}
+.est__sheet > *{position:relative; z-index:1}
+
+.est__mast{display:flex; align-items:flex-end; gap:24px; padding-bottom:14px}
+.est__mast img{width:250px; height:auto; display:block}
+.est__no{margin-left:auto; text-align:right}
+.est__no b{display:block; font-family:var(--est-sq); font-size:9pt; font-weight:700;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--est-steel)}
+.est__no span{display:block; font-family:var(--est-sq); font-size:19pt; font-weight:700;
+  letter-spacing:-.01em; line-height:1.15; margin-top:2px}
+.est__no small{display:block; font-size:9.5pt; color:var(--est-ink-3); margin-top:3px}
+.est__rule{height:3px; background:var(--est-ink); margin:0 0 22px}
+
+.est h1{font-family:var(--est-sq); font-weight:700; font-size:25pt; line-height:1.12;
+  letter-spacing:-.015em; margin:0 0 6px}
+.est__lede{margin:0 0 24px; font-size:11.5pt; color:var(--est-ink-2); max-width:62ch}
+
+.est__band{display:flex; gap:16px; align-items:flex-start; margin:0 0 26px;
+  padding:14px 16px; background:var(--est-sand); border-left:4px solid var(--est-steel)}
+.est__band b{flex:0 0 auto; font-family:var(--est-sq); font-size:8.2pt; font-weight:700;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--est-steel); padding-top:2px}
+.est__band p{margin:0; font-size:10.5pt; line-height:1.55; color:var(--est-ink-2)}
+
+.est__facts{display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
+  background:var(--est-rule); border:1px solid var(--est-rule); margin-bottom:26px}
+.est__facts > div{background:#fff; padding:12px 14px; min-width:0}
+.est__facts span{display:block; font-family:var(--est-sq); font-size:7.6pt; font-weight:700;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--est-ink-3)}
+.est__facts b{display:block; margin-top:4px; font-size:11pt; font-weight:600; line-height:1.4;
+  overflow-wrap:anywhere}
+.est__facts i{display:block; font-style:normal; font-size:10pt; color:var(--est-ink-2);
+  line-height:1.45; overflow-wrap:anywhere}
+.est__none{font-style:normal; font-weight:400; color:var(--est-ink-3)}
+
+.est h2{font-family:var(--est-sq); font-size:10.5pt; font-weight:700; letter-spacing:.16em;
+  text-transform:uppercase; margin:0 0 12px; padding-bottom:7px;
+  border-bottom:2px solid var(--est-steel)}
+.est__sec{margin-bottom:26px; break-inside:avoid}
+
+.est__fig{margin:0}
+.est__fig img{display:block; width:100%; height:auto; border:1px solid var(--est-rule)}
+.est__fig figcaption{display:flex; gap:10px; flex-wrap:wrap; margin-top:7px;
+  font-family:var(--est-sq); font-size:8pt; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--est-ink-3)}
+.est__fig figcaption span:last-child{margin-left:auto}
+
+.est__spec{list-style:none; margin:0; padding:0}
+.est__spec li{display:flex; gap:14px; padding:9px 0;
+  border-bottom:1px solid var(--est-rule-soft); font-size:10.8pt; line-height:1.5}
+.est__spec li:last-child{border-bottom:0}
+.est__spec b{flex:0 0 152px; font-family:var(--est-sq); font-size:8.2pt; font-weight:700;
+  letter-spacing:.13em; text-transform:uppercase; color:var(--est-ink-3); padding-top:3px}
+.est__spec span{flex:1 1 auto; min-width:0}
+
+.est__price{width:100%; border-collapse:collapse}
+.est__price th{font-family:var(--est-sq); font-size:8pt; font-weight:700; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--est-ink-3); text-align:left; padding:0 0 8px;
+  border-bottom:1px solid var(--est-rule)}
+.est__price th:last-child, .est__price td:last-child{text-align:right}
+.est__price td{padding:11px 0; border-bottom:1px solid var(--est-rule-soft);
+  font-size:11pt; vertical-align:top}
+.est__price td small{display:block; font-size:9.5pt; color:var(--est-ink-3); margin-top:2px}
+.est__num{font-variant-numeric:tabular-nums; white-space:nowrap}
+.est__price tr.est__tot td{border-bottom:0; border-top:3px solid var(--est-ink);
+  padding-top:14px; font-family:var(--est-sq); font-size:15pt; font-weight:700;
+  letter-spacing:-.01em}
+.est__price tr.est__tot td:last-child{font-size:22pt}
+.est__after{display:flex; gap:16px; flex-wrap:wrap; margin-top:10px; font-size:9.5pt;
+  color:var(--est-ink-3)}
+.est__after b{color:var(--est-ink-2); font-weight:600}
+.est__note{margin:12px 0 0; padding:11px 14px; background:var(--est-sand);
+  font-size:10.3pt; line-height:1.55; color:var(--est-ink-2)}
+.est__note b{font-weight:700; color:var(--est-ink)}
+
+.est__two{display:grid; grid-template-columns:1fr 1fr; gap:30px}
+.est__list{list-style:none; margin:0; padding:0}
+.est__list li{position:relative; padding:0 0 7px 18px; font-size:10.5pt; line-height:1.5}
+.est__list li::before{content:""; position:absolute; left:0; top:.62em; width:7px; height:7px;
+  background:var(--est-steel)}
+.est__list--not li::before{background:none; border:1.5px solid var(--est-rule);
+  top:.55em; width:8px; height:8px}
+
+.est__runs{display:grid; grid-template-columns:repeat(3,1fr); gap:24px}
+.est__runs h3{font-family:var(--est-sq); font-size:8.4pt; font-weight:700; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--est-ink-3); margin:0 0 5px}
+.est__runs p{margin:0; font-size:10.3pt; line-height:1.55; color:var(--est-ink-2)}
+
+.est__accept{border:2px solid var(--est-ink); padding:20px 22px 24px;
+  background:var(--est-sand)}
+.est__accept h2{border-bottom-color:var(--est-ink); margin-bottom:10px}
+.est__accept p{margin:0 0 18px; font-size:10.5pt; line-height:1.6; color:var(--est-ink-2);
+  max-width:66ch}
+.est__signed{font-size:12pt !important; color:var(--est-ink) !important}
+.est__sign{display:grid; grid-template-columns:1.4fr 1fr 1.2fr; gap:18px; margin-bottom:18px}
+.est__sign label{display:block}
+.est__sign span{display:block; font-family:var(--est-sq); font-size:7.8pt; font-weight:700;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--est-ink-3); margin-bottom:5px}
+.est__field{width:100%; min-height:44px; padding:9px 12px; font-size:12pt;
+  font-family:var(--est-tx); color:var(--est-ink); background:#fff;
+  border:1.5px solid var(--est-ink); border-radius:0}
+.est__field:focus{outline:none; box-shadow:0 0 0 3px rgba(0,105,166,.28)}
+.est__go{display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+.est__btn{min-height:48px; padding:0 26px; font-family:var(--est-sq); font-size:12pt;
+  font-weight:700; letter-spacing:.04em; color:#fff; background:var(--est-steel);
+  border:0; cursor:pointer}
+.est__btn:disabled{background:#B9B3AA; cursor:not-allowed}
+.est__go span{flex:1 1 260px; font-size:9.5pt; color:var(--est-ink-3)}
+.est__bad{margin:14px 0 0; padding:10px 13px; background:#FDF3F2;
+  border-left:3px solid var(--est-ink); font-size:10.5pt; color:var(--est-ink)}
+
+.est__foot{margin-top:30px; padding-top:12px; border-top:1px solid var(--est-rule);
+  display:flex; gap:14px; flex-wrap:wrap; font-size:9pt; color:var(--est-ink-3)}
+.est__foot span:last-child{margin-left:auto}
+
+@media (max-width:900px){
+  .est__sheet{width:auto; min-height:0; margin:14px; padding:26px 20px 30px}
+  .est__sheet--last::after{display:none}
+  .est__mast{flex-wrap:wrap; gap:14px}
+  .est__mast img{width:190px}
+  .est__no{margin-left:0; text-align:left}
+  .est h1{font-size:21pt}
+  .est__facts, .est__runs, .est__sign{grid-template-columns:1fr}
+  .est__two{grid-template-columns:1fr; gap:22px}
+  .est__spec li{flex-direction:column; gap:2px}
+  .est__spec b{flex:none}
+  .est__btn{width:100%}
+}
+@media print{
+  .est__page{background:#fff; padding:0}
+  .est__bar{display:none}
+  .est__sheet{width:auto; min-height:0; margin:0; padding:0; box-shadow:none;
+    break-after:page}
+  .est__sheet:last-of-type{break-after:auto}
+  .est__field{border:0; border-bottom:1.5px solid var(--est-ink)}
+  .est__btn, .est__go span{display:none}
+}
+
+/* The link out to be signed, and the signature when it comes back. Rides on the
+   estimator's own chrome rather than the customer document's -- this is the
+   salesperson's side of it. */
+.fxlink{margin-top:4px; padding:12px 14px; background:var(--sunken);
+  border:1px solid var(--rule)}
+.fxlink__u{display:block; font-family:var(--mono); font-size:12px; line-height:1.6;
+  color:var(--ink-2); overflow-wrap:anywhere}
+.fxlink__go{display:flex; gap:10px; flex-wrap:wrap; margin-top:11px}
+.fxsigned{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:14px 0 0}
+.fxsigned small{font-size:12.5px; color:var(--ink-3)}
+@media (max-width:640px){ .fxlink__go .btn{min-height:44px; width:100%} }

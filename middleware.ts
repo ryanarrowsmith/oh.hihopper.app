@@ -4,7 +4,13 @@ import { NextResponse, type NextRequest } from 'next/server'
 // /forgot and /reset are reachable signed out by definition: somebody who
 // could sign in would not be on either of them. /landing and /beta are the
 // public face on hihopper.app and have no session by design.
-const PUBLIC = ['/sign-in', '/forgot', '/reset', '/auth', '/no-access', '/landing', '/beta/']
+/* The token routes are open because the person opening them has no account and
+   never will: a fence crew standing in a yard, and a customer reading the
+   estimate they were sent. The secret in the path is what stands in for a
+   session, exactly as it does for `cal`. Without this the crew ticket redirects
+   a crew to a sign-in page they cannot pass. */
+const PUBLIC = ['/sign-in', '/forgot', '/reset', '/auth', '/no-access', '/landing',
+                '/beta/', '/t/', '/e/']
 
 /* The bare domain is the landing page; oh. is the app.
    One project, one deploy, one set of keys — the host decides which face a
