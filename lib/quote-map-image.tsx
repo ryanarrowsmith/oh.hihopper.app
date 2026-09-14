@@ -38,23 +38,60 @@ export async function renderQuoteMap(
    *  to ask the question in production rather than guessing at it again. */
   bare = false,
 ): Promise<Response> {
-  const img = build(job, runs, asOf, bare)
+  /* THE AERIAL IS FETCHED HERE, NOT BY THE RENDERER.
+     Satori will happily take a URL and go and get it, and that is what made
+     this route impossible to read when it went wrong: a tile that comes back as
+     anything other than an image is parsed as MARKUP, and an error page full of
+     divs trips satori's "explicit display" rule -- so a Mapbox problem surfaced
+     as a layout complaint about a <div> that does not exist in this file.
+     Fetching it ourselves means three things: the status is logged when it is
+     not an image, a bad tile degrades to a map with no photograph under it
+     rather than no map at all, and the drawing touches no network. */
+  const photo = bare ? null : await aerialData(job, runs)
+  const img = build(job, runs, asOf, photo)
   return new Response(await img.arrayBuffer(), {
     headers: { 'Content-Type': 'image/png', 'Cache-Control': cache },
   })
 }
 
-function build(job: MapJob, runs: MapRun[], asOf: string | null,
-               bare: boolean): ImageResponse {
+/** The aerial as bytes, or null and a line in the log saying why not. */
+async function aerialData(job: MapJob, runs: MapRun[]): Promise<string | null> {
   const all = runs.flatMap((r) => r.points)
   const view = viewFit(all, W, PLAN)
   const sw = toLngLat(view, 0, PLAN), ne = toLngLat(view, W, 0)
-  const aerial = bare ? null : aerialBoxUrl({
+  // Half size from Mapbox at @2x is the same pixels, and one request rather
+  // than the largest the API will give us.
+  const url = aerialBoxUrl({
     west: sw[0], south: sw[1], east: ne[0], north: ne[1],
-    // Half size from Mapbox at @2x is the same pixels, and one request rather
-    // than the largest the API will give us.
     width: W / 2, height: PLAN / 2,
   })
+  if (!url) return null
+
+  try {
+    const res = await fetch(url, { cache: 'no-store' })
+    const type = res.headers.get('content-type') ?? ''
+    if (!res.ok || !type.startsWith('image/')) {
+      // The URL carries the token, so it is never logged. The status and the
+      // type are what say what went wrong.
+      console.error('[quote map] the aerial came back', res.status,
+        type || 'with no content type', 'for', job.ref)
+      return null
+    }
+    const buf = Buffer.from(await res.arrayBuffer())
+    return `data:${type};base64,${buf.toString('base64')}`
+  } catch (e) {
+    console.error('[quote map] the aerial could not be fetched for', job.ref,
+      e instanceof Error ? e.message : String(e))
+    return null
+  }
+}
+
+function build(job: MapJob, runs: MapRun[], asOf: string | null,
+               photo: string | null): ImageResponse {
+  const all = runs.flatMap((r) => r.points)
+  const view = viewFit(all, W, PLAN)
+  const sw = toLngLat(view, 0, PLAN), ne = toLngLat(view, W, 0)
+  const aerial = photo
 
   const feet = runs.reduce((s, r) => s + lineFeet(r.points, r.closed), 0)
   const art = quoteMapArt(runs, view)
